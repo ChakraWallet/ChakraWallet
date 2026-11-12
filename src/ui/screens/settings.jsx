@@ -343,6 +343,8 @@ export function Settings({ section }) {
             <>
               <div class="small">{t('settings.toncenter')} <span class="muted">{t('settings.toncenter.hint')}</span></div>
               <EtherscanKey value={s.tonCenterKey} onSave={(v) => save({ tonCenterKey: v })} />
+              <div class="small">{t('settings.tonapi')} <span class="muted">{t('settings.tonapi.hint')}</span></div>
+              <EtherscanKey value={s.tonApiKey} onSave={(v) => save({ tonApiKey: v })} />
             </>
           )}
           <div class="tiny muted">{t('settings.sources')}</div>

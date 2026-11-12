@@ -8,5 +8,6 @@ import transfer from './transfer.js';
 import predict from './predict.js';
 import contracts from './contracts.js';
 import ton from './ton.js';
+import toncontracts from './toncontracts.js';
 
-export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton };
+export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts };

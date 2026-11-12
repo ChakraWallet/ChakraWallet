@@ -7,6 +7,11 @@ import { ContractsHome } from './home.jsx';
 import { ContractView } from './contract.jsx';
 import { TxReview } from './txReview.jsx';
 import { Studio, CreateTemplate, Deploy, SourceView } from './studio.jsx';
+import { isTon } from '../../../shared/ton/api.js';
+import { TonContractView } from './ton/view.jsx';
+import { TonTxReview } from './ton/review.jsx';
+import { TonCreate } from './ton/create.jsx';
+import { TonStudio, TonDeploy } from './ton/studio.jsx';
 
 let seq = 0;
 
@@ -38,13 +43,21 @@ export function Contracts({ visible, onDeep }) {
   const render = (e) => {
     const chain = getChain(e.chainId, state.customChains) || active;
     const common = { onBack: back, open };
+    if (e.name === 'contract' && isTon(chain)) return <TonContractView chainId={e.chainId} address={e.address} {...common} />;
+    if (e.name === 'tontx') {
+      return <TonTxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined}
+        onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />;
+    }
+    if (e.name === 'toncreate') return <TonCreate kind={e.kind} chainId={e.chainId} {...common} />;
+    if (e.name === 'tonstudio') return <TonStudio projectId={e.projectId} newProject={e.newProject} chainId={e.chainId} {...common} />;
+    if (e.name === 'tondeploy') return <TonDeploy build={e.build} project={e.project} chainId={e.chainId} {...common} />;
     return e.name === 'contract' ? <ContractView chainId={e.chainId} address={e.address} {...common} />
       : e.name === 'tx' ? <TxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined} renderDone={e.renderDone}
         onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />
         : e.name === 'create' ? <CreateTemplate kind={e.kind} {...common} />
           : e.name === 'studio' ? <Studio projectId={e.projectId} autoDeploy={e.autoDeploy} {...common} />
             : e.name === 'deploy' ? <Deploy artifact={e.artifact} compilation={e.compilation} chainId={e.chainId} {...common} />
-              : e.name === 'source' ? <SourceView title={e.title} files={e.files} {...common} /> : null;
+              : e.name === 'source' ? <SourceView title={e.title} files={e.files} noProject={e.noProject} {...common} /> : null;
   };
   return (
     <div class="screen ct" style={{ display: visible ? 'flex' : 'none' }}>

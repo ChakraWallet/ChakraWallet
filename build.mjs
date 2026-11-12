@@ -184,6 +184,17 @@ async function buildAndroid() {
     define: { __TARGET__: '"android"', __VERSION__: JSON.stringify(pkg.version) },
     logLevel: 'info',
   });
+  // Tact compiler (TON studio, Contracts tab): its own bundle, loaded on the first compilation. The compiler is
+  // written for Node: `path`, `process` and `fs` get small browser stand-ins (src/ui/shims).
+  const shim = (f) => path.join(SRC, 'ui', 'shims', f);
+  await esbuild.build({
+    entryPoints: { 'tact-worker': path.join(SRC, 'ui', 'tactWorker.js') },
+    bundle: true, outdir, format: 'iife', target: ['chrome100'], minify: true, logLevel: 'info',
+    alias: {
+      path: shim('path.js'), 'node:path': shim('path.js'), process: shim('process.js'), 'node:process': shim('process.js'),
+      fs: shim('empty.js'), 'node:fs': shim('empty.js'), child_process: shim('empty.js'), 'node:buffer': 'buffer',
+    },
+  });
   // launcher icons (only once the native project exists)
   const res = path.join(ROOT, 'android', 'app', 'src', 'main', 'res');
   if (fs.existsSync(res)) {

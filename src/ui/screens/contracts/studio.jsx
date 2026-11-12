@@ -10,7 +10,7 @@ import {
 import { safeInterface } from '../../../shared/contracts.js';
 import { emptyValue, toArgs, parseInteger } from '../../../shared/abiInput.js';
 import { t } from '../../../shared/i18n.js';
-import { CodeEditor } from './codeEditor.jsx';
+import { CodeEditor, langOf } from './codeEditor.jsx';
 import { NetworkSheet } from '../home.jsx';
 import { ParamInput, argMessage } from './abiForm.jsx';
 import { releases, loadCompiler, compile, isDownloaded } from '../../solcClient.js';
@@ -390,7 +390,7 @@ export function Deploy({ artifact, compilation, chainId: initialChain, onBack, o
 }
 
 // ------------------------------------------------------------ verified sources
-export function SourceView({ title, files, onBack, open }) {
+export function SourceView({ title, files, noProject, onBack, open }) {
   const [i, setI] = useState(() => Math.max(0, files.findIndex((f) => !f.path.startsWith('@') && !f.path.includes('node_modules'))));
   const [busy, setBusy] = useState(false);
   const f = files[i];
@@ -406,8 +406,8 @@ export function SourceView({ title, files, onBack, open }) {
       <Bar title={title} onBack={onBack} right={<button class="iconbtn" title={t('common.copy')} onClick={() => navigator.clipboard.writeText(f.content)}><Icon name="copy" size={18} /></button>} />
       {files.length > 1 && <div class="ct-files">{files.map((x, k) => <button class={`chip ct-file ${k === i ? 'on' : ''}`} onClick={() => setI(k)}>{x.path.split('/').pop()}</button>)}</div>}
       <div class="tiny muted mono ct-path">{f.path}</div>
-      <CodeEditor key={f.path} value={f.content} readOnly />
-      {__TARGET__ === 'android' && <div class="footer"><Btn kind="secondary" loading={busy} onClick={asProject}><Icon name="edit" size={16} /> {t('contracts.source.asProject')}</Btn></div>}
+      <CodeEditor key={f.path} value={f.content} readOnly lang={langOf(f.path, noProject ? 'plain' : 'solidity')} />
+      {__TARGET__ === 'android' && !noProject && <div class="footer"><Btn kind="secondary" loading={busy} onClick={asProject}><Icon name="edit" size={16} /> {t('contracts.source.asProject')}</Btn></div>}
     </div>
   );
 }

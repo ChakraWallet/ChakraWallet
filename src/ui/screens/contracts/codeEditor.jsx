@@ -1,13 +1,62 @@
-// Code editor (CodeMirror 6) with Solidity highlighting, themed with the app's colours, and compiler diagnostics.
+// Code editor (CodeMirror 6) with Solidity highlighting (and simple highlighting for the TON languages: Tact, FunC,
+// Tolk), themed with the app's colours, and compiler diagnostics.
 import { useEffect, useRef } from 'preact/hooks';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching, indentUnit } from '@codemirror/language';
+import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching, indentUnit, StreamLanguage } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { solidity } from '@replit/codemirror-lang-solidity';
+
+// ------------------------------------------------------------ TON languages (keywords, comments, strings, numbers)
+const words = (s) => new Set(s.split(/\s+/));
+function cLike({ keywords, atoms, line, block }) {
+  const kw = words(keywords), at = words(atoms);
+  return StreamLanguage.define({
+    startState: () => ({ inBlock: false }),
+    token(stream, st) {
+      if (st.inBlock) {
+        const i = stream.string.indexOf(block[1], stream.pos);
+        if (i < 0) { stream.skipToEnd(); return 'comment'; }
+        stream.pos = i + block[1].length; st.inBlock = false; return 'comment';
+      }
+      if (stream.eatSpace()) return null;
+      if (line.some((l) => stream.match(l))) { stream.skipToEnd(); return 'comment'; }
+      if (stream.match(block[0])) { st.inBlock = true; return 'comment'; }
+      if (stream.match(/^"(?:[^"\\]|\\.)*"?/)) return 'string';
+      if (stream.match(/^-?(0x[0-9a-fA-F_]+|0b[01_]+|\d[\d_]*)/)) return 'number';
+      if (stream.match(/^#?[A-Za-z_][\w?!']*/)) {
+        const w = stream.current();
+        if (kw.has(w) || w.startsWith('#')) return 'keyword';
+        if (at.has(w)) return 'atom';
+        return /^[A-Z]/.test(w) ? 'typeName' : 'variableName';
+      }
+      stream.next();
+      return 'operator';
+    },
+    languageData: { commentTokens: { line: line[0] } },
+  });
+}
+const TON_LANGS = {
+  tact: cLike({
+    keywords: 'contract trait struct message fun receive bounced external init get let const if else while repeat do until return try catch foreach in as with import primitive native extends mutates virtual override abstract inline asm self initOf require throw emit send reply forward dump codeOf',
+    atoms: 'true false null', line: ['//'], block: ['/*', '*/'],
+  }),
+  func: cLike({
+    keywords: 'int cell slice builder cont tuple var forall return if ifnot else elseif elseifnot while do until repeat try catch impure inline inline_ref method_id asm const global',
+    atoms: 'true false nil Nil', line: [';;'], block: ['{-', '-}'],
+  }),
+  tolk: cLike({
+    keywords: 'fun get import tolk const global var val if else while do repeat return try catch throw assert match struct type enum as is lazy mutate contract',
+    atoms: 'true false null', line: ['//'], block: ['/*', '*/'],
+  }),
+};
+const EXT = { tact: 'tact', fc: 'func', func: 'func', tolk: 'tolk', sol: 'solidity' };
+/** Language of a file by its extension: solidity, tact, func, tolk, else `fallback`. */
+export const langOf = (path, fallback = 'plain') => EXT[String(path).split('.').pop().toLowerCase()] || fallback;
+const language = (lang) => (lang === 'solidity' ? solidity : TON_LANGS[lang] || []);
 
 const theme = EditorView.theme({
   '&': { color: 'var(--text)', backgroundColor: 'var(--card)', height: '100%', fontSize: '.8125rem' },
@@ -44,7 +93,7 @@ const highlight = HighlightStyle.define([
  *   a read-only one follows it).
  * diagnostics: [{ from, to, severity, message }] for this file. jump: { line, n } scrolls to a line.
  */
-export function CodeEditor({ value, onChange, readOnly = false, diagnostics, jump }) {
+export function CodeEditor({ value, onChange, readOnly = false, diagnostics, jump, lang = 'solidity' }) {
   const el = useRef(null);
   const view = useRef(null);
   const ro = useRef(new Compartment());
@@ -56,7 +105,7 @@ export function CodeEditor({ value, onChange, readOnly = false, diagnostics, jum
       doc: value || '',
       extensions: [
         lineNumbers(), highlightActiveLineGutter(), history(), drawSelection(), indentOnInput(), bracketMatching(), closeBrackets(),
-        highlightActiveLine(), indentUnit.of('    '), solidity, syntaxHighlighting(highlight), theme, lintGutter(),
+        highlightActiveLine(), indentUnit.of('    '), language(lang), syntaxHighlighting(highlight), theme, lintGutter(),
         keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
         ro.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
         EditorView.updateListener.of((u) => { if (u.docChanged) cb.current?.(u.state.doc.toString()); }),

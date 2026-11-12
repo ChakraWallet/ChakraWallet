@@ -29,7 +29,7 @@ await esbuild.build({
   jsx: 'automatic',
   jsxImportSource: 'preact',
   alias: { '@capacitor/preferences': capacitor, '@capacitor/core': capacitor, '@capacitor/app': capacitor },
-  external: ['solc'], // the Solidity compiler (10 MB) is loaded from node_modules by the template test
+  external: ['solc', '@tact-lang/compiler', 'esbuild'], // compilers (~10 MB each) and esbuild (Tact bindings test) load from node_modules
   // CommonJS packages (e.g. the TON crypto primitives) require Node built-ins: give the ESM bundles a require()
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
   logLevel: 'error',

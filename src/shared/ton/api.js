@@ -78,6 +78,38 @@ export async function tonAddressStatus(chain, address) {
   return r.status || 'uninit';
 }
 
+/** Code, data, balance and status of any address (code and data as base64 BoC, null when absent). */
+export async function tonAddressInfo(chain, address) {
+  const r = await call(chain, '/api/v3/addressInformation', { params: { address, use_v2: false } });
+  return { balance: big(r.balance), status: r.status || 'uninit', code: r.code || null, data: r.data || null, frozenHash: r.frozen_hash || null };
+}
+
+// ------------------------------------------------------------ contracts
+/** Runs a get method (name, or numeric id as text) -> { exitCode, gasUsed, stack } (stack in TON Center format). */
+export async function tonRunGetMethod(chain, address, method, stack = []) {
+  const r = await call(chain, '/api/v3/runGetMethod', { body: { address, method: String(method), stack } });
+  return { exitCode: Number(r.exit_code ?? 0), gasUsed: Number(r.gas_used ?? 0), stack: r.stack || [] };
+}
+
+/** The chain of transactions (trace) a transaction belongs to, or null while it isn't indexed. txHash: hex. */
+export async function tonTraceByTx(chain, txHash) {
+  const r = await call(chain, '/api/v3/traces', { params: { tx_hash: txHash, include_actions: false } });
+  return r.traces?.[0] || null;
+}
+
+/** Latest transactions of an address (newest first): [{ hash (hex), time, ok, op, value, from, bounced }]. */
+export async function tonTransactions(chain, address, limit = 20) {
+  const r = await call(chain, '/api/v3/transactions', { params: { account: address, limit, sort: 'desc' } });
+  return (r.transactions || []).map((tx) => {
+    const d = tx.description || {}, c = d.compute_ph || {}, m = tx.in_msg || {};
+    const failed = (!c.skipped && c.success === false) || d.action?.success === false;
+    return {
+      hash: Buffer.from(tx.hash, 'base64').toString('hex'), time: Number(tx.now) * 1000, ok: !failed, exitCode: c.exit_code ?? null,
+      op: m.opcode != null ? Number(m.opcode) >>> 0 : null, value: big(m.value), from: m.source || null, bounced: !!m.bounced, external: !m.source,
+    };
+  });
+}
+
 // ------------------------------------------------------------ jettons
 const metaCache = new Map(); // master raw -> { name, symbol, decimals, image, scam }
 const stonCache = new Map(); // master raw -> { price, image, blacklisted, known, t }
