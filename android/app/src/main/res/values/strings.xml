@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chakra</string>
+    <string name="title_activity_main">Chakra</string>
+    <string name="package_name">dev.chakrawallet</string>
+    <string name="custom_url_scheme">dev.chakrawallet</string>
+    <!-- fingerprint (BiometricPlugin) -->
+    <string name="bio_negative">Use password</string>
+    <string name="bio_enable_title">Turn on fingerprint unlock</string>
+    <string name="bio_unlock_title">Unlock Chakra</string>
+    <string name="bio_password_missing">Missing password</string>
+    <string name="bio_no_fingerprint">No fingerprint is set up on this phone</string>
+    <string name="bio_key_failed">Couldn\'t create the key: %1$s</string>
+    <string name="bio_not_enabled">Fingerprint unlock is off</string>
+    <string name="bio_invalidated">Your phone\'s fingerprints have changed: enter your password and turn fingerprint unlock back on in Settings</string>
+    <string name="bio_unavailable">Fingerprint unavailable: %1$s</string>
+    <string name="bio_error">Fingerprint error: %1$s</string>
+    <!-- in-app browser (DappBrowserPlugin) -->
+    <string name="browser_invalid_url">Invalid address</string>
+    <string name="browser_max_tabs">You already have %1$d tabs open: close one first</string>
+    <string name="browser_tab_not_found">Tab not found</string>
+    <string name="browser_no_site">No site is open</string>
+    <!-- notifications (WatchWorker) -->
+    <string name="notif_channel">Wallet activity</string>
+    <string name="notif_channel_desc">Funds received or sent and bridges that arrived</string>
+    <string name="notif_received">Received %1$s %2$s</string>
+    <string name="notif_sent">Sent %1$s %2$s</string>
+    <string name="notif_where">%1$s · %2$s</string>
+    <string name="notif_bridge_done">Bridge arrived</string>
+    <string name="notif_bridge_refunded">Bridge refunded</string>
+    <string name="notif_bridge_failed">Bridge failed</string>
+    <string name="notif_bridge_body">%1$s %2$s on %3$s</string>
+</resources>

@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- fingerprint (BiometricPlugin) -->
+    <string name="bio_negative">Usa la password</string>
+    <string name="bio_enable_title">Attiva lo sblocco con impronta</string>
+    <string name="bio_unlock_title">Sblocca Chakra</string>
+    <string name="bio_password_missing">Password mancante</string>
+    <string name="bio_no_fingerprint">Nessuna impronta configurata sul telefono</string>
+    <string name="bio_key_failed">Impossibile creare la chiave: %1$s</string>
+    <string name="bio_not_enabled">Impronta non attiva</string>
+    <string name="bio_invalidated">Le impronte del telefono sono cambiate: inserisci la password e riattiva l\'impronta nelle Impostazioni</string>
+    <string name="bio_unavailable">Impronta non disponibile: %1$s</string>
+    <string name="bio_error">Errore impronta: %1$s</string>
+    <!-- in-app browser (DappBrowserPlugin) -->
+    <string name="browser_invalid_url">Indirizzo non valido</string>
+    <string name="browser_max_tabs">Hai già %1$d schede aperte: chiudine una</string>
+    <string name="browser_tab_not_found">Scheda non trovata</string>
+    <string name="browser_no_site">Nessun sito aperto</string>
+    <!-- notifications (WatchWorker) -->
+    <string name="notif_channel">Attività del wallet</string>
+    <string name="notif_channel_desc">Fondi ricevuti o inviati e bridge arrivati</string>
+    <string name="notif_received">Ricevuti %1$s %2$s</string>
+    <string name="notif_sent">Inviati %1$s %2$s</string>
+    <string name="notif_where">%1$s · %2$s</string>
+    <string name="notif_bridge_done">Bridge arrivato</string>
+    <string name="notif_bridge_refunded">Bridge rimborsato</string>
+    <string name="notif_bridge_failed">Bridge fallito</string>
+    <string name="notif_bridge_body">%1$s %2$s su %3$s</string>
+</resources>

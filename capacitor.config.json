@@ -1,0 +1,18 @@
+{
+  "appId": "dev.chakrawallet",
+  "appName": "Chakra",
+  "webDir": "dist/android-web",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "adjustMarginsForEdgeToEdge": "disable",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

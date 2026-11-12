@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- debug build only: a separate app next to the release -->
+<resources>
+    <string name="app_name">Chakra Dev</string>
+    <string name="title_activity_main">Chakra Dev</string>
+</resources>

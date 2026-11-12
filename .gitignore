@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.jks
+*.keystore
+
+# Italian notes and plans (local only)
+/docs-it/

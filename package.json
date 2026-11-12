@@ -1,0 +1,50 @@
+{
+  "name": "chakra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chakra - a simple Ethereum wallet, MetaMask compatible, for Chrome, Firefox and Android",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "android": "node scripts/android.mjs",
+    "build:ext": "node build.mjs --ext",
+    "test": "node scripts/run-tests.mjs && node scripts/i18n-check.mjs",
+    "test:unit": "node scripts/run-tests.mjs",
+    "i18n-check": "node scripts/i18n-check.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.10",
+    "@capacitor/preferences": "^7.0.4",
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
+    "@noble/curves": "1.2.0",
+    "@noble/hashes": "1.3.2",
+    "@replit/codemirror-lang-solidity": "^6.0.2",
+    "@shazow/whatsabi": "^0.30.0",
+    "@ton/core": "^0.63.1",
+    "@ton/crypto": "^3.3.0",
+    "@ton/ton": "^16.3.0",
+    "buffer": "^6.0.3",
+    "ethers": "^6.17.0",
+    "jsqr": "^1.4.0",
+    "preact": "^11.1.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/instrument-sans": "^5.3.0",
+    "@openzeppelin/contracts": "5.6.1",
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
+    "solc": "^0.8.38"
+  }
+}
