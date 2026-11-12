@@ -5,8 +5,9 @@ import { bg } from '../../shared/ext.js';
 import { AppIcon, Btn, Icon, Switch, ChainIcon, useApp, SecureScreen, rich, CopyPhrase, mandalaRings } from '../components.jsx';
 import { isChainEnabled, builtinNetworks, ALWAYS_ON } from '../../shared/chains.js';
 import { bioStatus } from '../auth.jsx';
-import { CURRENCIES } from '../../shared/fx.js';
-import { t, tn, locale } from '../../shared/i18n.js';
+import { t, tn } from '../../shared/i18n.js';
+import { Flag, LanguageSheet, languageState } from '../language.jsx';
+import { CurrencyTiles } from '../pickers.jsx';
 
 function strength(pw) {
   let s = 0;
@@ -19,7 +20,6 @@ function strength(pw) {
 }
 const LABELS = ['onboarding.strength.0', 'onboarding.strength.1', 'onboarding.strength.2', 'onboarding.strength.3', 'onboarding.strength.4']; // i18n keys
 const COLORS = ['var(--red)', 'var(--red)', 'var(--amber)', 'var(--green)', 'var(--green)'];
-const SYMBOLS = { USD: '$', EUR: '€', GBP: '£', CHF: 'Fr.' };
 
 const hasNotify = () => !!globalThis.__CK_NOTIFY__;
 // main track (dots + mandala); seed / verify / import / backup all count as 'setup'
@@ -67,6 +67,7 @@ export function Onboarding({ onActive }) {
   const [answers, setAnswers] = useState({});
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [langSheet, setLangSheet] = useState(false);
   const [bio, setBio] = useState({ available: false, enabled: false });
   const pwInput = useRef(null);
   const s = state?.settings || {};
@@ -80,6 +81,16 @@ export function Onboarding({ onActive }) {
   useEffect(() => { globalThis.__CK_obBack = goBack; return () => { delete globalThis.__CK_obBack; }; }, [step]);
   useEffect(() => { if (step === 'done') bioStatus().then(setBio); }, [step]);
   // focus the password only after the slide-in, without scrolling (autofocus mid-animation shifted the screen)
+  // first setup: the optional networks start switched off (the user adds the ones they use); once per visit of the
+  // screen, and only while nothing was chosen yet (an empty list), so going back and forth keeps the choices
+  const netsDefault = useRef(false);
+  useEffect(() => {
+    if (step !== 'networks' || netsDefault.current || state?.initialized) return;
+    netsDefault.current = true;
+    if ((s.disabledChains || []).length) return;
+    const off = builtinNetworks().filter((c) => !c.testnet && !ALWAYS_ON.has(c.id)).map((c) => c.id);
+    if (off.length) save({ disabledChains: off });
+  }, [step]);
   useEffect(() => { if (step !== 'password') return; const id = setTimeout(() => pwInput.current?.focus({ preventScroll: true }), 520); return () => clearTimeout(id); }, [step]);
 
   const save = async (patch) => { await bg('saveSettings', { settings: patch }); await refresh(); };
@@ -127,7 +138,7 @@ export function Onboarding({ onActive }) {
           <p class="ob-sub">{t('onboarding.welcome.tagline')}<br />{t('onboarding.welcome.keysLocal')}</p>
         </div>
         <div class="ob-feats">
-          {[['wallet', 'onboarding.welcome.featAccounts'], ['swap', 'onboarding.welcome.featSwap'], ['globe', 'onboarding.welcome.featSites'], ['eye', 'onboarding.welcome.featFees']].map(([i, k]) => (
+          {[['wallet', 'onboarding.welcome.featAccounts'], ['swap', 'onboarding.welcome.featSwap'], ['eye', 'onboarding.welcome.featFees']].map(([i, k]) => (
             <div class="ob-feat"><span class="ob-feat-ic"><Icon name={i} size={18} /></span><span>{t(k)}</span></div>
           ))}
         </div>
@@ -147,44 +158,40 @@ export function Onboarding({ onActive }) {
           ))}
         </div>
         <div class="ob-label">{t('settings.language')}</div>
-        <div class="ob-pills" role="radiogroup">
-          {[['system', t('settings.language.system')], ['en', 'English'], ['it', 'Italiano']].map(([v, l]) => (
-            <button class={`ob-choice ob-pill ${lang === v ? 'on' : ''}`} role="radio" aria-checked={lang === v} onClick={() => save({ language: v })}>{l}</button>
-          ))}
-        </div>
+        <button class="ob-choice ob-lang" onClick={() => setLangSheet(true)}>
+          <span class="grow">{languageState(lang).label}</span>
+          <Flag code={languageState(lang).code} size={30} />
+          <Icon name="chevron" size={16} />
+        </button>
       </Step>
     );
   } else if (step === 'currency') {
-    const cur = s.currency || 'USD';
-    let names = null;
-    try { names = new Intl.DisplayNames([locale()], { type: 'currency' }); } catch { /* old engine: codes only */ }
-    const nameOf = (c) => { const n = names?.of(c) || ''; return n && n !== c ? n[0].toUpperCase() + n.slice(1) : ''; };
     body = (
       <Step title={t('onboarding.currency.title')} sub={t('settings.currency.sub')}
         foot={<Btn onClick={() => go('networks')}>{t('common.continue')}</Btn>}>
-        <div class="ob-cur" role="radiogroup">
-          {CURRENCIES.map((c) => (
-            <button class={`ob-choice ob-cur-tile ${cur === c ? 'on' : ''}`} role="radio" aria-checked={cur === c} onClick={() => save({ currency: c })}>
-              <span class="ob-sym">{SYMBOLS[c] || c}</span>
-              <span class="ob-cur-code">{c}</span>
-              <span class="ob-cur-name">{nameOf(c)}</span>
-            </button>
-          ))}
-        </div>
+        <CurrencyTiles value={s.currency} onPick={(c) => save({ currency: c })} />
       </Step>
     );
   } else if (step === 'networks') {
-    // built-in mainnets only (custom networks are added later, from Settings or by a site)
+    // built-in mainnets only (custom networks are added later, from Settings or by a site). The always-on ones
+    // (Ethereum, and TON in the app) stand apart; the others start switched off and the user adds the ones they use.
+    const mainnets = builtinNetworks().filter((c) => !c.testnet);
+    const fixed = mainnets.filter((c) => ALWAYS_ON.has(c.id)), optional = mainnets.filter((c) => !ALWAYS_ON.has(c.id));
     const disabled = s.disabledChains || [];
     const toggle = (id) => save({ disabledChains: disabled.includes(id) ? disabled.filter((x) => x !== id) : [...disabled, id] });
     body = (
       <Step title={t('onboarding.networks.title')} sub={t('onboarding.networks.sub')}
         foot={<Btn onClick={() => go(hasNotify() ? 'notify' : 'password')}>{t('common.continue')}</Btn>}>
+        <div class="ob-pinned" title={t('onboarding.networks.lockedHint')}>
+          <span class="ob-pinned-k"><Icon name="lock" size={13} /> {tn('onboarding.networks.always', fixed.length)}</span>
+          <span class="ob-pins">{fixed.map((c) => <span class="ob-pin"><ChainIcon chain={c} size={20} />{c.name}</span>)}</span>
+        </div>
+        <div class="ob-label">{t('onboarding.networks.add')}</div>
         <div class="ob-nets" role="group">
-          {builtinNetworks().filter((c) => !c.testnet).map((c) => {
-            const on = isChainEnabled(c.id, s), fixed = ALWAYS_ON.has(c.id);
+          {optional.map((c) => {
+            const on = isChainEnabled(c.id, s);
             return (
-              <button class={`ob-choice ob-net ${on ? 'on' : ''} ${fixed ? 'fixed' : ''}`} role="checkbox" aria-checked={on} aria-disabled={fixed} onClick={() => !fixed && toggle(c.id)}>
+              <button class={`ob-choice ob-net ${on ? 'on' : ''}`} role="checkbox" aria-checked={on} onClick={() => toggle(c.id)}>
                 <ChainIcon chain={c} size={28} />
                 <span class="grow">{c.name}</span>
                 <span class="ob-net-tick">{on && <Icon name="check" size={14} stroke={3} />}</span>
@@ -339,6 +346,7 @@ export function Onboarding({ onActive }) {
         <span class="ob-top-gap" />
       </div>
       <div class={`ob-stage ${dir}`} key={step}>{body}</div>
+      {langSheet && <LanguageSheet value={s.language} onPick={(v) => save({ language: v })} onClose={() => setLangSheet(false)} />}
     </div>
   );
 }

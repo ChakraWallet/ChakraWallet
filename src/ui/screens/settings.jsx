@@ -7,6 +7,8 @@ import { BackupFile } from './onboarding.jsx';
 import { bioStatus } from '../auth.jsx';
 import { resetTaste } from '../predictTaste.js';
 import { t, tn } from '../../shared/i18n.js';
+import { Flag, LanguageSheet, languageState } from '../language.jsx';
+import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
 
 function Row({ icon, title, sub, onClick, right }) {
   return (
@@ -97,7 +99,7 @@ function ExportBackup({ onClose }) {
         <textarea class="input mono tiny" rows={6} readOnly value={text} onFocus={(e) => e.target.select()} />
         <div class="row">
           <CopyBtn text={text} label={' ' + t('common.copy')} />
-          {!globalThis.__CK_MOBILE__ && <button class="btn secondary sm" onClick={save}><Icon name="receive" size={16} /> {t('settings.export.saveTxt')}</button>}
+          {!globalThis.__CK_MOBILE__ && <button class="btn secondary sm" onClick={save}><Icon name="fileDown" size={16} /> {t('settings.export.saveTxt')}</button>}
         </div>
         <Btn kind="secondary" onClick={onClose}>{t('common.close')}</Btn>
       </Sheet>
@@ -278,37 +280,16 @@ export function Settings({ section }) {
               ))}
             </div>
           </div>
-          <div class="item col-item">
-            <div class="row" style={{ width: '100%', gap: '0.625rem' }}>
-              <div class="tx-icon" style={{ background: 'var(--card-2)', color: 'var(--primary)' }}><Icon name="globe" /></div>
-              <div class="grow"><div class="bold">{t('settings.language')}</div><div class="small muted">{t('settings.language.sub')}</div></div>
-            </div>
-            <div class="seg seg-full" role="radiogroup">
-              {[['system', t('settings.language.system')], ['en', 'English'], ['it', 'Italiano']].map(([v, l]) => (
-                <button class={(s.language || 'system') === v ? 'on' : ''} role="radio" aria-checked={(s.language || 'system') === v} onClick={() => save({ language: v })}>{l}</button>
-              ))}
-            </div>
-          </div>
-          <div class="item col-item">
-            <div class="row" style={{ width: '100%', gap: '0.625rem' }}>
-              <div class="tx-icon" style={{ background: 'var(--card-2)', color: 'var(--primary)' }}><Icon name="wallet" /></div>
-              <div class="grow"><div class="bold">{t('settings.currency')}</div><div class="small muted">{t('settings.currency.sub')}</div></div>
-            </div>
-            <div class="seg seg-full" role="radiogroup">
-              {[['USD', '$ USD'], ['EUR', '€ EUR'], ['GBP', '£ GBP'], ['CHF', 'CHF']].map(([v, l]) => (
-                <button class={(s.currency || 'USD') === v ? 'on' : ''} role="radio" aria-checked={(s.currency || 'USD') === v} onClick={() => save({ currency: v })}>{l}</button>
-              ))}
-            </div>
-          </div>
+          <Row icon="globe" title={t('settings.language')} sub={languageState(s.language).label} onClick={() => setSheet('language')}
+            right={<Flag code={languageState(s.language).code} size={30} />} />
+          <Row icon="coins" title={t('settings.currency')} sub={`${s.currency || 'USD'} · ${currencyName(s.currency || 'USD')}`} onClick={() => setSheet('currency')}
+            right={<CurrencyBadge code={s.currency} />} />
           {globalThis.__CK_NOTIFY__ && (
             <Row icon="bell" title={t('settings.notifications')} sub={t('settings.notifications.sub')}
               right={<Switch on={s.notifications !== false} onChange={toggleNotif} />} onClick={() => toggleNotif(s.notifications === false)} />
           )}
-          <Row icon="lock" title={t('settings.autoLock')} sub={t('settings.autoLock.sub')} right={
-            <select class="input" style={{ width: 'auto', padding: '0.375rem 0.5rem' }} value={s.autoLockMin} onClick={(e) => e.stopPropagation()} onChange={(e) => save({ autoLockMin: Number(e.target.value) })}>
-              {[5, 15, 30, 60, 240, 0].map((m) => <option value={m}>{m ? (m >= 60 ? t('settings.autoLock.hours', { n: m / 60 }) : t('settings.autoLock.minutes', { n: m })) : t('settings.autoLock.never')}</option>)}
-            </select>
-          } />
+          <Row icon="lock" title={t('settings.autoLock')} sub={t('settings.autoLock.sub')} onClick={() => setSheet('autoLock')}
+            right={<span class="value-pill">{autoLockLabel(s.autoLockMin ?? 15)}</span>} />
           <Row icon="eye" title={t('settings.showUnpriced')} sub={t('settings.showUnpriced.sub')} right={<Switch on={s.showUnpriced} onChange={(v) => save({ showUnpriced: v })} />} onClick={() => save({ showUnpriced: !s.showUnpriced })} />
           <Row icon="globe" title={t('settings.networks.title')} sub={tn('settings.networks.count', [...builtinNetworks(), ...state.customChains].filter((c) => isChainEnabled(c.id, s)).length)} onClick={() => openView('networks')} right={<span class="muted"><Icon name="forward" /></span>} />
           <Row icon="wallet" title={t('settings.wallets')} sub={tn('settings.wallets.sub', state.wallets.length, { name: state.wallets.find((w) => w.id === state.activeWallet)?.name })} onClick={() => nav('wallets')} right={<span class="muted"><Icon name="forward" /></span>} />
@@ -324,8 +305,8 @@ export function Settings({ section }) {
               onClick={async () => (bio.enabled ? (await globalThis.__CK_BIO__.disable(), loadBio(), toast(t('settings.bio.disabled'))) : bio.available && setSheet('bio'))} />
           )}
           <Row icon="lock" title={t('settings.pw.title')} onClick={() => setSheet('pw')} />
-          <Row icon="receive" title={t('settings.export.title')} sub={t('settings.export.sub')} onClick={() => setSheet('exportBackup')} />
-          <Row icon="send" title={t('settings.import.title')} sub={t('settings.import.sub')} onClick={() => setSheet('importBackup')} />
+          <Row icon="fileUp" title={t('settings.export.title')} sub={t('settings.export.sub')} onClick={() => setSheet('exportBackup')} />
+          <Row icon="fileDown" title={t('settings.import.title')} sub={t('settings.import.sub')} onClick={() => setSheet('importBackup')} />
         </div>
 
         <div class="section-title">{t('settings.advanced')}</div>
@@ -351,8 +332,7 @@ export function Settings({ section }) {
         </div>
         {globalThis.__CK_NOTIFY__ && ( // Android: the Predictions tab and its "Per te" suggestions
           <div class="card" style={{ padding: '0.375rem' }}>
-            <Row icon="predict" title={t('settings.taste.reset')} sub={t('settings.taste.sub')}
-              onClick={async () => { await resetTaste(account.address); toast(t('settings.taste.done')); }} />
+            <Row icon="predict" title={t('settings.taste.reset')} sub={t('settings.taste.sub')} onClick={() => setSheet('resetTaste')} />
           </div>
         )}
 
@@ -376,6 +356,18 @@ export function Settings({ section }) {
       )}
       {sheet === 'exportBackup' && <ExportBackup onClose={() => setSheet(null)} />}
       {sheet === 'importBackup' && <ImportBackup onClose={() => setSheet(null)} />}
+      {sheet === 'language' && <LanguageSheet value={s.language} onPick={(v) => save({ language: v })} onClose={() => setSheet(null)} />}
+      {sheet === 'resetTaste' && (
+        <Sheet title={t('settings.taste.confirmTitle')} onClose={() => setSheet(null)}>
+          <span class="small">{t('settings.taste.confirmBody', { name: account.name })}</span>
+          <div class="row" style={{ gap: '.5rem' }}>
+            <Btn kind="secondary" class="grow" onClick={() => setSheet(null)}>{t('common.cancel')}</Btn>
+            <Btn kind="danger" class="grow" onClick={async () => { await resetTaste(account.address); setSheet(null); toast(t('settings.taste.done')); }}>{t('settings.taste.confirm')}</Btn>
+          </div>
+        </Sheet>
+      )}
+      {sheet === 'currency' && <CurrencySheet value={s.currency} onPick={(v) => save({ currency: v })} onClose={() => setSheet(null)} />}
+      {sheet === 'autoLock' && <AutoLockSheet value={s.autoLockMin} onPick={(v) => save({ autoLockMin: v })} onClose={() => setSheet(null)} />}
       {sheet === 'ethsign' && (
         <Sheet title={t('settings.ethSign.sheetTitle')} onClose={() => setSheet(null)}>
           <div class="error small">

@@ -353,6 +353,20 @@ body.mobile.kb-open .toast { bottom: 1rem; }
 .seg-full { display: flex; width: 100%; }
 .seg-full button { flex: 1; padding: .5rem .625rem; font-size: .8125rem; }
 .item.col-item { flex-direction: column; align-items: stretch; gap: .625rem; }
+/* interface language: round flags and the picker */
+.flag { display: inline-flex; flex: none; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; background: var(--card-2); color: var(--muted);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+.flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lang-list { overflow-y: auto; min-height: 0; }
+.lang-item { gap: .75rem; padding: .625rem .5rem; }
+.lang-item.sel { border-color: transparent; }
+.lang-item.sel + .item { border-color: transparent; }
+.lang-auto { position: relative; display: inline-flex; flex: none; }
+.lang-auto-badge { position: absolute; right: -.1875rem; bottom: -.1875rem; width: 1rem; height: 1rem; border-radius: 50%; background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 .125rem var(--bg); }
+.lang-search { position: relative; display: flex; align-items: center; flex: none; }
+.lang-search > svg { position: absolute; left: .75rem; color: var(--muted); pointer-events: none; }
+.lang-search .input { padding-left: 2.25rem; }
 .steps { display: flex; gap: .375rem; }
 .steps .s { flex: 1; height: .25rem; border-radius: .25rem; background: var(--border); transition: background .3s; }
 .steps .s.on { background: var(--primary); }
@@ -1221,20 +1235,34 @@ button.pm-trade-tile:active { transform: scale(.97); filter: brightness(.96); }
 .ob-mock .n { top: 11%; height: 28%; border-radius: .375rem; background: var(--m-note); }
 .ob-mock .a { top: 47%; height: 12%; } .ob-mock .b { top: 63%; height: 12%; }
 .ob-mock .c { top: 81%; height: 7%; right: 42%; background: var(--m-line); }
-.ob-pills { display: flex; gap: .5rem; }
-.ob-pill { flex: 1; padding: .75rem .5rem; font-size: .875rem; }
+.ob-lang { flex-direction: row; justify-content: flex-start; gap: .625rem; width: 100%; padding: .75rem .875rem; font-size: .9375rem; text-align: left; }
+.ob-lang > svg { color: var(--muted); flex: none; }
 .ob-cur { display: grid; grid-template-columns: 1fr 1fr; gap: .625rem; }
 .ob-cur-tile { align-items: flex-start; gap: .125rem; padding: .875rem 1rem; text-align: left; }
 .ob-sym { font-family: var(--display); font-size: 2rem; font-weight: 700; line-height: 1.1; color: var(--primary); margin-bottom: .375rem; }
 .ob-cur-code { font-size: .9375rem; }
 .ob-cur-name { font-size: .75rem; font-weight: 400; color: var(--muted); min-height: 1em; }
+.lock-grid { grid-template-columns: repeat(3, 1fr); }
+.lock-tile { gap: .125rem; padding: .875rem .5rem .75rem; }
+.lock-num { font-family: var(--display); font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: var(--primary); min-height: 2rem; display: inline-flex; align-items: center; }
+.lock-unit { font-size: .75rem; font-weight: 500; color: var(--muted); }
+.lock-tile.on .lock-unit { color: var(--text); }
+/* current value on the right of a Settings row */
+.sym-badge { width: 1.875rem; height: 1.875rem; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--primary-soft); color: var(--primary); font-family: var(--display); font-weight: 700; font-size: .875rem; }
+.value-pill { flex: none; padding: .25rem .625rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-weight: 600; font-size: .8125rem; white-space: nowrap; }
 .ob-nets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } /* minmax(0): columns never grow past the screen */
 /* tile: icon and tick on top, the full name below (never cut) */
 .ob-net { position: relative; align-items: flex-start; gap: .5rem; padding: .75rem; text-align: left; font-size: .875rem; }
 .ob-net .grow { overflow-wrap: anywhere; line-height: 1.25; }
 .ob-net:not(.on) > :not(.ob-net-tick) { opacity: .45; transition: opacity .2s; }
-.ob-net.fixed { cursor: default; }
-.ob-net.fixed:active { transform: none; }
+/* always-on networks (Ethereum, TON): one compact line apart from the choice, not toggles */
+.ob-pinned { display: flex; align-items: center; flex-wrap: wrap; gap: .375rem .5rem; padding: .5rem .75rem; border-radius: .875rem;
+  background: var(--primary-soft); color: var(--primary); font-size: .8125rem; font-weight: 600; }
+.ob-pinned-k { display: inline-flex; align-items: center; gap: .3125rem; margin-right: auto; }
+/* the chips move together: on a narrow screen they all go to the second line, side by side */
+.ob-pins { display: flex; gap: .375rem; flex-wrap: nowrap; }
+.ob-pin { display: inline-flex; align-items: center; gap: .375rem; padding: .1875rem .625rem .1875rem .1875rem; border-radius: 999px; background: var(--card); color: var(--text); }
 .ob-net-tick { position: absolute; top: .625rem; right: .625rem; width: 1.25rem; height: 1.25rem; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--border); color: var(--on-primary); transition: background .2s, border-color .2s; }
 .ob-net.on .ob-net-tick { background: var(--primary); border-color: var(--primary); animation: pop .3s var(--spring); }
 .ob-notifs { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }

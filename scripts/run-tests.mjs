@@ -28,6 +28,7 @@ await esbuild.build({
   target: 'node20',
   jsx: 'automatic',
   jsxImportSource: 'preact',
+  loader: { '.svg': 'dataurl' }, // flags (ui/language.jsx)
   alias: { '@capacitor/preferences': capacitor, '@capacitor/core': capacitor, '@capacitor/app': capacitor },
   external: ['solc', '@tact-lang/compiler', 'esbuild'], // compilers (~10 MB each) and esbuild (Tact bindings test) load from node_modules
   // CommonJS packages (e.g. the TON crypto primitives) require Node built-ins: give the ESM bundles a require()

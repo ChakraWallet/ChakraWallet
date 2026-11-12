@@ -137,7 +137,7 @@ async function buildTarget(target) {
     target: ['chrome111', 'firefox128'],
     jsx: 'automatic',
     jsxImportSource: 'preact',
-    loader: { '.css': 'css', '.woff2': 'file' },
+    loader: { '.css': 'css', '.woff2': 'file', '.svg': 'dataurl' },
     assetNames: 'fonts/[name]',
     minify: !watch,
     sourcemap: watch ? 'inline' : false,
@@ -180,7 +180,7 @@ async function buildAndroid() {
       'solc-worker': path.join(SRC, 'ui', 'solcWorker.js'), // Solidity compiler (Contracts tab), downloads soljson on first use
     },
     bundle: true, outdir, format: 'iife', target: ['chrome100'],
-    jsx: 'automatic', jsxImportSource: 'preact', loader: { '.css': 'css', '.woff2': 'file' }, assetNames: 'fonts/[name]', minify: true,
+    jsx: 'automatic', jsxImportSource: 'preact', loader: { '.css': 'css', '.woff2': 'file', '.svg': 'dataurl' }, assetNames: 'fonts/[name]', minify: true,
     define: { __TARGET__: '"android"', __VERSION__: JSON.stringify(pkg.version) },
     logLevel: 'info',
   });

@@ -2,19 +2,25 @@
 //   t('send.title')                       -> string
 //   t('send.sent', { amount: '1 ETH' })   -> placeholders {name}
 //   tn('accounts.count', 3)               -> picks 'accounts.count.one' / 'accounts.count.other', with {n}
-// Language preference: 'system' (Italian if the device/browser is Italian, otherwise English), 'en', 'it'.
+// Language preference: 'system' (the device/browser language when the app has it, otherwise English) or a code of LANGUAGES.
 import en from './locales/en/index.js';
 import it from './locales/it/index.js';
 
 const DICTS = { en, it };
-export const LANGS = ['en', 'it'];
+/** Languages of the interface: code, name in the language itself, flag (country code of flag-icons, see ui/language.jsx). */
+export const LANGUAGES = [
+  { code: 'en', name: 'English', flag: 'gb' },
+  { code: 'it', name: 'Italiano', flag: 'it' },
+];
+export const LANGS = LANGUAGES.map((l) => l.code);
 let lang = resolveLang('system');
 const subs = new Set();
 
 export function resolveLang(pref) {
   if (LANGS.includes(pref)) return pref;
-  const nav = String(globalThis.navigator?.language || 'en').toLowerCase();
-  return nav.startsWith('it') ? 'it' : 'en';
+  // the device's languages in order of preference: the first one the app has, else English
+  const nav = [globalThis.navigator?.language, ...(globalThis.navigator?.languages || [])].filter(Boolean).map((x) => String(x).toLowerCase().split('-')[0]);
+  return nav.find((x) => LANGS.includes(x)) || 'en';
 }
 export function setLang(pref) {
   const l = resolveLang(pref);
