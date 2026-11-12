@@ -15,6 +15,8 @@ const SRC = path.join(ROOT, 'src');
 const DIST = path.join(ROOT, 'dist');
 const watch = process.argv.includes('--watch');
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+// build number: the CI run number (the same as the Android versionCode); empty for local builds
+const BUILD = process.env.ANDROID_VERSION_CODE || process.env.GITHUB_RUN_NUMBER || '';
 
 // ---------------------------------------------------------------- manifests
 const STORE_TEXTS = {
@@ -141,7 +143,7 @@ async function buildTarget(target) {
     assetNames: 'fonts/[name]',
     minify: !watch,
     sourcemap: watch ? 'inline' : false,
-    define: { __TARGET__: JSON.stringify(target), __VERSION__: JSON.stringify(pkg.version) },
+    define: { __TARGET__: JSON.stringify(target), __VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(BUILD) },
     logLevel: 'info',
   };
   copyStatic(outdir, target);
@@ -181,7 +183,7 @@ async function buildAndroid() {
     },
     bundle: true, outdir, format: 'iife', target: ['chrome100'],
     jsx: 'automatic', jsxImportSource: 'preact', loader: { '.css': 'css', '.woff2': 'file', '.svg': 'dataurl' }, assetNames: 'fonts/[name]', minify: true,
-    define: { __TARGET__: '"android"', __VERSION__: JSON.stringify(pkg.version) },
+    define: { __TARGET__: '"android"', __VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(BUILD) },
     logLevel: 'info',
   });
   // Tact compiler (TON studio, Contracts tab): its own bundle, loaded on the first compilation. The compiler is

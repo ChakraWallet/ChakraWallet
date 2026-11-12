@@ -236,6 +236,9 @@ export function Settings({ section }) {
   const { state, refresh, toast, nav, account } = useApp();
   const [view, setView] = useState(section || 'main');
   const [sheet, setSheet] = useState(null);
+  // build number: the installed APK's versionCode on Android, the CI run number in the extension
+  const [build, setBuild] = useState(__BUILD__);
+  useEffect(() => { globalThis.__CK_appInfo?.().then((i) => i?.build && setBuild(String(i.build))).catch(() => {}); }, []);
   // the main list is rebuilt when coming back from a sub-page: it returns to where it was
   const mainRef = useRef(null), mainTop = useRef(0);
   const openView = (v) => { mainTop.current = mainRef.current?.scrollTop || 0; setView(v); };
@@ -340,7 +343,7 @@ export function Settings({ section }) {
         <div class="card" style={{ padding: '0.375rem' }}>
           <Row icon="trash" title={t('settings.reset')} sub={t('settings.reset.sub')} onClick={() => setSheet('reset')} />
         </div>
-        <div class="tiny muted center">Chakra v{__VERSION__}</div>
+        <div class="tiny muted center">Chakra v{__VERSION__}{build ? ` (${build})` : ''}</div>
       </div>
 
       {sheet === 'pw' && <ChangePassword onClose={() => setSheet(null)} />}

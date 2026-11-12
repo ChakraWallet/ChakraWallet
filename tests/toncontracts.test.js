@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Address, beginCell, Cell, loadMessage } from '@ton/core';
 import {
-  kindOf, walletVersionOf, interpret, summarizeTrace, walletNet, exitKey, rawAddress, showAddress, sameAddress, emulateMessages, GETTERS,
+  kindOf, walletVersionOf, interpret, summarizeTrace, walletNet, exitKey, rawAddress, showAddress, sameAddress, emulateMessages, GETTERS, actionFee,
 } from '../src/shared/ton/contracts.js';
 import { buildOnchainContent, toB64 } from '../src/shared/ton/cells.js';
 import { walletContract } from '../src/shared/ton/core.js';
@@ -143,6 +143,31 @@ test('emulation: signs with a throwaway key for the real wallet, reads TonAPI\'s
     assert.equal(r.steps.length, 3);
     assert.equal(r.steps[2].opName, 'excess');
     assert.equal(r.net, -2000000n - 50000000n + (30000000n - 100000n));
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test('history details: fee of an action from its trace (excesses back, transferred GRAM excluded)', async () => {
+  const traces = {
+    jetton: { trace_info: { trace_state: 'complete' }, trace: { tx_hash: 'a', children: [{ tx_hash: 'b', children: [{ tx_hash: 'c', children: [] }] }] },
+      transactions: { a: tx(W, { fees: '2000000' }), b: tx(J, { value: '50000000' }), c: tx(W, { value: '30000000', fees: '0' }) } },
+    gram: { trace_info: { trace_state: 'complete' }, trace: { tx_hash: 'a', children: [{ tx_hash: 'b', children: [] }] },
+      transactions: { a: tx(W, { fees: '1500000' }), b: tx(C, { value: '7000000000' }) } },
+    received: { trace_info: { trace_state: 'complete' }, trace: { tx_hash: 'a', children: [{ tx_hash: 'b', children: [] }] },
+      transactions: { a: tx(C, { fees: '1000' }), b: tx(W, { value: '5' }) } },
+  };
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const id = new URL(String(url)).searchParams.get('trace_id');
+    return new Response(JSON.stringify({ traces: traces[id] ? [traces[id]] : [] }), { status: 200 });
+  };
+  try {
+    const chain = { id: -239, api: 'https://toncenter.com' };
+    assert.deepEqual(await actionFee(chain, 'jetton', W), { fee: 2000000n + 50000000n - 30000000n });
+    assert.deepEqual(await actionFee(chain, 'gram', W, 7000000000n), { fee: 1500000n });
+    assert.deepEqual(await actionFee(chain, 'received', W), { bySender: true });
+    assert.equal(await actionFee(chain, 'missing', W), null);
   } finally {
     globalThis.fetch = orig;
   }

@@ -6,11 +6,10 @@ import { fmtUsd, fmtNum, shortAddr, fmtTime, fmtDateGroup } from '../../shared/f
 import { Icon, Avatar, TokenIcon, ChainIcon, Spinner, Btn, useApp, Guilloche, useCountUp, cardStyle } from '../components.jsx';
 import { NetworkSheet } from '../screens/home.jsx';
 import { t } from '../../shared/i18n.js';
-import { tonTxUrl } from '../../shared/ton/api.js';
 import { useTonWallet, useTonPortfolio, useTonHistory } from './hooks.js';
+import { TonTxDetail, tonTitle } from './detail.jsx';
 
 export const units = (raw, decimals) => Number(raw) / 10 ** decimals;
-const OTHER_TYPES = new Set(['contract_deploy', 'call_contract', 'nft_transfer', 'nft_mint', 'jetton_mint', 'jetton_burn', 'stake_deposit', 'stake_withdrawal', 'auction_bid', 'dns_purchase']);
 const short = (a) => (a && a.length > 20 ? shortAddr(a, 4) : a || '—');
 
 export function TonTopBar() {
@@ -43,16 +42,11 @@ export function TonActivityRow({ r, chain, onOpen }) {
     ? <span class="glyph pair"><TokenIcon symbol={r.swap.in.symbol} icon={r.swap.in.image} /><TokenIcon symbol={r.swap.out.symbol} icon={r.swap.out.image} /></span>
     : r.kind === 'other' ? <div class="tx-icon round" style={{ background: 'var(--card-2)', color: 'var(--muted)' }}><Icon name="contract" size={18} /></div>
       : <span class="glyph"><TokenIcon symbol={r.symbol} icon={r.image} color={r.symbol === chain.native.symbol ? chain.color : undefined} /><span class={`dir-badge ${r.kind === 'out' ? 'send' : 'receive'}`}><Icon name={r.kind === 'out' ? 'send' : 'receive'} size={10} stroke={3} /></span></span>;
-  const title = r.kind === 'swap' ? t('ton.hist.swap', { a: r.swap.in.symbol, b: r.swap.out.symbol })
-    : r.kind === 'in' ? t('ton.hist.received', { symbol: r.symbol }) : r.kind === 'out' ? t('ton.hist.sent', { symbol: r.symbol })
-      : t(`ton.hist.type.${OTHER_TYPES.has(r.type) ? r.type : 'other'}`);
-  const url = tonTxUrl(chain, r.txHash);
-  const Tag = url ? 'a' : 'div';
   return (
-    <Tag class="item hist-item" href={url || undefined} target="_blank" onClick={onOpen}>
+    <button class="item hist-item" onClick={() => onOpen(r)}>
       {glyph}
       <div class="grow" style={{ minWidth: 0 }}>
-        <div class="bold ellipsis">{title}</div>
+        <div class="bold ellipsis">{tonTitle(r)}</div>
         <div class="small muted ellipsis hist-sub">{fmtTime(r.time)}{r.counterparty && r.kind !== 'swap' ? ` · ${short(r.counterparty)}` : ''}{r.comment ? ` · “${r.comment}”` : ''}</div>
       </div>
       <div class="right hist-amts">
@@ -62,7 +56,7 @@ export function TonActivityRow({ r, chain, onOpen }) {
         {!r.ok && <span class="badge red">{t('history.failed')}</span>}
         {r.spam && <span class="badge red">{t('history.spam')}</span>}
       </div>
-    </Tag>
+    </button>
   );
 }
 
@@ -70,6 +64,7 @@ export function TonActivityRow({ r, chain, onOpen }) {
 export function TonActivity({ chain, raw, limit = 20 }) {
   const h = useTonHistory(chain, raw, limit);
   const [spam, setSpam] = useState(false);
+  const [open, setOpen] = useState(null);
   if (!h.rows) return <div class="card" style={{ padding: '1rem', display: 'flex', justifyContent: 'center' }}><Spinner /></div>;
   const list = h.rows.filter((r) => spam || !r.spam);
   const hidden = h.rows.length - h.rows.filter((r) => !r.spam).length;
@@ -81,12 +76,13 @@ export function TonActivity({ chain, raw, limit = 20 }) {
       {list.map((r) => {
         const d = fmtDateGroup(r.time);
         const head = d !== day ? (day = d, <div class="group-title">{d}</div>) : null;
-        return <>{head}<TonActivityRow r={r} chain={chain} /></>;
+        return <>{head}<TonActivityRow r={r} chain={chain} onOpen={setOpen} /></>;
       })}
       <div class="row between" style={{ padding: '0.375rem' }}>
         {hidden > 0 ? <button class="link tiny" onClick={() => setSpam(!spam)}>{spam ? t('ton.hist.hideSpam') : t('ton.hist.showSpam', { n: hidden })}</button> : <span />}
         {h.more && <button class="link tiny" disabled={h.busy} onClick={h.more}>{h.busy ? <Spinner /> : t('ton.hist.more')}</button>}
       </div>
+      {open && <TonTxDetail r={open} chain={chain} wallet={raw} onClose={() => setOpen(null)} />}
     </div>
   );
 }

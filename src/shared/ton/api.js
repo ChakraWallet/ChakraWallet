@@ -147,6 +147,9 @@ export async function stonAsset(master) {
   return out;
 }
 
+/** DefiLlama's key of a jetton: ton:<bounceable address> (the raw form isn't recognised). */
+export const llamaKey = (master) => `ton:${addr(master).toString({ urlSafe: true, bounceable: true })}`;
+
 /**
  * Jettons held by an address: [{ master, wallet, balance, symbol, name, decimals, image, price, usd, amount, scam }].
  * scam: flagged by TON Center or blacklisted by STON.fi (hidden like spam tokens).
@@ -157,12 +160,16 @@ export async function tonJettons(chain, owner) {
   const masters = [...new Set(list.map((w) => w.jetton))];
   const meta = await jettonMeta(chain, masters);
   const ston = chain.testnet ? {} : Object.fromEntries(await Promise.all(masters.map(async (m) => [m, await stonAsset(m)])));
+  // STON.fi has no price for jettons with little liquidity on its own pools (e.g. HMSTR, traded mostly on exchanges
+  // and DeDust): those ask DefiLlama, like every other token of the app, in one request
+  const noPrice = masters.filter((m) => ston[m] && ston[m].price == null && addr(m));
+  const llama = noPrice.length ? await getPrices(noPrice.map(llamaKey)).catch(() => ({})) : {};
   return list.map((w) => {
     const m = meta[w.jetton] || {}, s = ston[w.jetton] || {};
     const decimals = m.decimals ?? s.decimals ?? 9;
     const balance = big(w.balance);
     const amount = Number(balance) / 10 ** decimals;
-    const price = s.price ?? null;
+    const price = s.price ?? (addr(w.jetton) ? llama[llamaKey(w.jetton)] : null) ?? null;
     return {
       master: w.jetton, wallet: w.address, balance, decimals, amount,
       symbol: s.symbol || m.symbol || '???', name: s.name || m.name || '', image: s.image || m.image || null,
@@ -194,11 +201,11 @@ export async function tonHistory(chain, account, { limit = 30, cursor } = {}) {
   const hexOf = (b64) => { try { return Buffer.from(b64, 'base64').toString('hex'); } catch { return null; } };
   const rows = (r.actions || []).map((a) => {
     const d = a.details || {};
-    const base = { id: a.action_id, time: Number(a.start_utime) * 1000, ok: a.success !== false, type: a.type, txHash: a.transactions?.[0] ? hexOf(a.transactions[0]) : null };
+    const base = { id: a.action_id, time: Number(a.start_utime) * 1000, ok: a.success !== false, type: a.type, txHash: a.transactions?.[0] ? hexOf(a.transactions[0]) : null, traceId: a.trace_id || null };
     if (a.type === 'ton_transfer') {
       const out = sameAddr(d.source, account);
       const amount = big(d.value);
-      return { ...base, kind: out ? 'out' : 'in', amount, symbol: chain.native.symbol, decimals: 9, counterparty: name(out ? d.destination : d.source), comment: d.encrypted ? null : d.comment || null, spam: !out && !!d.comment && amount < SPAM_MAX };
+      return { ...base, kind: out ? 'out' : 'in', amount, symbol: chain.native.symbol, decimals: 9, native: true, counterparty: name(out ? d.destination : d.source), comment: d.encrypted ? null : d.comment || null, spam: !out && !!d.comment && amount < SPAM_MAX };
     }
     if (a.type === 'jetton_transfer') {
       const out = sameAddr(d.sender, account);
@@ -206,12 +213,18 @@ export async function tonHistory(chain, account, { limit = 30, cursor } = {}) {
       return { ...base, kind: out ? 'out' : 'in', amount: big(d.amount), ...tk, counterparty: name(out ? d.receiver : d.sender), comment: d.is_encrypted_comment ? null : d.comment || null, spam: !out && tk.scam };
     }
     if (a.type === 'jetton_swap') {
-      const side = (x, asset) => ({ amount: big(x?.amount), ...(asset ? tokenOf(asset) : { symbol: chain.native.symbol, decimals: 9 }) });
+      const side = (x, asset) => ({ amount: big(x?.amount), ...(asset ? tokenOf(asset) : { symbol: chain.native.symbol, decimals: 9, native: true }) });
       return { ...base, kind: 'swap', swap: { in: side(d.dex_incoming_transfer, d.asset_in), out: side(d.dex_outgoing_transfer, d.asset_out) }, counterparty: d.dex || null };
     }
     return { ...base, kind: 'other', counterparty: null };
   });
   return { rows, cursor: r.next_cursor || null };
+}
+
+/** The whole trace of an action (TON Center), or null while it isn't indexed. */
+export async function tonTraceById(chain, traceId) {
+  const r = await call(chain, '/api/v3/traces', { params: { trace_id: traceId, include_actions: false } });
+  return r.traces?.[0] || null;
 }
 
 // ------------------------------------------------------------ fees, broadcast, confirmation

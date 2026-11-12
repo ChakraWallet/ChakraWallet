@@ -6,7 +6,7 @@ import { Buffer } from './buffer.js';
 import { Address, Cell, loadStateInit } from '@ton/core';
 import { keyPairFromSeed } from '@ton/crypto';
 import { tonapiAccount, tonapiInspect, tonapiJetton, tonapiEmulate } from './tonapi.js';
-import { tonAccount, tonAddressInfo, tonRunGetMethod, tonTraceByTx, tonWaitApplied } from './api.js';
+import { tonAccount, tonAddressInfo, tonRunGetMethod, tonTraceByTx, tonTraceById, tonWaitApplied } from './api.js';
 import { walletContract, signTransfer } from './core.js';
 import { readStack, stackArg, cellAddress, cellText, parseContent } from './cells.js';
 
@@ -265,6 +265,20 @@ export function summarizeTrace(tr) {
   walk(tr.trace, 0);
   const complete = tr.trace_info ? tr.trace_info.trace_state === 'complete' || (tr.trace_info.pending_messages === 0 && !tr.is_incomplete) : !tr.is_incomplete;
   return { complete, ok: steps.every((s) => s.ok), bounced: steps.some((s) => s.bounced), steps };
+}
+
+/**
+ * Fee paid by the wallet for an action of its history (history details): what left the wallet over the whole chain
+ * of transactions, minus what came back (excesses) and minus `transferred` (the GRAM that were the transfer itself).
+ * -> { fee (nanoGRAM) } | { bySender: true } when the action wasn't started by this wallet | null (not indexed).
+ */
+export async function actionFee(chain, traceId, wallet, transferred = 0n) {
+  const tr = await tonTraceById(chain, traceId);
+  if (!tr) return null;
+  const { steps } = summarizeTrace(tr);
+  if (!steps.length || steps[0].account !== norm(wallet)) return { bySender: true };
+  const fee = -walletNet(steps, wallet) - transferred;
+  return { fee: fee > 0n ? fee : 0n };
 }
 
 /**

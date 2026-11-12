@@ -11,6 +11,8 @@ import { App as CapApp } from '@capacitor/app';
 const DappBrowser = registerPlugin('DappBrowser');
 CapApp.addListener('backButton', () => window.dispatchEvent(new Event('ck-back')));
 globalThis.__CK_exitApp = () => CapApp.exitApp();
+/** Installed app info: { version (versionName), build (versionCode) } - Settings shows the build number. */
+globalThis.__CK_appInfo = () => CapApp.getInfo();
 globalThis.__CK_MOBILE__ = true;
 globalThis.__CK_NATIVE__ = DappBrowser;
 globalThis.__CK_BIO__ = registerPlugin('Biometric');

@@ -11,7 +11,7 @@ import { useNativePrice } from '../hooks.js';
 import { t, tn } from '../../shared/i18n.js';
 
 // labels are i18n keys
-const KIND = {
+export const KIND = {
   send: { label: 'history.kind.send', icon: 'send', color: 'var(--red)', bg: 'var(--red-soft)' },
   receive: { label: 'history.kind.receive', icon: 'receive', color: 'var(--green)', bg: 'var(--green-soft)' },
   swap: { label: 'history.kind.swap', icon: 'swap', color: 'var(--primary)', bg: 'var(--primary-soft)' },
