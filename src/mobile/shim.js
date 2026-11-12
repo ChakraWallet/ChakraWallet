@@ -157,6 +157,9 @@ DappBrowser.addListener('pageMessage', (e) => {
   if (e.favicon) page.port.sender.tab.favIconUrl = e.favicon;
   page.portL.msg.forEach((f) => f(data, page.port));
 });
+// taps on the pages of the dapp browser (a native WebView the app's document doesn't see) count as activity for the
+// auto-lock (the plugin reports them at most every 2 s; app.jsx sets __CK_activity)
+DappBrowser.addListener('activity', () => globalThis.__CK_activity?.());
 DappBrowser.addListener('navigation', (e) => {
   const p = pages.get(e.tabId);
   if (p && e.pageId !== p.pageId) dropPage(e.tabId);

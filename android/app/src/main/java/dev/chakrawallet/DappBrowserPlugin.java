@@ -34,7 +34,9 @@ import com.getcapacitor.annotation.PermissionCallback;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemClock;
 import android.util.Base64;
+import android.view.MotionEvent;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.ViewGroup;
@@ -118,6 +120,7 @@ public class DappBrowserPlugin extends Plugin {
     private volatile int pageCounter = 0; // pageIds are unique across tabs
     private String script = "";
     private boolean visible = false;
+    private long lastActivity = 0; // last tap reported to the app (auto-lock), uptime ms
     private int bx, by, bw, bh; // last bounds (device px, relative to android.R.id.content)
 
     // ---- file chooser (<input type="file">)
@@ -220,7 +223,7 @@ public class DappBrowserPlugin extends Plugin {
         return t;
     }
 
-    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface", "ClickableViewAccessibility"})
     private WebView ensureWebView(Tab tab) {
         if (tab.web != null) return tab.web;
         // debug builds only: pages can be inspected from a computer (chrome://inspect) to diagnose dapp issues
@@ -238,6 +241,14 @@ public class DappBrowserPlugin extends Plugin {
         s.setMediaPlaybackRequiresUserGesture(true);
         s.setGeolocationEnabled(true); // every request still goes through the app's prompt
         web.setDownloadListener((url, ua, disposition, mime, length) -> download(tab, url, ua, disposition, mime));
+        // a tap on the page is activity for the wallet's auto-lock: reported at most every 2 s; the page still gets it
+        web.setOnTouchListener((v, e) -> {
+            if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                long now = SystemClock.uptimeMillis();
+                if (now - lastActivity >= 2000) { lastActivity = now; notifyListeners("activity", new JSObject()); }
+            }
+            return false;
+        });
         if (mobileUa == null) { // computed once from the system WebView user agent
             String base = s.getUserAgentString();
             mobileUa = base + " Chakra/1.0";

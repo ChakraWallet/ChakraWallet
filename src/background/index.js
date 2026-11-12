@@ -39,12 +39,25 @@ ext.storage.onChanged.addListener((changes, area) => {
 });
 
 // ============================================================ auto-lock
+// The wallet locks N minutes after the last activity: unlock, signatures and sends, and the taps in the app (the UI
+// reports them at most every 20 s, see app.jsx). The deadline is also kept as a wall-clock time: on Android the
+// timer can run late while the phone sleeps, so when the app comes back and at every touch an expired deadline locks
+// at once (and is never extended).
+let lockAt = 0; // ms since the epoch, 0 = no deadline
 async function touchAutoLock() {
-  const { autoLockMin } = await settings();
-  if (autoLockMin > 0) ext.alarms.create('autolock', { delayInMinutes: Number(autoLockMin) });
+  const min = Number((await settings()).autoLockMin);
+  if (min > 0) { lockAt = Date.now() + min * 60000; ext.alarms.create('autolock', { delayInMinutes: min }); }
+  else { lockAt = 0; ext.alarms.clear('autolock'); }
+}
+async function autoLock() { lockAt = 0; await vault.lock(); broadcastAccounts(); }
+/** Locks if the deadline has passed while the timer was late; true when it locked. */
+async function lockIfExpired() {
+  if (!lockAt || Date.now() < lockAt || !(await vault.isUnlocked())) return false;
+  await autoLock();
+  return true;
 }
 ext.alarms.onAlarm.addListener(async (a) => {
-  if (a.name === 'autolock') { await vault.lock(); broadcastAccounts(); }
+  if (a.name === 'autolock') await autoLock();
 });
 
 // ============================================================ dapp connections (ports)
@@ -623,7 +636,14 @@ const uiHandlers = {
     await fullReset();
     return true;
   },
-  async touch() { if (await vault.isUnlocked()) await touchAutoLock(); return true; },
+  /** Activity in the app: restarts the auto-lock timer (unless the time was already up). */
+  async touch() {
+    if (await lockIfExpired()) return false;
+    if (await vault.isUnlocked()) await touchAutoLock();
+    return true;
+  },
+  /** The app is visible again: lock at once if the time is up; being visible isn't activity. */
+  checkLock: () => lockIfExpired(),
 };
 
 ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {

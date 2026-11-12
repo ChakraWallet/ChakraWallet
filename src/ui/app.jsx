@@ -74,11 +74,29 @@ export function App() {
     ext.storage.onChanged.addListener(onChange);
     const onMsg = (m) => { if (m?.type === 'pendingChanged') refresh(); };
     ext.runtime.onMessage.addListener(onMsg);
-    // keep the background alive while the UI is open + reset auto-lock timer
+    // keep the background alive while the UI is open
     const port = ext.runtime.connect({ name: 'chakra-ui' });
-    const iv = setInterval(() => { try { port.postMessage('ping'); } catch { /* */ } }, 20000);
-    bg('touch').catch(() => {});
-    return () => { ext.storage.onChanged.removeListener(onChange); ext.runtime.onMessage.removeListener(onMsg); clearInterval(iv); };
+    // auto-lock counts from the last tap: a tap only sets a flag; the background hears about it at once if it hasn't
+    // for 20 s, else at the next tick (at most one message every 20 s while in use, none when idle). The dapp
+    // browser of the Android app reports the taps on its pages through globalThis.__CK_activity (see mobile/shim.js).
+    let last = 0, pending = false;
+    const touch = () => { last = Date.now(); pending = false; bg('touch').catch(() => {}); };
+    const activity = () => { if (Date.now() - last >= 20000) touch(); else pending = true; };
+    const iv = setInterval(() => { try { port.postMessage('ping'); } catch { /* */ } if (pending) touch(); }, 20000);
+    // back in the foreground: if the time ran out while the phone slept, lock before showing anything
+    const onVisible = () => { if (document.visibilityState === 'visible') bg('checkLock').catch(() => {}); };
+    globalThis.__CK_activity = activity;
+    document.addEventListener('pointerdown', activity, { capture: true, passive: true });
+    document.addEventListener('keydown', activity, { capture: true, passive: true });
+    document.addEventListener('visibilitychange', onVisible);
+    touch();
+    return () => {
+      ext.storage.onChanged.removeListener(onChange); ext.runtime.onMessage.removeListener(onMsg); clearInterval(iv);
+      document.removeEventListener('pointerdown', activity, { capture: true });
+      document.removeEventListener('keydown', activity, { capture: true });
+      document.removeEventListener('visibilitychange', onVisible);
+      delete globalThis.__CK_activity;
+    };
   }, []);
 
   // toast(message, kind?): kind 'warn' (e.g. network problems) shows a different icon and colour
