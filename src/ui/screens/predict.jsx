@@ -12,7 +12,7 @@ import {
   CATEGORIES, INTERVALS, MARKET_URL,
 } from '../../shared/polymarket.js';
 import { TradeSheet, CashSheet, OpenOrders, RelayerSheet, EmergencySheet, usePolyAccount } from './predictTrade.jsx';
-import { redeem, balances, autoRedeemOn } from '../polyClient.js';
+import { redeem, redeemMany, balances, autoRedeemOn } from '../polyClient.js';
 import { CASH_TOKENS } from '../polyBalance.js';
 import { createFeed, signal, signalCategory, seen as markSeenTaste } from '../predictTaste.js';
 import { useSaved, savedList, toggleSaved } from '../predictSaved.js';
@@ -943,6 +943,18 @@ function Portfolio({ onBack, onOpen }) {
     }
     setBusy('');
   };
+  // every winning position in one go (one transaction for Deposit Wallet / Safe accounts)
+  const doRedeemAll = async () => {
+    setBusy('all');
+    try {
+      await authorize((password) => redeemMany(acc, wins, password), t('predict.win.all', { v: usd(wins.reduce((x, p) => x + p.value, 0)) }));
+      toast(t('predict.redeemed')); setSheet(null); refreshAll();
+    } catch (e) {
+      if (e.key === 'predict.relayer.needKey') setSheet({ relayer: true });
+      else if (!e.cancelled) toast(e.message, 'warn');
+    }
+    setBusy('');
+  };
   useEffect(() => { mainAccount(account.address).then(setUser).catch(() => setUser(account.address.toLowerCase())); }, [account.address]);
   useEffect(() => { if (user) userStats(user).then(setStats).catch(() => setStats(null)); }, [user, tick]);
   const openRows = sum?.open;
@@ -962,7 +974,7 @@ function Portfolio({ onBack, onOpen }) {
     if (acc?.wallet && acc.mode !== 'error') autoRedeemOn(acc).then((v) => alive && setAuto(v));
     return () => { alive = false; };
   }, [acc?.wallet, tick]);
-  const redeemBtn = (p) => <button class="pm-act win" disabled={busy === p.token} onClick={(e) => { e.stopPropagation(); doRedeem(p); }}>{busy === p.token ? <Spinner /> : t('predict.redeem')}</button>;
+  const redeemBtn = (p) => <button class="pm-act win" disabled={!!busy} onClick={(e) => { e.stopPropagation(); doRedeem(p); }}>{busy === p.token ? <Spinner /> : t('predict.redeem')}</button>;
   useEffect(() => {
     if (tab === 'ORDERS') return undefined;
     if (tab === 'OPEN') { setErr(''); setRows(openRows ?? null); return undefined; }
@@ -1061,6 +1073,11 @@ function Portfolio({ onBack, onOpen }) {
             {wins.map((p) => <PositionRow p={p} onOpen={(slug) => { setSheet(null); onOpen(slug); }} action={redeemBtn(p)} />)}
             {!wins.length && <div class="pm-empty"><Icon name="check" size={26} /><span>{t('predict.pos.empty.REDEEMABLE')}</span></div>}
           </div>
+          {wins.length > 1 && (
+            <Btn disabled={!!busy} onClick={doRedeemAll}>
+              {busy === 'all' ? <Spinner /> : t('predict.win.all', { v: usd(wins.reduce((x, p) => x + p.value, 0)) })}
+            </Btn>
+          )}
         </Sheet>
       )}
       {sheet?.relayer && <RelayerSheet acc={acc} onClose={() => setSheet(null)} />}
@@ -1117,10 +1134,9 @@ function MoneyMap({ acc, inPositions, tick }) {
         {own.map(([sym, v, ic]) => row(sym, <TokenIcon sm symbol={sym} icon={ic} />, sym, b.separate ? t('predict.map.toDeposit') : t('predict.map.toConvert'), v))}
         {b.separate && !own.length && <div class="mm-empty">{t('predict.map.nothing')}</div>}
       </div>
-      {canAct && (
+      {canAct && ownTotal > 0 && (
         <ul class="mm-hints">
-          {ownTotal > 0 && <li><Icon name="receive" size={15} /><span>{t(b.separate ? 'predict.map.hintDeposit' : 'predict.map.hintConvert', { v: usd(ownTotal) })}</span></li>}
-          <li><Icon name="send" size={15} /><span>{t(b.separate ? 'predict.map.hintWithdraw' : 'predict.map.hintWithdrawDirect')}</span></li>
+          <li><Icon name="receive" size={15} /><span>{t(b.separate ? 'predict.map.hintDeposit' : 'predict.map.hintConvert', { v: usd(ownTotal) })}</span></li>
         </ul>
       )}
     </div>

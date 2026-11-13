@@ -54,7 +54,7 @@ const P = {
   wallet: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12v3M16 13h.01',
   eye: 'M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   search: 'M21 21l-4.34-4.34M3 11a8 8 0 1 0 16 0a8 8 0 1 0-16 0', // Lucide search (ISC)
-  predict: 'M16 7h6v6M22 7l-8.5 8.5-5-5L2 17', // Lucide trending-up (ISC)
+  predict: 'M4.5 10.5a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0-15 0M7 16.1 5 21h14l-2-4.9M8.5 10a3.5 3.5 0 0 1 3.5-3.5', // crystal ball on its stand, with a highlight
   code: 'm18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16', // Lucide code-xml (ISC)
   // Predictions categories and feed: Lucide icons (ISC), shapes merged into one path
   flame: 'M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4', // Lucide flame

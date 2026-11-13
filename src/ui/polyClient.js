@@ -329,17 +329,39 @@ export async function withdraw(acc, amount, password) {
   return execCalls(acc, calls, password, t('predict.tx.withdraw'));
 }
 /** Redeem a resolved position (pays pUSD into the trading wallet). */
-export async function redeem(acc, pos, password) {
-  const calls = [];
-  if (isV3Token(pos.token)) {
-    if (!(await approvedAll(C.positionManager, acc.wallet, C.router))) calls.push(call.approveAll(C.positionManager, C.router));
-    const amount = await shareBalance(acc, pos.token);
-    if (!amount) throw err('predict.err.nothingToRedeem');
-    calls.push(call.redeemV3(pos.token, amount));
-  } else {
-    const adapter = pos.negRisk ? C.negRiskCollateralAdapter : C.collateralAdapter;
-    if (!(await approvedAll(C.ctf, acc.wallet, adapter))) calls.push(call.approveAll(C.ctf, adapter));
-    calls.push(call.redeemCtf(pos.conditionId, pos.negRisk));
+export const redeem = (acc, pos, password) => redeemMany(acc, [pos], password);
+
+/**
+ * Redeem several resolved positions at once. Deposit Wallet and Safe accounts send them in one transaction;
+ * a plain address sends them one after the other, under the same authorization. Each approval is added once,
+ * before the first redemption that needs it; a CTF condition is redeemed once (it pays both outcomes).
+ */
+export async function redeemMany(acc, list, password) {
+  const calls = [], approvals = new Set(), done = new Set();
+  let redeems = 0;
+  const approve = async (contract, operator) => {
+    const k = `${contract}>${operator}`;
+    if (approvals.has(k)) return;
+    approvals.add(k);
+    if (!(await approvedAll(contract, acc.wallet, operator))) calls.push(call.approveAll(contract, operator));
+  };
+  for (const pos of list) {
+    if (isV3Token(pos.token)) {
+      if (done.has(pos.token)) continue;
+      done.add(pos.token);
+      const amount = await shareBalance(acc, pos.token);
+      if (!amount) continue;
+      await approve(C.positionManager, C.router);
+      calls.push(call.redeemV3(pos.token, amount));
+    } else {
+      const k = `${pos.conditionId}:${!!pos.negRisk}`;
+      if (done.has(k)) continue;
+      done.add(k);
+      await approve(C.ctf, pos.negRisk ? C.negRiskCollateralAdapter : C.collateralAdapter);
+      calls.push(call.redeemCtf(pos.conditionId, pos.negRisk));
+    }
+    redeems++;
   }
-  return execCalls(acc, calls, password, t('predict.tx.redeem'));
+  if (!redeems) throw err('predict.err.nothingToRedeem');
+  return execCalls(acc, calls, password, redeems > 1 ? t('predict.tx.redeemMany', { n: redeems }) : t('predict.tx.redeem'));
 }

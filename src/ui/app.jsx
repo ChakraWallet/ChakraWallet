@@ -292,7 +292,7 @@ function EvmOnly() {
 
 // Contracts: Android app only, registered by src/mobile/contractsTab.js (not part of the extension)
 const ContractsTab = globalThis.__CK_CONTRACTS__ || null;
-const TABS = [{ k: 'browser', icon: 'globe' }, { k: 'wallet', icon: 'wallet' }, { k: 'predict', icon: 'predict' }, ...(ContractsTab ? [{ k: 'contracts', icon: 'code' }] : [])];
+const TABS = [{ k: 'wallet', icon: 'wallet' }, { k: 'browser', icon: 'globe' }, { k: 'predict', icon: 'predict' }, ...(ContractsTab ? [{ k: 'contracts', icon: 'code' }] : [])];
 
 /**
  * Floating tab bar: the active tab is a light inner pill with its label, sliding between the icons
