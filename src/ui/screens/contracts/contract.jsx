@@ -85,8 +85,10 @@ export function ContractView({ chainId, address, onBack, open }) {
         </div>
         {c.proxy?.implementation && (
           <button class="ct-impl" onClick={() => openAddr(c.proxy.implementation)}>
-            <span class="tiny muted">{t('contracts.implementation')}</span>
-            <span class="mono small">{shortAddr(c.proxy.implementation, 8)}</span>
+            <span class="ct-impl-txt">
+              <span class="tiny muted">{t('contracts.implementation')}</span>
+              <span class="mono small ellipsis">{shortAddr(c.proxy.implementation, 8)}</span>
+            </span>
             <Icon name="forward" size={14} />
           </button>
         )}

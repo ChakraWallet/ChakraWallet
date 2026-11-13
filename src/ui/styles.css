@@ -139,12 +139,15 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.01
 .account-btn > div:not(.avatar) { min-width: 0; flex: 1; }
 .account-btn:hover, .account-btn:active { background: var(--card-2); }
 /* account dot: same colours as the account's card (cardStyle) */
-.avatar { width: 2rem; height: 2rem; border-radius: 50%; flex: none; background: linear-gradient(135deg, hsl(var(--h1, 224) 64% var(--l1, 40%)), hsl(var(--h2, 236) 60% var(--l2, 26%))); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .22); }
-:root[data-theme="dark"] .avatar { background: linear-gradient(135deg, hsl(var(--h1, 224) 52% calc(var(--l1, 40%) - 9%)), hsl(var(--h2, 236) 48% calc(var(--l2, 26%) - 9%))); }
+.avatar { width: 2rem; height: 2rem; border-radius: 50%; flex: none; background: linear-gradient(135deg, hsl(var(--h1, 224) 78% var(--l1, 40%)), hsl(var(--h2, 236) 74% var(--l2, 26%))); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .22); }
+:root[data-theme="dark"] .avatar { background: linear-gradient(135deg, hsl(var(--h1, 224) 66% calc(var(--l1, 40%) - 7%)), hsl(var(--h2, 236) 62% calc(var(--l2, 26%) - 7%))); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .avatar { background: linear-gradient(135deg, hsl(var(--h1, 224) 52% calc(var(--l1, 40%) - 9%)), hsl(var(--h2, 236) 48% calc(var(--l2, 26%) - 9%))); }
+  :root:not([data-theme="light"]) .avatar { background: linear-gradient(135deg, hsl(var(--h1, 224) 66% calc(var(--l1, 40%) - 7%)), hsl(var(--h2, 236) 62% calc(var(--l2, 26%) - 7%))); }
 }
 .avatar.lg { width: 3.5rem; height: 3.5rem; }
+/* a wallet (profile): the mandala on its own colours, a rounded tile so it never reads as an account dot */
+.wallet-mark { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: .75rem; flex: none; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.wallet-mark svg { width: 82%; height: 82%; }
 
 /* ---------- cards */
 .card { background: var(--card); border-radius: var(--radius); padding: .875rem; border: 1px solid var(--border); box-shadow: var(--lift); }
@@ -158,13 +161,13 @@ button.card:active { transform: scale(.985); }
 .hero {
   position: relative; overflow: hidden; isolation: isolate;
   aspect-ratio: 1.586; display: flex; flex-direction: column; justify-content: space-between;
-  background: linear-gradient(135deg, hsl(var(--h1, 224) 64% var(--l1, 40%)), hsl(var(--h2, 236) 60% var(--l2, 26%)));
+  background: linear-gradient(135deg, hsl(var(--h1, 224) 78% var(--l1, 40%)), hsl(var(--h2, 236) 74% var(--l2, 26%)));
   color: #fff; border-radius: 1.125rem; padding: 1rem 1.125rem;
   box-shadow: 0 1px 0 rgba(255, 255, 255, .18) inset, 0 .75rem 1.75rem -1rem hsl(var(--h1, 224) 60% 25% / .7);
 }
-:root[data-theme="dark"] .hero { background: linear-gradient(135deg, hsl(var(--h1, 224) 52% calc(var(--l1, 40%) - 9%)), hsl(var(--h2, 236) 48% calc(var(--l2, 26%) - 9%))); }
+:root[data-theme="dark"] .hero { background: linear-gradient(135deg, hsl(var(--h1, 224) 66% calc(var(--l1, 40%) - 7%)), hsl(var(--h2, 236) 62% calc(var(--l2, 26%) - 7%))); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .hero { background: linear-gradient(135deg, hsl(var(--h1, 224) 52% calc(var(--l1, 40%) - 9%)), hsl(var(--h2, 236) 48% calc(var(--l2, 26%) - 9%))); }
+  :root:not([data-theme="light"]) .hero { background: linear-gradient(135deg, hsl(var(--h1, 224) 66% calc(var(--l1, 40%) - 7%)), hsl(var(--h2, 236) 62% calc(var(--l2, 26%) - 7%))); }
 }
 .hero .guilloche { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
 /* stroke in the drawing's units (340 wide, about the card's width in px: ~0.7px on screen). No non-scaling stroke:
@@ -570,7 +573,9 @@ body.mobile #app > .screen { flex: 1; min-height: 0; overflow: hidden; }
 body.mobile .content { overflow-y: auto; }
 /* tab pill: floating over the screens; the active tab is a light inner pill with its label.
    The highlight moves with transform only (compositor), the slots resize along with it. */
-body.mobile #app { position: relative; }
+/* clip: the pill hidden below the screen (translated, see .away) must not make the document scrollable - a list
+   scrolled to its end would otherwise drag the whole interface, top bar included */
+body.mobile #app { position: relative; overflow: clip; }
 .tabpill {
   position: absolute; left: 0; right: 0; bottom: .75rem; margin: 0 auto; z-index: 20;
   /* --n tabs: the active one takes what the others (2.5rem each) leave; 3 tabs -> 15rem as before */
@@ -1375,12 +1380,16 @@ button.ob-option:active { transform: scale(.98); }
 .ct-head { gap: .5rem; }
 .ct-head .pills .badge { font-size: .6875rem; }
 .ct-impl { display: flex; align-items: center; gap: .5rem; padding: .5rem .625rem; border-radius: .75rem; background: var(--card-2); text-align: left; }
-.ct-impl .mono { flex: 1; }
+/* the label on its own line: "Implementation" next to a long address did not fit on a phone */
+.ct-impl-txt { display: flex; flex-direction: column; gap: .0625rem; flex: 1; min-width: 0; }
 .ct-overview { gap: .25rem; }
-.ct-ov-row { display: grid; grid-template-columns: minmax(5rem, 38%) 1fr; gap: .5rem; padding: .375rem 0; border-top: 1px solid var(--border); font-size: .8125rem; }
-.ct-ov-k { color: var(--muted); font-weight: 600; word-break: break-word; }
-.ct-ov-v { min-width: 0; }
+/* contract state: each value under its name, full width (two columns squeezed long values and names alike) */
+.ct-ov-row { display: flex; flex-direction: column; gap: .125rem; padding: .5rem 0; border-top: 1px solid var(--border); }
+.ct-ov-k { color: var(--muted); font-size: .75rem; font-weight: 600; word-break: break-word; }
+.ct-ov-v { min-width: 0; display: flex; flex-direction: column; gap: .25rem; }
 .ct-ov-v .ct-node { padding: 0; }
+.ct-ov-v .ct-node-v { font-size: .9375rem; }
+.ct-ov-v .ct-node-k { margin-top: .125rem; }
 .ct-btns { flex-wrap: wrap; gap: .375rem; }
 .ct-details { padding: .625rem .875rem; display: flex; flex-direction: column; gap: .5rem; }
 .ct-details > summary { font-weight: 600; font-size: .8125rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: .5rem; }

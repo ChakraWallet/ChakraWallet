@@ -116,6 +116,21 @@ export function AppIcon({ size = 72, class: cls = '' }) {
 }
 export function Logo() { return <AppIcon size={72} class="logo-icon" />; }
 
+/** A wallet (profile): the app's mandala in white on the wallet's own colours (derived from its id, like an account's). */
+export function WalletMark({ id, size }) {
+  const st = { ...cardStyle(`wallet:${id}`), ...(size ? { width: rem(size), height: rem(size) } : {}) };
+  return (
+    <span class="avatar wallet-mark" style={st} aria-hidden="true">
+      <svg viewBox="8 8 84 84">
+        {markShapes().outer.map((d) => <path d={d} fill="currentColor" opacity=".45" />)}
+        {markShapes().inner.map((d) => <path d={d} fill="currentColor" />)}
+        <circle cx="50" cy="50" r={MARK.core * 100} fill="rgba(0,0,0,.28)" stroke="currentColor" stroke-width={MARK.ring * 160} />
+        <circle cx="50" cy="50" r={MARK.bindu * 100} fill="currentColor" />
+      </svg>
+    </span>
+  );
+}
+
 // ------------------------------------------------------------ card look from the address
 // Security-print guilloche (hypotrochoid rosettes, like the line work on banknotes) and card colours are
 // derived deterministically from the address: same account -> always the same card, different accounts -> different cards.

@@ -1,7 +1,7 @@
 // Wallets (tenants): each one is an isolated profile with its own recovery phrase and accounts.
 import { useState, useMemo } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
-import { TopBar, Icon, Btn, Sheet, useApp, SecureScreen, CopyPhrase } from '../components.jsx';
+import { TopBar, Icon, Btn, Sheet, useApp, SecureScreen, CopyPhrase, WalletMark } from '../components.jsx';
 import { t, tn } from '../../shared/i18n.js';
 
 export function Wallets() {
@@ -22,7 +22,7 @@ export function Wallets() {
           {state.wallets.map((w) => (
             <div class="item">
               <button class="row grow" style={{ textAlign: 'left', minWidth: 0 }} onClick={() => open(w)}>
-                <div class="tx-icon" style={{ background: w.id === state.activeWallet ? 'var(--primary-soft)' : 'var(--card-2)', color: 'var(--primary)' }}><Icon name="wallet" /></div>
+                <WalletMark id={w.id} />
                 <div class="grow" style={{ minWidth: 0 }}>
                   <div class="bold ellipsis">{w.name}</div>
                   <div class="tiny muted">{tn('wallets.accounts', w.count)} · {w.hasSeed ? t('wallets.kind.seed') : t('wallets.kind.keys')}</div>

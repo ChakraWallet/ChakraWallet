@@ -60,7 +60,7 @@ const language = (lang) => (lang === 'solidity' ? solidity : TON_LANGS[lang] || 
 
 const theme = EditorView.theme({
   '&': { color: 'var(--text)', backgroundColor: 'var(--card)', height: '100%', fontSize: '.8125rem' },
-  '.cm-scroller': { fontFamily: "ui-monospace, 'SF Mono', 'Roboto Mono', Consolas, monospace", lineHeight: '1.55' },
+  '.cm-scroller': { fontFamily: "ui-monospace, 'SF Mono', 'Roboto Mono', Consolas, monospace", lineHeight: '1.55', overscrollBehavior: 'contain' },
   '.cm-content': { caretColor: 'var(--primary)', padding: '.5rem 0' },
   '.cm-gutters': { backgroundColor: 'var(--card)', color: 'var(--muted)', border: 'none', borderRight: '1px solid var(--border)' },
   '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--primary) 6%, transparent)' },
