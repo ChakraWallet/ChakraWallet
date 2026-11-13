@@ -27,7 +27,7 @@ const amt = (t) => `${fmtAmount(t.amount, t.decimals, 6)} ${t.symbol}`;
 const BRIDGE_CHAIN = (id) => BUILTIN_CHAINS.find((c) => c.id === id) || getChain(id); // also TON (Android app)
 const tokenIcon = (chainId, x) => x.icon || (POPULAR_TOKENS[chainId] || []).find((p) => p.address === x.token)?.icon || '';
 const hostOf = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
-const provider = (it) => (it.method && /\(([^)]+)\)\s*$/.exec(it.method)?.[1]) || null; // "Swap … (KyberSwap)"
+const provider = (it) => { const m = it.appTitle || it.method; return (m && /\(([^)]+)\)\s*$/.exec(m)?.[1]) || null; }; // "Swap … (KyberSwap)", the app's own title
 
 function title(it, bridge) {
   const outs = it.transfers.filter((x) => x.dir === 'out'), ins = it.transfers.filter((x) => x.dir === 'in');

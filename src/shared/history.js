@@ -1,6 +1,7 @@
 // Transaction history from free indexers (Blockscout v2 / Etherscan-compatible), normalized.
 import { etherscanUrl, isSpamToken } from './portfolio.js';
-import { rpc } from './rpc.js';
+import { rpc, getTokenInfo } from './rpc.js';
+import { POPULAR_TOKENS } from './tokens.js';
 
 const lc = (a) => String(a || '').toLowerCase();
 
@@ -67,7 +68,11 @@ async function etherscanPage(chain, address, cursor, key) {
     getJson(etherscanUrl(chain, { ...p, action: 'tokentx' }, key)),
   ]);
   const list = (j) => (Array.isArray(j?.result) ? j.result : []);
-  if (txs?.status === '0' && /key|rate/i.test(txs?.result || txs?.message || '')) throw new Error(String(txs.result || txs.message));
+  // status "0" is also how an empty list is answered; anything else (rate limit, missing key, server error) in
+  // either half is an error: a page without its token transfers would show swaps and sends as contract calls
+  for (const j of [txs, tts]) {
+    if (j?.status === '0' && !/no (transactions|records)/i.test(`${j.message} ${j.result}`)) throw new Error(String(typeof j.result === 'string' ? j.result : j.message));
+  }
   const map = new Map();
   for (const t of list(txs)) {
     const r = record(map, t.hash);
@@ -90,6 +95,36 @@ async function etherscanPage(chain, address, cursor, key) {
   markNotMine(map, address, list(txs).length === 50 ? Math.min(...list(txs).map((t) => Number(t.timeStamp) * 1000)) : 0);
   const more = list(txs).length === 50 || list(tts).length === 50;
   return { records: [...map.values()], next: more ? { page: page + 1 } : null };
+}
+
+// ---------------------------------------------------------------- transactions not indexed yet
+const TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const topicAddr = (t) => '0x' + String(t).slice(-40).toLowerCase();
+const tokenInfoCache = new Map(); // `${chainId}:${token}` -> {symbol, decimals, name, icon} | null
+
+async function tokenMeta(chain, token) {
+  const k = `${chain.id}:${token}`;
+  if (!tokenInfoCache.has(k)) {
+    const known = (POPULAR_TOKENS[chain.id] || []).find((p) => p.address === token);
+    tokenInfoCache.set(k, known ? Promise.resolve(known) : getTokenInfo(chain, token).catch(() => null));
+  }
+  return tokenInfoCache.get(k);
+}
+
+/**
+ * ERC-20 transfers to or from `me` in a receipt, in the indexers' format: a transaction sent from the app shows
+ * what it moved (tokens, amounts, icons) as soon as it is mined, before the indexer has it.
+ */
+export async function receiptTransfers(chain, receipt, me) {
+  const logs = (receipt?.logs || []).filter((l) => l.topics?.[0] === TRANSFER && l.topics.length === 3 && l.data && l.data !== '0x'
+    && (topicAddr(l.topics[1]) === me || topicAddr(l.topics[2]) === me));
+  const out = await Promise.all(logs.map(async (l) => {
+    const token = lc(l.address), info = await tokenMeta(chain, token);
+    if (!info) return null;
+    return { from: topicAddr(l.topics[1]), to: topicAddr(l.topics[2]), token, symbol: info.symbol, decimals: Number(info.decimals ?? 18),
+      amount: BigInt(l.data.slice(0, 66)).toString(), icon: info.icon || '', name: info.name || '' };
+  }));
+  return out.filter(Boolean);
 }
 
 // ---------------------------------------------------------------- classify
@@ -129,7 +164,7 @@ export function classify(r, address, chain) {
   const bridgeLike = sentByMe && outs.length > 0 && ins.length === 0 && (BRIDGE_METHOD.test(m) || BRIDGE_CONTRACT.test(r.toName || ''));
   let kind;
   if (outs.length && ins.length) kind = 'swap';
-  else if (m === 'approve' || m === '0x095ea7b3' || m === 'setapprovalforall' || m === 'permit') kind = 'approve';
+  else if (m === 'approve' || m === '0x095ea7b3' || r.selector === '0x095ea7b3' || m === 'setapprovalforall' || m === 'permit') kind = 'approve';
   else if (outs.length) kind = 'send';
   else if (ins.length) kind = 'receive';
   else if (sentByMe && r.to === me) kind = 'self';
@@ -169,17 +204,28 @@ export async function loadHistory(chain, address, cursor, { etherscanKey = '', l
   }
 
   let records = page.records;
+  // what the app knows about the transactions it sent: where they came from and its own title ("Swap … (Velora)")
+  const logOf = new Map(localLog.map((l) => [l.hash.toLowerCase(), l]));
+  for (const r of records) {
+    const l = logOf.get(r.hash.toLowerCase());
+    if (l) { r.origin = l.origin; r.appTitle = l.title || null; }
+  }
   if (!cursor) {
-    // add locally-sent transactions not yet seen by the indexer
+    // add locally-sent transactions not yet seen by the indexer (it can lag minutes or more behind the chain):
+    // their token transfers come from the receipt, so they look the same as when the indexer has them
     const known = new Set(records.map((r) => r.hash.toLowerCase()));
     const local = localLog.filter((l) => !known.has(l.hash.toLowerCase()));
+    const me = lc(address);
     const localRecs = await Promise.all(local.slice(0, 30).map(async (l) => {
-      let status = l.status;
-      if (status === 'pending') {
-        const rc = await rpc(chain, 'eth_getTransactionReceipt', [l.hash]).catch(() => null);
-        if (rc) status = rc.status === '0x1' ? 'ok' : 'failed';
+      let status = l.status, transfers = [], fee = null;
+      const rc = await rpc(chain, 'eth_getTransactionReceipt', [l.hash]).catch(() => null);
+      if (rc) {
+        status = rc.status === '0x1' ? 'ok' : 'failed';
+        transfers = await receiptTransfers(chain, rc, me).catch(() => []);
+        if (rc.gasUsed && rc.effectiveGasPrice) fee = (BigInt(rc.gasUsed) * BigInt(rc.effectiveGasPrice)).toString();
       }
-      return { hash: l.hash, time: l.time, from: l.from, to: l.to, value: l.value, fee: null, status, method: l.title || null, transfers: [], isTx: true, local: true, origin: l.origin };
+      return { hash: l.hash, time: l.time, from: l.from, to: l.to, value: l.value, fee, status, method: l.title || null, appTitle: l.title || null,
+        selector: l.data, transfers, isTx: true, local: true, origin: l.origin };
     }));
     records = [...records, ...localRecs];
   }
