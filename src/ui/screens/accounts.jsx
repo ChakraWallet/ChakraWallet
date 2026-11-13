@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
 import { shortAddr, fmtNum, fmtUsd } from '../../shared/format.js';
-import { TopBar, Avatar, Icon, Btn, Sheet, QR, CopyBtn, useApp, explorerAddr, TokenIcon, Spinner, SecureScreen, ChainIcon, WalletMark } from '../components.jsx';
+import { TopBar, Avatar, Icon, Btn, Sheet, QR, CopyBtn, useApp, explorerAddr, TokenIcon, Spinner, SecureScreen, ChainIcon } from '../components.jsx';
 import { useMultichainPortfolios, summarize } from '../hooks.js';
 import { t, tn } from '../../shared/i18n.js';
 import { VanityAccount } from './vanity.jsx';
@@ -221,7 +221,7 @@ export function Accounts() {
       <div class="content">
         <button class="card row between" style={{ textAlign: 'left' }} onClick={() => nav('wallets')}>
           <div class="row" style={{ minWidth: 0 }}>
-            <WalletMark id={state.activeWallet} />
+            <span class="green"><Icon name="wallet" /></span>
             <div style={{ minWidth: 0 }}><div class="tiny muted">{t('accounts.activeWallet')}</div><div class="bold ellipsis">{state.wallets.find((w) => w.id === state.activeWallet)?.name}</div></div>
           </div>
           <span class="small muted row">{state.wallets.length > 1 ? tn('accounts.walletCount', state.wallets.length) : t('accounts.manage')}<Icon name="forward" size={14} /></span>

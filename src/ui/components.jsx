@@ -116,21 +116,6 @@ export function AppIcon({ size = 72, class: cls = '' }) {
 }
 export function Logo() { return <AppIcon size={72} class="logo-icon" />; }
 
-/** A wallet (profile): the app's mandala in white on the wallet's own colours (derived from its id, like an account's). */
-export function WalletMark({ id, size }) {
-  const st = { ...cardStyle(`wallet:${id}`), ...(size ? { width: rem(size), height: rem(size) } : {}) };
-  return (
-    <span class="avatar wallet-mark" style={st} aria-hidden="true">
-      <svg viewBox="8 8 84 84">
-        {markShapes().outer.map((d) => <path d={d} fill="currentColor" opacity=".45" />)}
-        {markShapes().inner.map((d) => <path d={d} fill="currentColor" />)}
-        <circle cx="50" cy="50" r={MARK.core * 100} fill="rgba(0,0,0,.28)" stroke="currentColor" stroke-width={MARK.ring * 160} />
-        <circle cx="50" cy="50" r={MARK.bindu * 100} fill="currentColor" />
-      </svg>
-    </span>
-  );
-}
-
 // ------------------------------------------------------------ card look from the address
 // Security-print guilloche (hypotrochoid rosettes, like the line work on banknotes) and card colours are
 // derived deterministically from the address: same account -> always the same card, different accounts -> different cards.
@@ -179,7 +164,14 @@ export function accountColors(address) {
   return colorCache.get(k);
 }
 
+const lookCache = new Map();
+/** The card's look for an address (cached: avatars draw the same rosettes, often many on one screen). */
 export function cardLook(address) {
+  const k = String(address || '').toLowerCase();
+  if (!lookCache.has(k)) lookCache.set(k, makeLook(k));
+  return lookCache.get(k);
+}
+function makeLook(address) {
   const rnd = seeded(address);
   const pick = (a) => a[Math.floor(rnd() * a.length)];
   const { hue, hue2, l1, l2 } = colorsFrom(rnd);
@@ -193,7 +185,7 @@ export function cardLook(address) {
   // a second, wider and fainter band with another ratio, turning the other way
   const [p2, q2] = pick(RATIOS);
   const band = rosette({ p: p2, q: q2, d: (q2 / p2) * (0.6 + rnd() * 0.5), cx, cy, size: size * (1.35 + rnd() * 0.35), rot: -rot, dir: -1 });
-  return { hue, hue2, l1, l2, paths, band };
+  return { hue, hue2, l1, l2, paths, band, cx, cy, size };
 }
 
 export function Guilloche({ seed, draw }) {
@@ -267,8 +259,18 @@ export function SuccessMark() {
   return <div class="done-mark"><Icon name="check" size={34} stroke={2.4} /></div>;
 }
 
+/** The account's dot: its card in miniature - same colours and the same guilloche rosette, centred in the circle. */
 export function Avatar({ address, lg }) {
-  return <div class={`avatar ${lg ? 'lg' : ''}`} style={cardStyle(address)} />;
+  const look = cardLook(address || 'chakra');
+  const r = look.size * 0.92;
+  return (
+    <div class={`avatar ${lg ? 'lg' : ''}`} style={cardStyle(address)}>
+      <svg viewBox={`${look.cx - r} ${look.cy - r} ${r * 2} ${r * 2}`} aria-hidden="true">
+        <path class="band" d={look.band} />
+        {look.paths.map((d) => <path d={d} />)}
+      </svg>
+    </div>
+  );
 }
 
 const COLORS = ['#5b4cf0', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#14b8a6'];
