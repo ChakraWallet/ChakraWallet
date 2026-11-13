@@ -17,6 +17,7 @@ import { TokenDetails } from './screens/token.jsx';
 import { Browser } from './screens/browser.jsx';
 import { Wallets } from './screens/wallets.jsx';
 import { Bridge } from './screens/bridge.jsx';
+import { Donate } from './screens/donate.jsx';
 import { useBridgeTracker, useBackgroundWatch } from './hooks.js';
 import { Icon } from './components.jsx';
 import { useAuthorizer } from './auth.jsx';
@@ -56,6 +57,7 @@ export function App() {
   const [browserUsed, setBrowserUsed] = useState(false);
   const [predictUsed, setPredictUsed] = useState(false);
   const [contractsUsed, setContractsUsed] = useState(false);
+  const [donateUsed, setDonateUsed] = useState(false);
   const [contractsDeep, setContractsDeep] = useState(false); // a contract, a project... is open over the Contracts home
   const [predictReq, setPredictReq] = useState(null); // a Predictions screen to open from the wallet: { name }
   const [openUrl, setOpenUrl] = useState(null);
@@ -129,6 +131,7 @@ export function App() {
     if (k === 'browser') setBrowserUsed(true);
     if (k === 'predict') setPredictUsed(true);
     if (k === 'contracts') setContractsUsed(true);
+    if (k === 'donate') setDonateUsed(true);
   }, []);
   const openPredict = useCallback((name) => { setPredictReq({ name }); goTab('predict'); }, []);
   const endPane = (e) => { if (e.target === e.currentTarget) setPaneAnim(''); };
@@ -207,6 +210,7 @@ export function App() {
         if (globalThis.__CK_contractsBack?.()) return; // contract, studio, transaction...
         return goTab('wallet');
       }
+      if (tab === 'donate') return goTab('wallet');
       if (globalThis.__CK_screenBack?.()) return; // a screen with its own sub-pages (settings: networks, sites)
       if (stack.length > 1) return back();
       globalThis.__CK_exitApp?.();
@@ -258,6 +262,11 @@ export function App() {
             <ContractsTab visible={!approvalOpen && tab === 'contracts'} onDeep={setContractsDeep} />
           </div>
         )}
+        {mode === 'mobile' && (donateUsed || tab === 'donate') && (
+          <div class={`screen pane ${tab === 'donate' ? paneAnim : ''}`} onAnimationEnd={endPane} style={{ display: !approvalOpen && tab === 'donate' ? 'flex' : 'none' }}>
+            <Donate />
+          </div>
+        )}
         <TabPill tab={tab} onPick={goTab} hidden={approvalOpen || (tab === 'browser' && siteOpen) // only on the main page of each tab
           || (tab === 'wallet' && (stack.length > 1 || top.name !== 'home')) || (tab === 'predict' && predictDeep) || (tab === 'contracts' && contractsDeep)} />
       </>
@@ -292,7 +301,7 @@ function EvmOnly() {
 
 // Contracts: Android app only, registered by src/mobile/contractsTab.js (not part of the extension)
 const ContractsTab = globalThis.__CK_CONTRACTS__ || null;
-const TABS = [{ k: 'wallet', icon: 'wallet' }, { k: 'browser', icon: 'globe' }, { k: 'predict', icon: 'predict' }, ...(ContractsTab ? [{ k: 'contracts', icon: 'code' }] : [])];
+const TABS = [{ k: 'wallet', icon: 'wallet' }, { k: 'browser', icon: 'globe' }, { k: 'predict', icon: 'predict' }, ...(ContractsTab ? [{ k: 'contracts', icon: 'code' }] : []), { k: 'donate', icon: 'heart' }];
 
 /**
  * Floating tab bar: the active tab is a light inner pill with its label, sliding between the icons

@@ -56,6 +56,7 @@ const P = {
   search: 'M21 21l-4.34-4.34M3 11a8 8 0 1 0 16 0a8 8 0 1 0-16 0', // Lucide search (ISC)
   predict: 'M4.5 10.5a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0-15 0M7 16.1 5 21h14l-2-4.9M8.5 10a3.5 3.5 0 0 1 3.5-3.5', // crystal ball on its stand, with a highlight
   code: 'm18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16', // Lucide code-xml (ISC)
+  heart: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z', // Lucide heart (ISC)
   // Predictions categories and feed: Lucide icons (ISC), shapes merged into one path
   flame: 'M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4', // Lucide flame
   sparkle: 'M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4M22 4h-4M2 20a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', // Lucide sparkles

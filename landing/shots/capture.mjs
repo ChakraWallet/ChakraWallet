@@ -45,7 +45,7 @@ async function setup(page, { lang, dark, chainId = 1 }) {
   await sleep(1800); // balances, count-up animation, guilloche drawing
 }
 
-const tab = (page, k) => page.click(`nav.tabpill button:nth-of-type(${{ wallet: 1, browser: 2, predict: 3, contracts: 4 }[k]})`);
+const tab = (page, k) => page.click(`nav.tabpill button:nth-of-type(${{ wallet: 1, browser: 2, predict: 3, contracts: 4, donate: 5 }[k]})`);
 const action = (page, n) => page.click(`.actions .action:nth-of-type(${n})`);
 
 const SCENES = {
@@ -61,6 +61,7 @@ const SCENES = {
   async predict(page) { await tab(page, 'predict'); await sleep(2600); },
   async browser(page) { await tab(page, 'browser'); await sleep(1500); },
   async contracts(page) { await tab(page, 'contracts'); await sleep(1500); },
+  async donate(page) { await tab(page, 'donate'); await sleep(2200); },
 };
 
 const only = process.argv.slice(2);
@@ -69,7 +70,7 @@ const b = await browser();
 const runs = [];
 for (const lang of ['en']) { // the landing page is in English only
   for (const name of Object.keys(SCENES)) runs.push({ name, lang, dark: false });
-  if (!process.env.NO_DARK) for (const name of ['home', 'predict', 'swap']) runs.push({ name, lang, dark: true });
+  if (!process.env.NO_DARK) for (const name of ['home', 'predict', 'swap', 'donate']) runs.push({ name, lang, dark: true });
 }
 for (const r of runs.filter((x) => !only.length || only.includes(x.name))) {
   const file = `${r.name}${r.dark ? '-dark' : ''}.jpg`;

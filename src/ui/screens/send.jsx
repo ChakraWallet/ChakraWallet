@@ -56,11 +56,11 @@ export function useTokenList() {
   return { tokens: [native, ...(data?.tokens || [])], data };
 }
 
-export function Send({ tokenAddress, scan: scanOnOpen }) {
+export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
   const { chain, account, state, nav, reset, toast, authorize, refresh, mode } = useApp();
   const { tokens } = useTokenList();
   const [token, setToken] = useState(null);
-  const [to, setTo] = useState('');
+  const [to, setTo] = useState(initialTo); // e.g. the project's donation address (Support tab)
   const [amount, setAmount] = useState('');
   const [isMax, setIsMax] = useState(false);
   const [picker, setPicker] = useState(false);

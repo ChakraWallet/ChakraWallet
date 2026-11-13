@@ -6,6 +6,7 @@ const LINKS = {
   android: '#download',
   chrome: '#download',
   firefox: '#download',
+  github: '#open-source', // the GitHub repository
 };
 
 const shot = (name) => `${import.meta.env.BASE_URL}shots/${name}.jpg`;
@@ -23,6 +24,8 @@ const I = {
   eyeOff: <><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 9 5 9 7a9.4 9.4 0 0 1-2.4 3.3M6.6 6.6C4.4 8 3 10.4 3 12c0 2 4 7 9 7a9.3 9.3 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
   sparkle: <path d="M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5m7 7L18 18M6 18l2.5-2.5m7-7L18 6" />,
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
+  github: <path fill="currentColor" stroke="none" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z" />,
+  heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z" />,
 };
 function Icon({ name, size = 22, stroke = true }) {
   return (
@@ -122,6 +125,7 @@ function Nav() {
           <a href="#features">Features</a>
           <a href="#security">Security</a>
           <a href="#networks">Networks</a>
+          <a href="#open-source">Open source</a>
         </nav>
         <a className="btn btn-primary btn-sm" href="#download">Get Chakra</a>
       </div>
@@ -135,7 +139,7 @@ function Hero() {
       <Guilloche className="hero-rosette" />
       <div className="wrap hero-in">
         <div className="hero-copy">
-          <span className="eyebrow"><span className="dot" />iPhone · Android · Chrome · Firefox</span>
+          <span className="eyebrow"><span className="dot" />Free &amp; open source · iPhone · Android · Chrome · Firefox</span>
           <h1>Your crypto,<br /><span className="ink">beautifully clear.</span></h1>
           <p className="lede">
             Chakra is a self-custodial wallet for Ethereum, every major EVM network and TON. Send, swap at the best price,
@@ -143,6 +147,7 @@ function Hero() {
           </p>
           <StoreButtons />
           <ul className="hero-points">
+            <li><Icon name="check" size={18} />Free &amp; open source</li>
             <li><Icon name="check" size={18} />No servers of our own</li>
             <li><Icon name="check" size={18} />No extra fees</li>
             <li><Icon name="check" size={18} />MetaMask compatible</li>
@@ -242,7 +247,7 @@ function Features() {
 
 const GALLERY = [
   ['home', false, 'Home'], ['predict-dark', true, 'Predictions · dark'], ['receive', false, 'Receive'], ['swap-dark', true, 'Swap · dark'],
-  ['send', false, 'Send'], ['activity', false, 'Activity'], ['accounts', false, 'Accounts'], ['contracts', false, 'Contracts'],
+  ['send', false, 'Send'], ['activity', false, 'Activity'], ['accounts', false, 'Accounts'], ['contracts', false, 'Contracts'], ['donate-dark', true, 'Support · dark'],
 ];
 function Gallery() {
   const ref = useRef(null);
@@ -326,6 +331,35 @@ function Networks() {
   );
 }
 
+function OpenSource() {
+  return (
+    <section className="oss" id="open-source">
+      <div className="wrap oss-in">
+        <div className="oss-copy reveal">
+          <span className="kicker">Open source</span>
+          <h2>Free. Open source.<br />Built in the open.</h2>
+          <p>
+            Chakra costs nothing and never will: no fees on top, no ads, no account. The whole code is on GitHub, so anyone
+            can read how your keys are handled, build it themselves, report a bug or suggest an idea.
+          </p>
+          <p>
+            If Chakra is useful to you, the <b>Support</b> tab in the app lets you leave a small donation — any token, on any
+            network, from any of your accounts. It opens the usual Send screen, with the fee shown before you confirm.
+          </p>
+          <div className="oss-btns">
+            <a className="btn btn-dark" href={LINKS.github}><Icon name="github" size={20} stroke={false} />View on GitHub</a>
+            <a className="btn btn-ghost" href="#download"><Icon name="heart" size={18} />Get the app</a>
+          </div>
+        </div>
+        <div className="feature-visual reveal">
+          <div className="glow" />
+          <Phone src={shot('donate')} alt="Support screen of the Chakra app, for donations to the project" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const PLATFORMS = [
   { k: 'ios', icon: 'apple', fill: true, name: 'iPhone', text: 'The full Chakra app for iOS, with Face ID.', cta: 'App Store' },
   { k: 'android', icon: 'play', fill: true, name: 'Android', text: 'Dapp browser, predictions, contracts and fingerprint unlock.', cta: 'Download for Android' },
@@ -341,7 +375,7 @@ function Download() {
           <div className="dl-head">
             <img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width="88" height="88" />
             <h2>Get Chakra</h2>
-            <p>Restore the same wallet on any platform with your recovery phrase or an encrypted backup.</p>
+            <p>Free on every platform, and open source. Restore the same wallet anywhere with your recovery phrase or an encrypted backup.</p>
           </div>
           <div className="dl-grid">
             {PLATFORMS.map((p) => (
@@ -364,7 +398,8 @@ function Footer() {
     <footer className="footer">
       <div className="wrap footer-in">
         <a className="brand" href="#top"><img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width="28" height="28" />Chakra</a>
-        <p>Self-custodial: you are responsible for your recovery phrase. Screenshots show demo data.</p>
+        <p>Free and open source. Self-custodial: you are responsible for your recovery phrase. Screenshots show demo data.</p>
+        <a className="foot-gh" href={LINKS.github}><Icon name="github" size={18} stroke={false} />GitHub</a>
         <span>© {new Date().getFullYear()} Chakra</span>
       </div>
     </footer>
@@ -383,6 +418,7 @@ export default function App() {
         <Gallery />
         <Security />
         <Networks />
+        <OpenSource />
         <Download />
       </main>
       <Footer />
