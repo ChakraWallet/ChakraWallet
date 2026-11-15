@@ -9,7 +9,6 @@ import { t } from '../../../../shared/i18n.js';
 import { emulateMessages, followSend, showAddress } from '../../../../shared/ton/contracts.js';
 import { tonTxUrl } from '../../../../shared/ton/api.js';
 import { saveContract } from '../../../contractsStore.js';
-import { invalidateTon } from '../../../ton/hooks.js';
 import { StepsView, useTonWalletFor, Loading } from './parts.jsx';
 
 const FEE_MARGIN = 20_000_000n; // 0.02 GRAM for the wallet's own fees when the emulation can't say
@@ -19,7 +18,7 @@ const FEE_MARGIN = 20_000_000n; // 0.02 GRAM for the wallet's own fees when the 
  *        contract?: { address, name }, deploy?: { address, name, kind } }
  */
 export function TonTxReview({ chain, req, onBack, onMined, onOpenContract }) {
-  const { account, authorize } = useApp();
+  const { account, authorize, setPortfolioCache } = useApp();
   const wallet = useTonWalletFor(chain);
   const [sim, setSim] = useState(null);
   const [simErr, setSimErr] = useState('');
@@ -47,7 +46,8 @@ export function TonTxReview({ chain, req, onBack, onMined, onOpenContract }) {
     try {
       const r = await authorize((password) => bg('tonSend', { from: account.address, chainId: chain.id, messages: req.messages, password }), t('tonc.review.confirmTitle'));
       setSent({ phase: 'sent' });
-      invalidateTon(chain.id, wallet.raw);
+      // the wallet home reloads this network's balances next time (shared cache, same key as usePortfolio)
+      setPortfolioCache((c) => { const n = { ...c }; delete n[`${chain.id}:${account.address}`]; return n; });
       followSend(chain, r, (u) => setSent((s) => ({ ...s, ...u })))
         .then(async (res) => {
           const ok = res.trace ? res.trace.ok && !res.trace.bounced : true;

@@ -80,7 +80,13 @@ src/mobile/         Android runtime (Capacitor): extension API shim, in-app brow
 src/shared/         networks, RPC, fees, balances, history, prices, swaps, i18n
 src/shared/locales/ dictionaries (en = base and fallback, it)
 src/ui/             interface (Preact): popup, screens, approvals
+src/ui/chains/      chain drivers: the screens' interface to each family of networks (EVM here, TON in src/ui/ton)
 scripts/            Android build, icon renderer, i18n checker
 android/            Capacitor Android project (native plugins: dapp browser, fingerprint, system bars)
 build.mjs           build for Chrome, Firefox and Android + icons + zip
 ```
+
+The wallet screens are the same for every network: each family of networks (EVM, TON…) plugs in through a chain
+driver (`src/ui/chains/driver.d.md`) and, for keys, a family module in the background (`src/background/families.js`).
+Adding one (e.g. Solana, Tron): [docs/adding-a-chain.md](docs/adding-a-chain.md). `npm test` checks every driver
+against the interface (`tests/drivers.test.js`).

@@ -2,18 +2,20 @@
 // Decrypted material lives only in storage.session (memory, never written to disk) while unlocked.
 //
 // Multi-wallet ("tenant") model, one global password:
-//   secrets (encrypted)  { v: 2, wallets: [{ id, mnemonic|null, hd: [index…], hdNext, imported: [pk…], ton?: [{ address, secret, version }] }] }
-//   (ton: wallets imported from other TON apps - Android app; the TON key of an HD account comes from its phrase)
+//   secrets (encrypted)  { v: 2, wallets: [{ id, mnemonic|null, hd: [index…], hdNext, imported: [pk…], [family]?: [{ address, secret, … }] }] }
+//   ([family]: wallets imported from another app of one family of networks, e.g. ton: [{ address, secret, version }];
+//    see background/families.js. The key of an HD account on another family comes from its phrase)
 //   storage.local        wallets:      [{ id, name, hasSeed }]
 //                        activeWallet: id            -> the UI, dapps and signing only see this wallet's accounts
 //                        accounts:     [{ address, name, type, index?, walletId }]   (all wallets)
-//                                      type 'ton': a TON-only account, address = its raw TON address ("0:…")
+//                                      type <family> (e.g. 'ton'): an account of that family only, address as the family stores it
 //                        selected:     address (in the active wallet)
 //                        lastSelected: { walletId: address }
 // An address belongs to exactly one wallet; a recovery phrase to at most one wallet.
 import { HDNodeWallet, Mnemonic, Wallet, getAddress } from 'ethers';
 import { local, session } from '../shared/ext.js';
 import { t, i18nError } from '../shared/i18n.js';
+import { familyKinds, familyOf } from './families.js';
 
 const ITER = 600_000;
 const enc = new TextEncoder();
@@ -352,7 +354,7 @@ export async function removeAccount(address, password) {
   const w = s.secrets.wallets.find((x) => x.id === acc.walletId);
   if (w) {
     if (acc.type === 'hd') w.hd = w.hd.filter((i) => i !== acc.index);
-    else if (acc.type === 'ton') w.ton = (w.ton || []).filter((x) => lc(x.address) !== lc(address));
+    else if (familyOf(acc.type)) w[acc.type] = (w[acc.type] || []).filter((x) => lc(x.address) !== lc(address));
     else { const pk = s.keys[lc(address)]; w.imported = w.imported.filter((k) => k !== pk); }
   }
   await persist(s);
@@ -371,8 +373,9 @@ export async function selectAccount(address) {
 export async function exportPrivateKey(address, password) {
   await verifyPassword(password);
   const s = await getSession();
-  const ton = s.secrets.wallets.flatMap((w) => w.ton || []).find((x) => lc(x.address) === lc(address));
-  if (ton) return ton.secret; // TON account: its Ed25519 key (hex)
+  // an account of another family only: its key as that family stores it (TON: the Ed25519 key, hex)
+  const own = s.secrets.wallets.flatMap((w) => familyKinds().flatMap((k) => w[k] || [])).find((x) => lc(x.address) === lc(address));
+  if (own) return own.secret;
   const pk = s.keys[lc(address)];
   if (!pk) throw i18nError('errors.accountNotFound');
   return pk;
@@ -390,35 +393,35 @@ export async function setExtraSecret(name, value) {
 }
 export async function getExtraSecret(name) { return (await getSession()).secrets.extra?.[name] ?? null; }
 
-// ------------------------------------------------------------------ TON (Android app; the TON code lives in background/ton.js)
-const TON_VERSIONS = ['v5r1', 'v4r2', 'v3r2'];
-
+// ------------------------------------------------------------------ other families (TON...: background/families.js)
 /**
- * Where the TON key of an account of the active wallet comes from (background only, never sent to the UI):
- * { phrase, index } for accounts of the recovery phrase, { secret, version } for TON accounts, null otherwise.
+ * Where an account's key for a family comes from (background only, never sent to the UI): { phrase, index } for
+ * accounts of the recovery phrase, the stored entry ({ secret, ... }) for accounts of that family only, null otherwise
+ * (e.g. an imported Ethereum key has no TON key). Only accounts of the active wallet.
  */
-export async function tonKeySource(address) {
+export async function familyKeySource(kind, address) {
   const s = await getSession();
   const m = await meta();
   const acc = m.accounts.find((a) => lc(a.address) === lc(address) && a.walletId === m.active);
   if (!acc) return null;
   const w = s.secrets.wallets.find((x) => x.id === acc.walletId);
   if (acc.type === 'hd' && w?.mnemonic) return { phrase: w.mnemonic, index: acc.index };
-  if (acc.type === 'ton') { const x = (w?.ton || []).find((k) => lc(k.address) === lc(address)); return x ? { secret: x.secret, version: x.version } : null; }
+  if (acc.type === kind) { const x = (w?.[kind] || []).find((k) => lc(k.address) === lc(address)); if (!x) return null; const { address: _, ...rest } = x; return rest; }
   return null;
 }
 
-/** Adds a TON-only account to the active wallet (key and address already checked by background/ton.js). */
-export async function addTonAccount({ address, secret, version, name }) {
-  if (!/^-?\d+:[0-9a-f]{64}$/i.test(address) || !/^[0-9a-f]{64}$/i.test(secret) || !TON_VERSIONS.includes(version)) throw i18nError('errors.invalidPrivateKey');
+/** Adds an account of one family only to the active wallet (entry checked by the family's module, then by its clean()). */
+export async function addFamilyAccount(kind, entry, name) {
+  const x = familyOf(kind)?.clean(entry);
+  if (!x) throw i18nError('errors.invalidPrivateKey');
   const s = await getSession();
   const w = await activeSecrets(s);
   const m = await meta();
-  const dup = m.accounts.find((a) => lc(a.address) === lc(address));
-  if (dup) throw dup.walletId === w.id ? i18nError('errors.accountExists') : i18nError('errors.accountInWallet', { name: ownerName(m, address) });
-  (w.ton ||= []).push({ address: address.toLowerCase(), secret: secret.toLowerCase(), version });
+  const dup = m.accounts.find((a) => lc(a.address) === lc(x.address));
+  if (dup) throw dup.walletId === w.id ? i18nError('errors.accountExists') : i18nError('errors.accountInWallet', { name: ownerName(m, x.address) });
+  (w[kind] ||= []).push(x);
   await persist(s);
-  const acc = { address: address.toLowerCase(), name: name || nameIn(m.accounts, w.id), type: 'ton', walletId: w.id };
+  const acc = { address: x.address, name: name || nameIn(m.accounts, w.id), type: kind, walletId: w.id };
   await local.set('accounts', [...m.accounts, acc]);
   return acc;
 }
@@ -434,7 +437,7 @@ export async function getSigner(address) {
 // ------------------------------------------------------------------ text backup
 // One line of text, same format on extension and app:
 //   CHAKRA-BACKUP-2:<base64(JSON {v,kdf,iter,salt,iv,data})>
-//   data = AES-GCM({ wallets: [{ name, mnemonic, hdNext, hd: [{index,name}], imported: [{pk,name,type}], ton: [...] }] })
+//   data = AES-GCM({ wallets: [{ name, mnemonic, hdNext, hd: [{index,name}], imported: [{pk,name,type}], [family]: [...] }] })
 // Export contains only the ACTIVE wallet (its phrase and all its keys); the list format allows more on import.
 // Version 1 (single wallet: { mnemonic, hdCount, hdNames, imported }) is still accepted. On import only the version
 // counts: backups made by the app under its earlier name (another NAME-BACKUP-n: prefix) are read too.
@@ -452,7 +455,7 @@ export async function exportBackup(walletPassword, backupPassword) {
     hdNext: w.hdNext,
     hd: w.hd.map((index) => ({ index, name: byAddr.get(lc(deriveHd(w.mnemonic, index).address))?.name || null })),
     imported: w.imported.map((pk) => { const a = byAddr.get(lc(new Wallet(pk).address)); return { pk, name: a?.name || null, type: a?.type || 'imported' }; }),
-    ton: (w.ton || []).map((x) => ({ address: x.address, secret: x.secret, version: x.version, name: byAddr.get(lc(x.address))?.name || null })),
+    ...Object.fromEntries(familyKinds().map((k) => [k, (w[k] || []).map((x) => ({ ...x, name: byAddr.get(lc(x.address))?.name || null }))])),
   }));
   if (!wallets.length) throw i18nError('errors.noActiveWallet');
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -488,8 +491,8 @@ async function decodeBackup(text, backupPassword) {
         hdNext: Math.max(Number(w.hdNext) | 0, ...hd.map((h) => h.index + 1), 0),
         hd,
         imported: (w.imported || []).map((x) => { const k = new Wallet(x.pk); return { pk: k.privateKey, address: k.address, name: x.name || null, type: x.type === 'generated' ? 'generated' : 'imported' }; }),
-        ton: (w.ton || []).filter((x) => /^-?\d+:[0-9a-f]{64}$/i.test(x.address) && /^[0-9a-f]{64}$/i.test(x.secret) && TON_VERSIONS.includes(x.version))
-          .map((x) => ({ address: x.address.toLowerCase(), secret: x.secret.toLowerCase(), version: x.version, name: x.name || null })),
+        // accounts of other families: the entries their family accepts (others dropped)
+        ...Object.fromEntries(familyKinds().map((k) => [k, (w[k] || []).map((x) => { const c = familyOf(k).clean(x); return c && { ...c, name: x.name || null }; }).filter(Boolean)])),
       };
     });
   } catch { throw i18nError('errors.backupInvalid'); }
@@ -519,10 +522,13 @@ function mergeBackup(secrets, walletsMeta, accounts, backup) {
       w.imported.push(x.pk); keys[lc(x.address)] = true;
       newAccs.push({ address: x.address, name: x.name || nm(), type: x.type, walletId: w.id });
     }
-    for (const x of bw.ton || []) {
-      if (keys[lc(x.address)] || accounts.some((a) => lc(a.address) === lc(x.address))) continue;
-      (w.ton ||= []).push({ address: x.address, secret: x.secret, version: x.version }); keys[lc(x.address)] = true;
-      newAccs.push({ address: x.address, name: x.name || nm(), type: 'ton', walletId: w.id });
+    for (const kind of familyKinds()) {
+      for (const x of bw[kind] || []) {
+        if (keys[lc(x.address)] || accounts.some((a) => lc(a.address) === lc(x.address))) continue;
+        const { name, ...entry } = x;
+        (w[kind] ||= []).push(entry); keys[lc(x.address)] = true;
+        newAccs.push({ address: x.address, name: name || nm(), type: kind, walletId: w.id });
+      }
     }
     if (isNew && !newAccs.length) continue;
     if (isNew) {

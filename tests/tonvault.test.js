@@ -19,9 +19,9 @@ test('TON accounts in the vault', { timeout: 300000 }, async () => {
   const imp = (await v.importPrivateKey(PK, 'Imp')).address;
 
   // key sources: HD -> phrase + index; imported Ethereum key -> none
-  assert.deepEqual(await v.tonKeySource(hd0), { phrase: A, index: 0 });
-  assert.deepEqual(await v.tonKeySource(hd1), { phrase: A, index: 1 });
-  assert.equal(await v.tonKeySource(imp), null);
+  assert.deepEqual(await v.familyKeySource('ton', hd0), { phrase: A, index: 0 });
+  assert.deepEqual(await v.familyKeySource('ton', hd1), { phrase: A, index: 1 });
+  assert.equal(await v.familyKeySource('ton', imp), null);
 
   // the UI gets public data only, for HD accounts
   const map = await tonHandlers.tonAccounts();
@@ -39,7 +39,7 @@ test('TON accounts in the vault', { timeout: 300000 }, async () => {
   assert.equal(acc.type, 'ton');
   assert.equal(acc.address, look.versions[1].mainnet.raw);
   await assert.rejects(() => tonHandlers.tonImport({ secret, version: 'v4r2' }), /already|già/, 'no duplicates');
-  assert.deepEqual(await v.tonKeySource(acc.address), { secret, version: 'v4r2' });
+  assert.deepEqual(await v.familyKeySource('ton', acc.address), { secret, version: 'v4r2' });
   assert.equal((await tonHandlers.tonAccounts())[acc.address].version, 'v4r2');
   assert.equal(await v.exportPrivateKey(acc.address, 'walletpw1'), secret, 'its key can be shown like any account key');
   await assert.rejects(() => v.getSigner(acc.address), /./, 'no Ethereum signer for a TON account');
@@ -54,7 +54,7 @@ test('TON accounts in the vault', { timeout: 300000 }, async () => {
   assert.ok(ton, 'TON account restored');
   assert.equal(ton.address, acc.address);
   assert.equal(ton.name, 'Tonkeeper');
-  assert.deepEqual(await v.tonKeySource(ton.address), { secret, version: 'v4r2' });
+  assert.deepEqual(await v.familyKeySource('ton', ton.address), { secret, version: 'v4r2' });
   assert.equal(st.accounts.length, 4);
 
   // a backup made under the app's earlier name (another NAME-BACKUP-2: prefix) is read too
@@ -68,6 +68,6 @@ test('TON accounts in the vault', { timeout: 300000 }, async () => {
   // removal: account and key go
   await v.removeAccount(ton.address, 'newpw123');
   assert.equal((await v.view()).accounts.some((a) => a.type === 'ton'), false);
-  assert.equal(await v.tonKeySource(ton.address), null);
+  assert.equal(await v.familyKeySource('ton', ton.address), null);
   await assert.rejects(() => v.exportPrivateKey(ton.address, 'newpw123'), /./);
 });

@@ -1,9 +1,10 @@
-// TON data for the screens: the TON address of the selected account, balances (GRAM + jettons) and history.
-// Kept in memory per network and address, so going back to a screen shows the last data at once.
-import { useEffect, useState, useCallback } from 'preact/hooks';
+// TON wallets of the accounts (public data from the background) and the TON balances of the accounts' summary.
+// Balances and history of the wallet screens come from the driver (driver.js) through the shared hooks.
+import { useEffect, useState } from 'preact/hooks';
 import { bg, local } from '../../shared/ext.js';
 import { useApp } from '../components.jsx';
-import { tonAccount, tonJettons, tonHistory, gramPrice, TON_CHAINS } from '../../shared/ton/api.js';
+import { TON_CHAINS } from '../../shared/ton/api.js';
+import { loadTonPortfolio } from './driver.js';
 
 let accountsCache = { sig: '', map: null, promise: null };
 
@@ -34,74 +35,12 @@ export function useTonWallet() {
   return { address: net.friendly, raw: net.raw, publicKey: w.publicKey, version: w.version };
 }
 
-const portfolio = new Map(); // `${chainId}:${raw}` -> data
-
-/** GRAM + jettons of an address: { gram: { balance, amount, price, usd }, jettons, totalUsd, status, seqno, updated } */
-export function useTonPortfolio(chain, raw) {
-  const key = `${chain.id}:${raw}`;
-  const [data, setData] = useState(() => portfolio.get(key) || null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    if (!raw) return;
-    setLoading(true); setError('');
-    try {
-      const [acc, jettons, price] = await Promise.all([tonAccount(chain, raw), tonJettons(chain, raw), gramPrice(chain).catch(() => null)]);
-      const amount = Number(acc.balance) / 1e9;
-      const gram = { balance: acc.balance, amount, price, usd: price != null ? amount * price : null };
-      const visible = jettons.filter((j) => !j.scam);
-      const totalUsd = (gram.usd || 0) + visible.reduce((s, j) => s + (j.usd || 0), 0);
-      const d = { gram, jettons: visible, totalUsd, status: acc.status, seqno: acc.seqno, updated: Date.now() };
-      portfolio.set(key, d);
-      setData(d);
-    } catch (e) { setError(e.message); }
-    setLoading(false);
-  }, [key]);
-  useEffect(() => {
-    const c = portfolio.get(key);
-    setData(c || null);
-    if (!c || Date.now() - c.updated > 30000) load();
-  }, [key]);
-  return { data, loading, error, reload: load };
-}
-
-/** History, newest first, with "load more". */
-export function useTonHistory(chain, raw, limit = 20) {
-  const [rows, setRows] = useState(null);
-  const [cursor, setCursor] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const load = useCallback(async (more) => {
-    if (!raw) return;
-    setBusy(true); setError('');
-    try {
-      const r = await tonHistory(chain, raw, { limit, cursor: more ? cursor : undefined });
-      setRows((prev) => (more && prev ? [...prev, ...r.rows] : r.rows));
-      setCursor(r.cursor);
-    } catch (e) { setError(e.message); if (!more) setRows((p) => p || []); }
-    setBusy(false);
-  }, [chain.id, raw, cursor]);
-  useEffect(() => { setRows(null); setCursor(null); load(false); }, [chain.id, raw]);
-  return { rows, busy, error, more: cursor ? () => load(true) : null, reload: () => load(false) };
-}
-
-/** Forget cached balances of an address (after a send). */
-export const invalidateTon = (chainId, raw) => portfolio.delete(`${chainId}:${raw}`);
-
 // ------------------------------------------------------------ accounts screen: TON in the multichain summary
 const MULTI_TTL = 5 * 60e3;
 const multi = new Map(); // raw -> p (same shape as an EVM portfolio: { native, tokens, updated })
 
-/** A TON wallet's balances in the shape of an EVM portfolio (numbers and strings only: it is stored on the device). */
-async function loadSummary(chain, raw) {
-  const [acc, jettons, price] = await Promise.all([tonAccount(chain, raw), tonJettons(chain, raw), gramPrice(chain).catch(() => null)]);
-  const amount = Number(acc.balance) / 1e9;
-  return {
-    native: { amount, usd: price != null ? amount * price : null, balance: acc.balance.toString() },
-    tokens: jettons.filter((j) => !j.scam).map((j) => ({ address: j.master, symbol: j.symbol, name: j.name, decimals: j.decimals, amount: j.amount, usd: j.usd, price: j.price, icon: j.image, balance: j.balance.toString() })),
-    updated: Date.now(),
-  };
-}
+/** A TON wallet's balances for the summary: the same portfolio the wallet home shows (driver.js). */
+const loadSummary = (chain, raw) => loadTonPortfolio(chain, raw);
 
 /**
  * TON (mainnet) balances of the active wallet's accounts that have a TON address, for the multichain summary:

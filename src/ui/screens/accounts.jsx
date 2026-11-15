@@ -3,16 +3,20 @@ import { bg } from '../../shared/ext.js';
 import { shortAddr, fmtNum, fmtUsd } from '../../shared/format.js';
 import { TopBar, Avatar, Icon, Btn, Sheet, QR, CopyBtn, useApp, explorerAddr, TokenIcon, Spinner, SecureScreen, ChainIcon } from '../components.jsx';
 import { useMultichainPortfolios, summarize } from '../hooks.js';
+import { allDrivers, driverOf, accountFamily, isEvmAccount } from '../chains/index.js';
 import { t, tn } from '../../shared/i18n.js';
 import { VanityAccount } from './vanity.jsx';
 import { usePolyFundsMany, POLY_COLOR } from '../polyBalance.js';
 
-const TYPE = { hd: 'accounts.type.hd', imported: 'accounts.type.imported', generated: 'accounts.type.generated', ton: 'accounts.type.ton' };
-
-const TonImport = (p) => { const C = globalThis.__CK_TON__?.ImportTon; return C ? <C {...p} /> : null; };
-/** TON balances for the summary (Android app); the same answer every render, so the hooks keep their order. */
-const useTonSummaries = () => { const h = globalThis.__CK_TON__?.useSummaries; return h ? h() : null; };
-const shownAddress = (a) => (a.type === 'ton' ? globalThis.__CK_TON__?.friendly(a.address) || a.address : a.address);
+// account types: EVM ones, then accounts of one other family (their type is the family, e.g. 'ton': accounts.type.ton)
+const typeLabel = (a) => ({ hd: 'accounts.type.hd', imported: 'accounts.type.imported', generated: 'accounts.type.generated' }[a.type] || driverOf(a.type)?.ui?.typeLabel || 'accounts.type.imported');
+const typeShort = (a) => ({ hd: 'accounts.short.hd', imported: 'accounts.short.imported', generated: 'accounts.short.generated' }[a.type] || driverOf(a.type)?.ui?.typeShort || 'accounts.short.imported');
+/** Families that can import an account of their own (e.g. a wallet from another TON app): driver.ui.ImportAccount. */
+const importers = () => allDrivers().filter((d) => d.ui?.ImportAccount);
+/** Balances of the other families in the summary (driver.ui.useSummaries): drivers register before the UI, so the hooks keep their order. */
+const useFamilySummaries = () => allDrivers().filter((d) => d.ui?.useSummaries).map((d) => d.ui.useSummaries());
+/** An account of one family shows its address the way that family does (TON: UQ…). */
+const shownAddress = (a) => driverOf(accountFamily(a))?.displayAddress?.(a) || a.address;
 
 function AddSheet({ onClose }) {
   const { refresh, toast, back, state } = useApp();
@@ -49,14 +53,17 @@ function AddSheet({ onClose }) {
             <div><div class="bold">{t('accounts.add.vanity')}</div><div class="small muted">{t('accounts.add.vanity.sub')}</div></div></button>
           <button class="item" onClick={() => setMode('import')}><div class="tx-icon" style={{ background: 'var(--amber-soft)', color: 'var(--amber)' }}><Icon name="receive" /></div>
             <div><div class="bold">{t('accounts.add.import')}</div><div class="small muted">{t('accounts.add.import.sub')}</div></div></button>
-          {globalThis.__CK_TON__ && ( // Android: a wallet from another TON app
-            <button class="item" onClick={() => setMode('ton')}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="wallet" /></div>
-              <div><div class="bold">{t('accounts.add.ton')}</div><div class="small muted">{t('accounts.add.ton.sub')}</div></div></button>
-          )}
+          {importers().map((d) => ( // e.g. Android: a wallet from another TON app
+            <button class="item" onClick={() => setMode(`import:${d.kind}`)}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="wallet" /></div>
+              <div><div class="bold">{t(d.ui.importLabel)}</div><div class="small muted">{t(d.ui.importSub)}</div></div></button>
+          ))}
         </div>
       )}
-      {mode === 'ton' && <TonImport onBack={() => setMode(null)} onDone={(acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />}
-      {mode && mode !== 'ton' && (
+      {mode?.startsWith('import:') && (() => {
+        const C = driverOf(mode.slice(7))?.ui.ImportAccount;
+        return C && <C onBack={() => setMode(null)} onDone={(acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />;
+      })()}
+      {mode && !mode.startsWith('import:') && (
         <>
           <div class="field"><label>{t('common.nameOptional')}</label><input class="input" value={name} onInput={(e) => setName(e.target.value)} placeholder={t('accounts.add.namePlaceholder')} /></div>
           {mode === 'import' && <div class="field"><label>{t('accounts.privateKey')}</label><input class="input mono" type="password" value={pk} onInput={(e) => setPk(e.target.value)} placeholder="0x…" /></div>}
@@ -92,7 +99,7 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
         <Avatar address={a.address} />
         <div class="grow" style={{ minWidth: 0 }}>
           <div class="bold ellipsis">{a.name}</div>
-          <div class="tiny muted">{shortAddr(shownAddress(a))} · {t(TYPE_SHORT[a.type])}</div>
+          <div class="tiny muted">{shortAddr(shownAddress(a))} · {t(typeShort(a))}</div>
         </div>
         <div class="right">
           <div class="acc-total">{sum.loaded ? fmtUsd(sum.usd + (poly?.total || 0)) : <span class="skeleton" style={{ display: 'inline-block', width: '4rem' }} />}</div>
@@ -177,17 +184,16 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
   );
 }
 
-const TYPE_SHORT = { hd: 'accounts.short.hd', imported: 'accounts.short.imported', generated: 'accounts.short.generated', ton: 'accounts.short.ton' }; // i18n keys
 
 export function Accounts() {
   const { state, nav, back, refresh, reset, openPredict } = useApp();
   const [add, setAdd] = useState(false);
   const { chains, get, busy, reload } = useMultichainPortfolios();
   const [polyTick, setPolyTick] = useState(0);
-  const polys = usePolyFundsMany(state.accounts.filter((a) => a.type !== 'ton').map((a) => a.address), polyTick);
+  const polys = usePolyFundsMany(state.accounts.filter(isEvmAccount).map((a) => a.address), polyTick);
   const showUnpriced = !!state.settings.showUnpriced;
-  const ton = useTonSummaries(); // TON next to the EVM networks, when the account has a TON address
-  const perOf = (a) => [...(a.type === 'ton' ? [] : get(a.address)), ...(ton?.per[a.address] ? [ton.per[a.address]] : [])];
+  const families = useFamilySummaries(); // e.g. TON next to the EVM networks, when the account has a TON address
+  const perOf = (a) => [...(isEvmAccount(a) ? get(a.address) : []), ...families.flatMap((f) => (f?.per[a.address] ? [f.per[a.address]] : []))];
   const sums = state.accounts.map((a) => summarize(perOf(a), showUnpriced));
   const polyTotal = state.accounts.reduce((s, a) => s + (polys[a.address]?.total || 0), 0);
   const total = sums.reduce((s, x) => s + x.usd, 0) + polyTotal;
@@ -215,7 +221,7 @@ export function Accounts() {
   return (
     <div class="screen">
       <TopBar title={t('accounts.title')} right={<>
-        <button class="iconbtn" title={t('accounts.refresh')} onClick={() => { reload(); ton?.reload(); setPolyTick((x) => x + 1); }}>{busy || ton?.busy ? <Spinner /> : <Icon name="refresh" />}</button>
+        <button class="iconbtn" title={t('accounts.refresh')} onClick={() => { reload(); families.forEach((f) => f?.reload()); setPolyTick((x) => x + 1); }}>{busy || families.some((f) => f?.busy) ? <Spinner /> : <Icon name="refresh" />}</button>
         <button class="iconbtn" title={t('common.add')} onClick={() => setAdd(true)}><Icon name="plus" /></button>
       </>} />
       <div class="content">
@@ -251,10 +257,10 @@ export function Accounts() {
         <div class="col" style={{ gap: '0.5rem' }}>
           {state.accounts.map((a, i) => (
             <AccountCard a={a} sum={sums[i]} poly={polys[a.address]} selected={a.address === state.selected} showUnpriced={showUnpriced}
-              onSelect={() => select(a)} onChain={(c) => openOn(a, c)} onPoly={openPredict && a.type !== 'ton' ? () => openPoly(a) : null} onDetails={() => nav('account', { address: a.address })} />
+              onSelect={() => select(a)} onChain={(c) => openOn(a, c)} onPoly={openPredict && isEvmAccount(a) ? () => openPoly(a) : null} onDetails={() => nav('account', { address: a.address })} />
           ))}
         </div>
-        <div class="tiny muted center">{tn('accounts.mc.footer', chains.length + (ton ? 1 : 0))}</div>
+        <div class="tiny muted center">{tn('accounts.mc.footer', chains.length + families.length)}</div>
         <Btn kind="secondary" onClick={() => setAdd(true)}><Icon name="plus" /> {t('accounts.add')}</Btn>
       </div>
       {add && <AddSheet onClose={() => setAdd(false)} />}
@@ -272,8 +278,8 @@ export function AccountDetails({ address }) {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   if (!acc) return null;
-  const isTon = acc.type === 'ton';
-  const shown = isTon ? globalThis.__CK_TON__?.friendly(address) || address : address; // TON accounts: UQ… address
+  const single = !isEvmAccount(acc); // an account of one other family (e.g. imported from a TON app)
+  const shown = shownAddress(acc);
 
   const reveal = async () => {
     setLoading(true); setErr('');
@@ -295,13 +301,13 @@ export function AccountDetails({ address }) {
           <input class="input" value={name} onInput={(e) => setName(e.target.value)} style={{ textAlign: 'center', fontWeight: 650 }} />
           {name !== acc.name && name.trim() && <Btn class="sm" onClick={async () => { await bg('renameAccount', { address, name: name.trim() }); await refresh(); toast(t('common.nameUpdated')); }}>{t('common.save')}</Btn>}
         </div>
-        <span class="badge">{t(TYPE[acc.type])}{acc.type === 'hd' ? ` · m/44'/60'/0'/0/${acc.index}` : ''}</span>
-        <div class="small muted">{t(isTon ? 'accounts.tonAddress' : 'accounts.publicKey')}</div>
+        <span class="badge">{t(typeLabel(acc))}{acc.type === 'hd' ? ` · m/44'/60'/0'/0/${acc.index}` : ''}</span>
+        <div class="small muted">{t(single ? driverOf(acc.type)?.ui?.addressLabel || 'accounts.publicKey' : 'accounts.publicKey')}</div>
         <QR text={shown} size={180} />
         <div class="mono">{shown}</div>
         <div class="row">
           <CopyBtn text={shown} label={t('common.copy')} />
-          {!isTon && explorerAddr(chain, address) && <a class="btn secondary sm" href={explorerAddr(chain, address)} target="_blank"><Icon name="external" size={14} /> {t('common.explorer')}</a>}
+          {!single && explorerAddr(chain, address) && <a class="btn secondary sm" href={explorerAddr(chain, address)} target="_blank"><Icon name="external" size={14} /> {t('common.explorer')}</a>}
         </div>
         <Btn kind="secondary" class="block" onClick={() => setSheet('pk')}><Icon name="key" /> {t('accounts.showPk')}</Btn>
         <button class="btn ghost red" onClick={() => setSheet('remove')}><Icon name="trash" size={16} /> {t('accounts.removeAccount')}</button>

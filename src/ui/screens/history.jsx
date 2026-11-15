@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'preact/hooks';
 import { local } from '../../shared/ext.js';
-import { loadHistory } from '../../shared/history.js';
-import { reportScanError } from '../hooks.js';
+import { reportScanError, useChainAddress } from '../hooks.js';
+import { driverFor } from '../chains/index.js';
 import { fmtAmount, fmtUsd, toFloat, fmtDateGroup, fmtTime, fmtDateTime, shortAddr } from '../../shared/format.js';
 import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx, useApp, Avatar, ChainIcon, TokenIcon } from '../components.jsx';
 import { BUILTIN_CHAINS, getChain } from '../../shared/chains.js';
@@ -27,7 +27,7 @@ const amt = (t) => `${fmtAmount(t.amount, t.decimals, 6)} ${t.symbol}`;
 const BRIDGE_CHAIN = (id) => BUILTIN_CHAINS.find((c) => c.id === id) || getChain(id); // also TON (Android app)
 const tokenIcon = (chainId, x) => x.icon || (POPULAR_TOKENS[chainId] || []).find((p) => p.address === x.token)?.icon || '';
 const hostOf = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
-const provider = (it) => { const m = it.appTitle || it.method; return (m && /\(([^)]+)\)\s*$/.exec(m)?.[1]) || null; }; // "Swap … (KyberSwap)", the app's own title
+const provider = (it) => { if (it.via) return it.via; const m = it.appTitle || it.method; return (m && /\(([^)]+)\)\s*$/.exec(m)?.[1]) || null; }; // "Swap … (KyberSwap)", the app's own title
 
 function title(it, bridge) {
   const outs = it.transfers.filter((x) => x.dir === 'out'), ins = it.transfers.filter((x) => x.dir === 'in');
@@ -36,6 +36,7 @@ function title(it, bridge) {
     const to = bridge.toChainId ? BRIDGE_CHAIN(bridge.toChainId)?.name || `#${bridge.toChainId}` : null;
     return to ? t('history.titleBridge', { from, to }) : t('history.titleBridgeFrom', { from });
   }
+  if (it.label) return it.label; // e.g. a TON action with a name of its own (contract deploy, NFT transfer...)
   if (it.kind === 'swap') return t('history.titleSwap', { from: outs[0].symbol, to: ins[0].symbol });
   if (it.kind === 'send') return t('history.titleSent', { symbol: outs[0].symbol });
   if (it.kind === 'receive') return t('history.titleReceived', { symbol: ins[0].symbol });
@@ -147,19 +148,28 @@ function TxHead({ it, k, bridge, chain, status }) {
 }
 
 function Detail({ it, onClose, nativePrice, bridge }) {
-  const { chain } = useApp();
+  const { chain, account } = useApp();
+  const addr = useChainAddress();
   const k = KIND[it.kind];
-  const feeUsd = it.fee != null && nativePrice != null ? toFloat(it.fee, chain.native.decimals) * nativePrice : null;
+  // TON: the fee is read from the action's whole trace, only when the details are opened
+  const [lazyFee, setLazyFee] = useState(it.loadFee ? undefined : null);
+  useEffect(() => { if (it.loadFee) it.loadFee().then(setLazyFee).catch(() => setLazyFee(null)); }, [it.hash]);
+  const fee = it.fee ?? lazyFee;
+  const feeUsd = fee != null && nativePrice != null ? toFloat(fee, chain.native.decimals) * nativePrice : null;
   const link = explorerTx(chain, it.hash);
   const status = it.status === 'ok' ? ['green', 'history.confirmed'] : it.status === 'failed' ? ['red', 'history.failed'] : it.status === 'pending' ? ['amber', 'history.pending'] : null;
-  const Who = ({ address }) => (address ? <span class="who"><Avatar address={address} /><span class="ellipsis"><AddressLabel address={address} /></span></span> : '—');
+  // my own address on this network (TON: the account's TON wallet) shows as the account
+  const mine = (a) => a && (String(a).toLowerCase() === account.address.toLowerCase() || (addr.address && String(a) === addr.address));
+  const Who = ({ address }) => (!address ? '—' : mine(address)
+    ? <span class="who"><Avatar address={account.address} /><span class="ellipsis">{account.name}</span></span>
+    : <span class="who"><Avatar address={address} /><span class="ellipsis"><AddressLabel address={address} /></span></span>);
   return (
     <Sheet title={t('history.details')} onClose={onClose}>
       <TxHead it={it} k={k} bridge={bridge} chain={chain} status={status} />
 
       <div class="card flat tx-rows">
         <div class="tx-row"><span class="k">{t('history.fromLabel')}</span><span class="v"><Who address={it.from} /></span></div>
-        <div class="tx-row"><span class="k">{t('history.toLabel')}</span><span class="v"><Who address={it.to} /></span></div>
+        {it.to !== null && <div class="tx-row"><span class="k">{t('history.toLabel')}</span><span class="v"><Who address={it.to} /></span></div>}
         {it.transfers.filter((x) => x.counterparty && x.counterparty !== it.to && x.counterparty !== it.from).map((x) => (
           <div class="tx-row"><span class="k">{t(x.dir === 'in' ? 'history.from' : 'history.to')} {x.symbol}</span><span class="v"><Who address={x.counterparty} /></span></div>
         ))}
@@ -168,8 +178,10 @@ function Detail({ it, onClose, nativePrice, bridge }) {
         {bridge?.provider && <div class="tx-row"><span class="k">{t('bridge.via')}</span><span class="v"><span class="ellipsis">{bridge.provider}{bridge.tool && bridge.tool !== bridge.provider ? ` · ${bridge.tool}` : ''}</span></span></div>}
         {it.method && <div class="tx-row"><span class="k">{t('history.method')}</span><span class="v"><span class="method-pill ellipsis">{it.method}</span></span></div>}
         {it.origin && <div class="tx-row"><span class="k">{t('history.origin')}</span><span class="v"><span class="ellipsis">{it.origin}</span></span></div>}
+        {it.via && <div class="tx-row"><span class="k">{t('bridge.via')}</span><span class="v"><span class="method-pill ellipsis">{it.via}</span></span></div>}
+        {it.comment && <div class="tx-row"><span class="k">{t('send.memo')}</span><span class="v"><span class="ellipsis">“{it.comment}”</span></span></div>}
         <div class="tx-row"><span class="k">{t('history.feePaid')}</span>
-          <span class="v col-v">{it.fee != null ? <><span>{fmtAmount(it.fee, chain.native.decimals, 8)} {chain.native.symbol}</span>{feeUsd != null && <span class="tx-sub">≈ {fmtUsd(feeUsd)}</span>}</> : <span class="muted">{it.sentByMe ? '—' : t('history.feeBySender')}</span>}</span>
+          <span class="v col-v">{fee === undefined ? <Spinner /> : fee != null ? <><span>{fmtAmount(fee, chain.native.decimals, 8)} {chain.native.symbol}</span>{feeUsd != null && <span class="tx-sub">≈ {fmtUsd(feeUsd)}</span>}</> : <span class="muted">{it.sentByMe ? '—' : t('history.feeBySender')}</span>}</span>
         </div>
         <div class="tx-row"><span class="k">{t('history.hash')}</span><span class="v"><span class="mono-s">{shortAddr(it.hash, 6)}</span><CopyBtn text={it.hash} /></span></div>
       </div>
@@ -184,6 +196,7 @@ function Detail({ it, onClose, nativePrice, bridge }) {
 
 export function HistoryList({ limit, filter = 'all' }) {
   const { chain, account, state } = useApp();
+  const addr = useChainAddress();
   const nativePrice = useNativePrice(chain);
   const [items, setItems] = useState(null);
   const [next, setNext] = useState(null);
@@ -216,8 +229,10 @@ export function HistoryList({ limit, filter = 'all' }) {
 
   const load = async (cursor) => {
     setLoading(true);
+    if (!addr.raw) { if (addr.missing) setItems([]); setLoading(false); return; } // TON: an account without a TON key
     const log = (await local.get('txlog', {}))[`${chain.id}:${account.address.toLowerCase()}`] || [];
-    const r = await loadHistory(chain, account.address, cursor, { etherscanKey: state.settings.etherscanKey, localLog: log });
+    const r = await driverFor(chain).loadHistory(chain, addr.raw, cursor, { etherscanKey: state.settings.etherscanKey, localLog: log })
+      .catch((e) => ({ items: [], next: null, error: e.message }));
     setItems((prev) => {
       const map = new Map((cursor ? prev || [] : []).map((x) => [x.hash, x]));
       for (const x of r.items) if (!map.has(x.hash)) map.set(x.hash, x);
@@ -227,7 +242,7 @@ export function HistoryList({ limit, filter = 'all' }) {
     if (r.error) reportScanError({ chain: chain.name, what: 'history', error: r.error });
     setLoading(false);
   };
-  useEffect(() => { setItems(null); load(); }, [chain.id, account.address]);
+  useEffect(() => { setItems(null); load(); }, [chain.id, account.address, addr.raw]);
 
   const filtered = useMemo(() => {
     let l = (items || []).filter((x) => showSpam || !x.spam);

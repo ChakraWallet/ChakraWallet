@@ -1,15 +1,11 @@
 import { useState, useEffect } from 'preact/hooks';
-import { isAddress, getAddress } from 'ethers';
 import { bg, ext } from '../../shared/ext.js';
 import { NATIVE, getChain } from '../../shared/chains.js';
-import { erc20, getTokenInfo } from '../../shared/rpc.js';
-import { prepareTx, finalizeTx } from '../../shared/tx.js';
 import { fmtNum, fmtUsd, parseAmount, rawToInput, fmtAmount, shortAddr, toFloat } from '../../shared/format.js';
-import { TopBar, Btn, TokenIcon, Icon, Sheet, FeeBox, Avatar, useApp, explorerTx, SuccessMark } from '../components.jsx';
-import { usePortfolio } from '../hooks.js';
-import { rememberRecipient } from '../../shared/poison.js';
+import { TopBar, Btn, TokenIcon, Icon, Sheet, FeeView, Avatar, useApp, explorerTx, SuccessMark, Spinner } from '../components.jsx';
+import { usePortfolio, useChainAddress } from '../hooks.js';
+import { driverFor, useAccountAddresses } from '../chains/index.js';
 import { useRecipientCheck, PoisonWarning } from '../poisonCheck.jsx';
-import { parsePaymentQr } from '../../shared/eip681.js';
 import { QrScanner } from '../scanner.jsx';
 import { t } from '../../shared/i18n.js';
 
@@ -17,11 +13,13 @@ export function TokenPicker({ tokens, onPick, onClose, title = t('send.pickToken
   const { chain } = useApp();
   const [q, setQ] = useState('');
   const [custom, setCustom] = useState(null);
-  const isAddr = /^0x[0-9a-fA-F]{40}$/.test(q);
+  const drv = driverFor(chain);
+  const canCustom = allowCustom && drv.features.customTokens; // a token by its contract address
+  const isAddr = canCustom && drv.validateAddress(chain, q).ok;
   useEffect(() => {
     setCustom(null);
-    if (allowCustom && isAddr && !tokens.some((t) => t.address === q.toLowerCase())) {
-      getTokenInfo(chain, q).then((t) => setCustom({ ...t, amount: null, balance: '0' }), () => setCustom(false));
+    if (isAddr && !tokens.some((t) => t.address.toLowerCase() === q.toLowerCase())) {
+      drv.tokenInfo(chain, q).then((t) => setCustom({ ...t, amount: null, balance: '0' }), () => setCustom(false));
     }
   }, [q]);
   const list = tokens.filter((t) => !q || t.symbol.toLowerCase().includes(q.toLowerCase()) || t.name?.toLowerCase().includes(q.toLowerCase()) || t.address === q.toLowerCase());
@@ -57,27 +55,31 @@ export function useTokenList() {
 }
 
 export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
-  const { chain, account, state, nav, reset, toast, authorize, refresh, mode } = useApp();
-  const { tokens } = useTokenList();
+  const { chain, account, state, reset, toast, authorize, refresh, mode, setPortfolioCache } = useApp();
+  const { tokens, data } = useTokenList();
+  const drv = driverFor(chain); // addresses, fees, signing and confirmation of this network's family
+  const wallet = useChainAddress(); // the account's address on this network
+  const others = useAccountAddresses(chain, state.accounts.filter((a) => a.address !== account.address)); // the wallet's other accounts, as recipients
   const [token, setToken] = useState(null);
   const [to, setTo] = useState(initialTo); // e.g. the project's donation address (Support tab)
   const [amount, setAmount] = useState('');
   const [isMax, setIsMax] = useState(false);
+  const [memo, setMemo] = useState(''); // networks with features.memo: text attached to the transfer (exchanges ask for it)
   const [picker, setPicker] = useState(false);
   const [step, setStep] = useState('form');
-  const [prepared, setPrepared] = useState(null);
+  const [review, setReview] = useState(null);
   const [speed, setSpeed] = useState('normal');
   const [err, setErr] = useState('');
   const [sending, setSending] = useState(false);
-  const [hash, setHash] = useState('');
-  // address-poisoning protection
+  const [done, setDone] = useState(null); // { hash, status: 'sent' | 'pending' | 'ok' | 'late' }
+  // address-poisoning protection (families with features.poisonCheck)
   const [ack, setAck] = useState(false);
-  const verdict = useRecipientCheck(to);
+  const verdict = useRecipientCheck(drv.features.poisonCheck ? to : '');
 
   useEffect(() => { if (!token) setToken(tokens.find((t) => t.address === (tokenAddress || NATIVE)) || tokens[0]); }, [tokens.length]);
   useEffect(() => setAck(false), [to]);
 
-  // ---- QR: payment links fill recipient, token and amount (switching network if the code says so)
+  // ---- QR: payment links fill recipient, token, amount and memo (switching network if the code says so)
   const [scan, setScan] = useState(!!scanOnOpen);
   const [pendingQr, setPendingQr] = useState(null);
   const openScanner = () => {
@@ -88,7 +90,7 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
   };
   const onQr = async (text) => {
     setScan(false);
-    const p = parsePaymentQr(text);
+    const p = drv.parseQr(chain, text);
     if (!p) { toast(t('scan.notPayment'), 'warn'); return; }
     if (p.chainId && p.chainId !== chain.id) {
       const c = getChain(p.chainId, state.customChains);
@@ -97,6 +99,7 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
       toast(t('scan.switched', { chain: c.name }));
     }
     setTo(p.address);
+    if (p.memo) setMemo(p.memo);
     setPendingQr(p);
   };
   useEffect(() => {
@@ -105,8 +108,8 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
       let tk = null;
       if (pendingQr.token) {
         tk = tokens.find((x) => x.address.toLowerCase() === pendingQr.token.toLowerCase()) || null;
-        if (!tk && pendingQr.token !== NATIVE) {
-          try { tk = { ...(await getTokenInfo(chain, pendingQr.token)), amount: null, balance: '0' }; } catch { toast(t('scan.unknownToken'), 'warn'); }
+        if (!tk && pendingQr.token !== NATIVE && drv.tokenInfo) {
+          try { tk = { ...(await drv.tokenInfo(chain, pendingQr.token)), amount: null, balance: '0' }; } catch { toast(t('scan.unknownToken'), 'warn'); }
         }
       }
       if (tk) setToken(tk);
@@ -116,54 +119,49 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
     })();
   }, [pendingQr, chain.id, tokens.length]);
 
+  if (wallet.missing) return <div class="screen"><TopBar title={t('send.send')} /><div class="content"><div class="error">{t('chain.noKey.body', { network: chain.name })}</div></div></div>;
   if (!token) return null;
 
   const raw = parseAmount(amount, token.decimals);
   const balance = BigInt(token.balance || 0);
-  const validTo = isAddress(to.trim());
+  const check = drv.validateAddress(chain, to, wallet.address);
+  const validTo = check.ok;
   const risky = validTo && verdict.risky;
   const usd = raw != null && token.price != null ? toFloat(raw, token.decimals) * token.price : null;
-  const others = state.accounts.filter((a) => a.address !== account.address && a.type !== 'ton');
+  const recipients = state.accounts.filter((a) => a.address !== account.address && others?.[a.address])
+    .map((a) => ({ name: a.name, address: others[a.address].address, avatar: a.address }));
 
-  const buildTx = (value) => token.native
-    ? { to: getAddress(to.trim()), value: value.toString(), data: '0x' }
-    : { to: token.address, value: '0', data: erc20.encodeFunctionData('transfer', [getAddress(to.trim()), value]) };
-
-  const review = async () => {
-    setErr(''); setPrepared(null); setStep('review');
-    try {
-      setPrepared(await prepareTx(chain, account.address, buildTx(isMax && token.native ? 0n : raw)));
-    } catch (e) { setErr(e.message); }
+  const prepare = async () => {
+    setErr(''); setReview(null); setStep('review');
+    try { setReview(await drv.prepareSend(chain, { wallet, account, token, to: check.normalized, amountRaw: raw, isMax, memo, portfolio: data })); } catch (e) { setErr(e.message); }
   };
 
-  // for "max" on the native coin, subtract the max network cost
-  const sendValue = !prepared ? raw : (isMax && token.native ? (() => { const v = balance - BigInt(prepared.speeds[speed].maxCost); return v > 0n ? v : 0n; })() : raw);
-  const nativeBal = BigInt(tokens[0].balance || 0);
-  const needNative = prepared ? BigInt(prepared.speeds[speed].maxCost) + (token.native ? sendValue : 0n) : 0n;
-  const insufficient = prepared && (needNative > nativeBal || (!token.native && raw > balance));
+  const sendValue = review ? review.amount(speed) : raw;
+  const problem = review?.problem(speed) || null;
 
   const confirm = async () => {
     setSending(true); setErr('');
     try {
-      const p = isMax && token.native ? { ...prepared, tx: { ...prepared.tx, value: '0x' + sendValue.toString(16) } } : prepared;
       const title = t('send.txTitle', { amount: fmtAmount(sendValue, token.decimals), symbol: token.symbol });
-      const tx = finalizeTx(p, speed);
-      const h = await authorize((password) => bg('sendTransaction', { from: account.address, tx, title, password }), t('send.confirmTitle'));
-      setHash(h); setStep('done');
-      rememberRecipient(getAddress(to.trim())).catch(() => {});
+      const r = await drv.confirmSend(chain, review, { wallet, account, speed, authorize, title });
+      setStep('done'); setDone({ hash: r.hash, status: r.wait ? 'pending' : 'sent' });
+      const key = `${chain.id}:${account.address}`;
+      // networks that confirm in seconds (TON): wait for it, then reload the balances
+      r.wait?.then((x) => { setDone({ hash: x.hash || x.txHash || r.hash, status: 'ok' }); setPortfolioCache((c) => { const n = { ...c }; delete n[key]; return n; }); })
+        .catch(() => setDone((d) => ({ ...d, status: 'late' })));
     } catch (e) { if (!e.cancelled) setErr(e.message); }
     setSending(false);
   };
 
   if (step === 'done') {
-    const link = explorerTx(chain, hash);
+    const link = done?.hash ? explorerTx(chain, done.hash) : null;
     return (
       <div class="screen">
         <div class="content" style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <SuccessMark />
-          <h2 style={{ margin: 0 }}>{t('send.sent')}</h2>
-          <div class="muted">{t('send.sentTo', { amount: fmtAmount(sendValue, token.decimals), symbol: token.symbol, address: shortAddr(to) })}</div>
-          <div class="small muted">{t('send.sentNote')}</div>
+          {done?.status === 'pending' ? <Spinner lg /> : <SuccessMark />}
+          <h2 style={{ margin: 0 }}>{done?.status === 'ok' ? t('tx.confirmed') : t('send.sent')}</h2>
+          <div class="muted">{t('send.sentTo', { amount: fmtAmount(sendValue ?? 0n, token.decimals), symbol: token.symbol, address: shortAddr(review?.recipient || to) })}</div>
+          <div class="small muted">{done?.status === 'sent' ? t('send.sentNote') : done?.status === 'pending' ? t('tx.waiting') : done?.status === 'late' ? t('tx.late') : ''}</div>
           {link && <a href={link} target="_blank" class="btn secondary sm"><Icon name="external" size={14} /> {t('send.viewOnExplorer')}</a>}
         </div>
         <div class="footer"><Btn onClick={() => reset('home')}>{t('send.done')}</Btn></div>
@@ -182,19 +180,19 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
             {token.price != null && sendValue != null && <div class="muted">{fmtUsd(toFloat(sendValue, token.decimals) * token.price)}</div>}
           </div>
           <div class="card kv">
-            <span class="k">{t('send.from')}</span><span class="v">{account.name} ({shortAddr(account.address)})</span>
-            <span class="k">{t('send.to')}</span><span class="v mono">{to.trim()}</span>
+            <span class="k">{t('send.from')}</span><span class="v">{account.name} ({shortAddr(wallet.address || account.address)})</span>
+            <span class="k">{t('send.to')}</span><span class="v mono">{review?.recipient || check.normalized || to.trim()}</span>
             <span class="k">{t('send.network')}</span><span class="v">{chain.name}</span>
+            {(review?.rows || []).map((r) => <><span class="k">{r.k}</span><span class="v">{r.v}</span></>)}
           </div>
-          <FeeBox chain={chain} prepared={prepared} speed={speed} setSpeed={setSpeed} nativePrice={tokens[0].price}
-            valueWei={token.native ? sendValue || 0n : 0n}
-            valueUsd={!token.native && token.price != null && raw != null ? toFloat(raw, token.decimals) * token.price : null} />
-          {insufficient && <div class="error">{t('send.insufficientNative', { symbol: chain.native.symbol })}</div>}
+          <FeeView chain={chain} fee={review?.fee} speed={speed} setSpeed={setSpeed} nativePrice={tokens[0].price} />
+          {(review?.notes || []).map((n) => <div class="info small">{n}</div>)}
+          {problem && <div class="error">{problem}</div>}
           {err && <div class="error">{err}</div>}
         </div>
         <div class="footer">
           <Btn kind="secondary" onClick={() => setStep('form')}>{t('common.back')}</Btn>
-          <Btn loading={sending} disabled={!prepared || insufficient || !sendValue} onClick={confirm}>{t('send.send')}</Btn>
+          <Btn loading={sending} disabled={!review || !!problem || !sendValue} onClick={confirm}>{t('send.send')}</Btn>
         </div>
       </div>
     );
@@ -208,19 +206,20 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
         <div class="field">
           <label>{t('send.recipient')}</label>
           <div class="row" style={{ gap: '0.375rem' }}>
-            <input class="input mono" placeholder={t('send.addressPlaceholder')} value={to} onInput={(e) => setTo(e.target.value)} spellcheck={false} />
+            <input class="input mono" placeholder={drv.addressPlaceholder(chain)} value={to} onInput={(e) => setTo(e.target.value)} spellcheck={false} autocapitalize="off" />
             <button class="scan-open" onClick={openScanner} title={t('scan.title')}><Icon name="qr" size={20} /></button>
           </div>
-          {to && !validTo && <span class="small red">{t('send.invalidAddress')}</span>}
-          {validTo && to.trim().toLowerCase() === account.address.toLowerCase() && <span class="small" style={{ color: 'var(--amber)' }}>{t('send.toSelf')}</span>}
-          {verdict.level === 'known' && to.trim().toLowerCase() !== account.address.toLowerCase() && <span class="small green row" style={{ gap: '0.25rem' }}><Icon name="check" size={14} />{t('send.poison.known')}</span>}
+          {to && !validTo && <span class="small red">{t(check.error)}</span>}
+          {validTo && check.toSelf && <span class="small" style={{ color: 'var(--amber)' }}>{t('send.toSelf')}</span>}
+          {validTo && (check.warnings || []).map((w) => <span class="small" style={{ color: 'var(--amber)' }}>{t(w.key)}</span>)}
+          {verdict.level === 'known' && !check.toSelf && <span class="small green row" style={{ gap: '0.25rem' }}><Icon name="check" size={14} />{t('send.poison.known')}</span>}
         </div>
         <PoisonWarning check={verdict} to={to} ack={ack} setAck={setAck} />
-        {!to && others.length > 0 && (
+        {!to && recipients.length > 0 && (
           <div class="card flat" style={{ padding: '0.25rem' }}>
             <div class="small muted" style={{ padding: '0.375rem' }}>{t('send.yourAccounts')}</div>
-            {others.slice(0, 4).map((a) => (
-              <button class="item" onClick={() => setTo(a.address)}><Avatar address={a.address} /><div><div class="bold">{a.name}</div><div class="small muted">{shortAddr(a.address)}</div></div></button>
+            {recipients.slice(0, 4).map((a) => (
+              <button class="item" onClick={() => setTo(a.address)}><Avatar address={a.avatar} /><div><div class="bold">{a.name}</div><div class="small muted">{shortAddr(a.address)}</div></div></button>
             ))}
           </div>
         )}
@@ -234,8 +233,15 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
           <span class="small muted">{usd != null ? `≈ ${fmtUsd(usd)}` : ' '}{isMax && token.native ? ` · ${t('send.feeDeducted')}` : ''}</span>
           {tooMuch && <span class="small red">{t('send.overBalance')}</span>}
         </div>
+        {drv.features.memo && (
+          <div class="field">
+            <label>{t('send.memo')}</label>
+            <input class="input" value={memo} maxLength={500} placeholder={t('send.memoPlaceholder')} onInput={(e) => setMemo(e.target.value)} />
+            <span class="tiny muted">{t('send.memoHint')}</span>
+          </div>
+        )}
       </div>
-      <div class="footer"><Btn kind={risky ? 'danger' : 'primary'} disabled={!validTo || !raw || raw <= 0n || tooMuch || (risky && !ack)} onClick={review}>{t('common.continue')}</Btn></div>
+      <div class="footer"><Btn kind={risky ? 'danger' : 'primary'} disabled={!validTo || !raw || raw <= 0n || tooMuch || (risky && !ack) || !data || !wallet.ready} onClick={prepare}>{t('common.continue')}</Btn></div>
       {picker && <TokenPicker tokens={tokens} onPick={(t) => { setToken(t); setAmount(''); setIsMax(false); }} onClose={() => setPicker(false)} />}
       {scan && <QrScanner onResult={onQr} onClose={() => setScan(false)} />}
     </div>

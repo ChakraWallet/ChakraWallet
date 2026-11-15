@@ -7,7 +7,7 @@ import { Address } from '@ton/core';
 import { getPrices } from '../prices.js';
 
 export const TON_CHAINS = {
-  [-239]: { id: -239, kind: 'ton', name: 'TON', short: 'TON', color: '#0098EA', native: { symbol: 'GRAM', name: 'Gram', decimals: 9, priceId: 'coingecko:the-open-network' }, api: 'https://toncenter.com', explorer: 'https://tonscan.org', rpc: ['https://toncenter.com/api/v3'] },
+  [-239]: { id: -239, kind: 'ton', name: 'TON', short: 'TON', color: '#0098EA', native: { symbol: 'GRAM', name: 'Gram', decimals: 9, priceId: 'coingecko:the-open-network' }, api: 'https://toncenter.com', explorer: 'https://tonscan.org', rpc: ['https://toncenter.com/api/v3'], swap: true },
   [-3]: { id: -3, kind: 'ton', name: 'TON Testnet', short: 'tTON', color: '#9CA3AF', testnet: true, native: { symbol: 'GRAM', name: 'Gram (testnet)', decimals: 9 }, api: 'https://testnet.toncenter.com', explorer: 'https://testnet.tonscan.org', rpc: ['https://testnet.toncenter.com/api/v3'] },
 };
 export const isTon = (chain) => chain?.kind === 'ton';

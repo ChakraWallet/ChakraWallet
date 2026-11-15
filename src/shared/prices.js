@@ -35,3 +35,27 @@ export async function getNativePrice(chain) {
   if (!chain.native.priceId) return null;
   return (await getPrices([chain.native.priceId]))[chain.native.priceId] ?? null;
 }
+
+// ------------------------------------------------------------ price history (token details chart)
+/** Chart ranges: how far back, how many points, the step between them (DefiLlama periods). */
+export const CHART_RANGES = {
+  '1d': { secs: 86400, span: 48, period: '30m' },
+  '1w': { secs: 7 * 86400, span: 84, period: '2h' },
+  '1m': { secs: 30 * 86400, span: 60, period: '12h' },
+  '1y': { secs: 365 * 86400, span: 73, period: '5d' },
+};
+const chartCache = new Map(); // `${key}|${range}` -> { t, points }
+
+/** USD price history of a price key ("coingecko:ethereum", "base:0x…", "ton:EQ…"): [{ t (ms), p }], oldest first. */
+export async function priceChart(key, range = '1w') {
+  const r = CHART_RANGES[range];
+  if (!key || !r) return [];
+  const ck = `${key}|${range}`, hit = chartCache.get(ck);
+  if (hit && Date.now() - hit.t < 5 * 60e3) return hit.points;
+  const start = Math.floor(Date.now() / 1000) - r.secs;
+  const res = await fetch(`https://coins.llama.fi/chart/${encodeURIComponent(key)}?start=${start}&span=${r.span}&period=${r.period}&searchWidth=600`, { signal: AbortSignal.timeout(15000) });
+  const json = await res.json();
+  const points = (json.coins?.[key]?.prices || []).map((x) => ({ t: x.timestamp * 1000, p: Number(x.price) })).filter((x) => isFinite(x.p)).sort((a, b) => a.t - b.t);
+  chartCache.set(ck, { t: Date.now(), points });
+  return points;
+}

@@ -6,6 +6,7 @@ import { shortAddr } from '../../shared/format.js';
 import { DONATE } from '../../shared/donate.js';
 import { t } from '../../shared/i18n.js';
 import { Icon, Btn, Sheet, Avatar, ChainIcon, AppIcon, Guilloche, CopyBtn, useApp } from '../components.jsx';
+import { familyOf } from '../chains/index.js';
 import { NetworkSheet } from './home.jsx';
 
 function AccountSheet({ onClose }) {
@@ -29,8 +30,7 @@ function AccountSheet({ onClose }) {
 export function Donate() {
   const { chain, account, nav, toast } = useApp();
   const [sheet, setSheet] = useState(null);
-  const ton = chain.kind === 'ton' || account.type === 'ton';
-  const to = ton ? DONATE.ton : DONATE.evm;
+  const to = DONATE[familyOf(chain)] || ''; // one address per family of networks
   const repo = DONATE.repo;
   const share = async () => {
     const text = t('donate.shareText');

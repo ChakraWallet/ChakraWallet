@@ -2,9 +2,9 @@ import { useState } from 'preact/hooks';
 import { bg, ext, local } from '../../shared/ext.js';
 import { allChains, NATIVE, isChainEnabled } from '../../shared/chains.js';
 import { fmtUsd, fmtNum, shortAddr, fmtTime } from '../../shared/format.js';
-import { getTokenInfo } from '../../shared/rpc.js';
 import { Icon, Avatar, TokenIcon, ChainIcon, ExpandBtn, Sheet, Btn, Spinner, useApp, Empty, Guilloche, useCountUp, cardStyle, richText } from '../components.jsx';
-import { usePortfolio } from '../hooks.js';
+import { usePortfolio, useChainAddress } from '../hooks.js';
+import { driverFor, accountFamily, familyOf, isEvmAccount } from '../chains/index.js';
 import { usePolyFunds, POLY_CHAIN } from '../polyBalance.js';
 import { HistoryList } from './history.jsx';
 import { t, tn } from '../../shared/i18n.js';
@@ -19,11 +19,12 @@ export function NetworkSheet({ onClose, current, onPick, only }) {
   const [showTest, setShowTest] = useState(!!sel.testnet);
   const chains = allChains(state.customChains).filter((c) => (showTest || !c.testnet) && (isChainEnabled(c.id, state.settings) || c.id === sel.id) && (!only || only(c)));
   const switchTo = async (c) => {
-    // a TON-only account has no address on EVM networks: switch to an Ethereum account of the wallet first
-    if (c.kind !== 'ton' && account?.type === 'ton') {
-      const evm = state.accounts.find((a) => a.type !== 'ton');
-      if (!evm) { toast(t('ton.needEvmAccount'), 'warn'); return; }
-      await bg('selectAccount', { address: evm.address });
+    // an account of one family only (e.g. imported from a TON app) has no address elsewhere: use an account that has one
+    const fam = accountFamily(account);
+    if (fam !== 'evm' && fam !== familyOf(c)) {
+      const other = state.accounts.find(isEvmAccount);
+      if (!other) { toast(t('accounts.needEvm'), 'warn'); return; }
+      await bg('selectAccount', { address: other.address });
     }
     await bg('setChain', { chainId: c.id }); toast(t('home.network.switched', { name: c.name })); onClose();
   };
@@ -56,7 +57,7 @@ function AddTokenSheet({ onClose, onAdded }) {
     setAddr(v); setInfo(null); setErr('');
     if (!/^0x[0-9a-fA-F]{40}$/.test(v.trim())) return;
     setLoading(true);
-    try { setInfo(await getTokenInfo(chain, v.trim())); } catch (e) { setErr(e.message); }
+    try { setInfo(await driverFor(chain).tokenInfo(chain, v.trim())); } catch (e) { setErr(e.message); }
     setLoading(false);
   };
   const add = async () => {
@@ -99,6 +100,9 @@ function PolyRow({ funds, onOpen }) {
 export function Home() {
   const { state, chain, account, nav, refresh, toast, mode, openPredict } = useApp();
   const { data, loading, error, reload } = usePortfolio();
+  const addr = useChainAddress(); // the account's address on this network (TON: its TON wallet)
+  const drv = driverFor(chain);
+  const notice = drv.homeNotice?.(chain, data); // e.g. TON: the wallet contract is deployed with its first transfer
   // Polymarket funds of this account: only on Polygon, where they live (the accounts screen shows them on any network)
   const [polyTick, setPolyTick] = useState(0);
   const poly = usePolyFunds(account.address, { enabled: chain.id === POLY_CHAIN, tick: polyTick });
@@ -138,7 +142,7 @@ export function Home() {
           <Avatar address={account.address} />
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <div class="bold ellipsis" style={{ fontSize: '0.875rem' }}>{account.name}</div>
-            <div class="tiny muted ellipsis" style={{ whiteSpace: 'nowrap' }}>{state.wallets.length > 1 ? `${state.wallets.find((w) => w.id === state.activeWallet)?.name} · ` : ''}{shortAddr(account.address)}</div>
+            <div class="tiny muted ellipsis" style={{ whiteSpace: 'nowrap' }}>{state.wallets.length > 1 ? `${state.wallets.find((w) => w.id === state.activeWallet)?.name} · ` : ''}{addr.address ? shortAddr(addr.address) : chain.name}</div>
           </div>
           <span class="muted"><Icon name="chevron" size={14} /></span>
         </button>
@@ -151,6 +155,14 @@ export function Home() {
       </div>
 
       <div class="content">
+        {addr.missing && ( // an account without a TON key (e.g. an imported Ethereum private key) on a TON network
+          <div class="card col" style={{ gap: '.5rem' }}>
+            <b>{t('chain.noKey.title', { network: chain.name })}</b>
+            <span class="small muted">{t('chain.noKey.body', { network: chain.name })}</span>
+            <Btn kind="secondary" onClick={() => nav('accounts')}>{t('chain.noKey.accounts')}</Btn>
+          </div>
+        )}
+        {!addr.missing && <>
         {state.pending > 0 && (
           <button class="warn row" onClick={() => nav('approvals')}>
             <Icon name="warn" /><span class="grow" style={{ textAlign: 'left' }}>{richText(tn('home.pending', state.pending, { n: '{n}' }), { n: <b>{state.pending}</b> })}</span><Icon name="forward" />
@@ -167,8 +179,8 @@ export function Home() {
           </div>
           <div class="total">{data ? (chain.testnet ? `${fmtNum(shown)} ${chain.native.symbol}` : fmtUsd(shown)) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
           <div class="row between hero-foot">
-            <button class="addr" onClick={async () => { await navigator.clipboard.writeText(account.address); toast(t('home.addressCopied')); }}>
-              {shortAddr(account.address, 6)} <Icon name="copy" size={13} />
+            <button class="addr" onClick={async () => { if (!addr.address) return; await navigator.clipboard.writeText(addr.address); toast(t('home.addressCopied')); }}>
+              {addr.address ? shortAddr(addr.address, 6) : '…'} <Icon name="copy" size={13} />
             </button>
             {data && <span class="small num" style={{ opacity: .85 }}>{fmtNum(data.native.amount)} {chain.native.symbol}</span>}
           </div>
@@ -177,9 +189,11 @@ export function Home() {
         <div class="actions">
           <button class="action" onClick={() => nav('send')}><span class="ic"><Icon name="send" /></span>{t('home.send')}</button>
           <button class="action" onClick={() => nav('receive')}><span class="ic"><Icon name="receive" /></span>{t('home.receive')}</button>
-          <button class="action" onClick={() => nav('swap')} disabled={!chain.swap}><span class="ic"><Icon name="swap" /></span>{t('home.swap')}</button>
-          <button class="action" onClick={() => nav('bridge')}><span class="ic"><Icon name="route" /></span>{t('home.bridge')}</button>
+          <button class="action" onClick={() => nav('swap')} disabled={!drv.swapSupported?.(chain)}><span class="ic"><Icon name="swap" /></span>{t('home.swap')}</button>
+          <button class="action" onClick={() => nav('bridge')} disabled={chain.testnet}><span class="ic"><Icon name="route" /></span>{t('home.bridge')}</button>
         </div>
+
+        {notice && <div class="info small">{t(notice)}</div>}
 
         <div class="tabs">
           <button class={`tab ${tab === 'tokens' ? 'active' : ''}`} onClick={() => setTab('tokens')}>{t('home.tabTokens')}</button>
@@ -219,7 +233,7 @@ export function Home() {
               </div>
             )}
             {data?.noIndexer && <div class="tiny muted" style={{ padding: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'home.noIndexerKey' : 'home.noIndexer', { network: chain.name })}</div>}
-            <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>
+            {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}
 
@@ -231,6 +245,7 @@ export function Home() {
         )}
         {data?.stale && loading && <div class="tiny muted center">{t('home.updating')}</div>}
         {!data && !error && !loading && <Empty>{t('home.noData')}</Empty>}
+        </>}
       </div>
 
       {sheet === 'network' && <NetworkSheet onClose={() => setSheet(null)} />}

@@ -969,6 +969,13 @@ body.kb-open .pm-totop { display: none; }
 .pm-cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .pm-dot { fill: var(--primary); stroke: var(--card); stroke-width: 2.5; }
 .pm-chart.money .pm-dot { fill: var(--green); } .pm-chart.money.neg .pm-dot { fill: var(--red); }
+/* price (token details): green when the period ends up, red when it ends down */
+.pm-chart.price .pm-line { stroke: var(--green); }
+.pm-chart.price .stop-a, .pm-chart.price .stop-b { stop-color: var(--green); }
+.pm-chart.price.neg .pm-line { stroke: var(--red); }
+.pm-chart.price.neg .stop-a, .pm-chart.price.neg .stop-b { stop-color: var(--red); }
+.pm-chart.price .stop-a { stop-opacity: .2; }
+.pm-chart.price .pm-dot { fill: var(--green); } .pm-chart.price.neg .pm-dot { fill: var(--red); }
 .pm-dot.live { animation: pm-pulse 2s ease-in-out infinite; }
 @keyframes pm-pulse { 50% { r: 6.5; } }
 .pm-tip { position: absolute; top: 0; transform: translateX(-50%); z-index: 1; padding: .1875rem .5625rem; border-radius: 999px; background: var(--text); color: var(--bg); font-size: .6875rem; font-weight: 600; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .18); }
@@ -1508,3 +1515,11 @@ button.dn-row:active { background: var(--card-2); }
 .dn-more-row { display: flex; align-items: center; gap: .75rem; padding: .625rem .375rem; border-top: 1px solid var(--border); font-size: .875rem; color: var(--text); text-align: left; }
 .dn-more-row > svg:first-child { color: var(--primary); }
 .dn-more-row > svg:last-child { color: var(--muted); }
+
+/* ---------- token details: price chart */
+.tk-chart { display: flex; flex-direction: column; gap: .25rem; padding: .875rem .875rem .75rem; border-radius: 1.125rem; }
+.tk-chart-head { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; min-height: 2rem; }
+.tk-chart-price { font-family: var(--display); font-size: 1.625rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.tk-chart-chg { font-size: .8125rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tk-chart-chg.up { color: var(--green); } .tk-chart-chg.down { color: var(--red); }
+.tk-chart-when { margin-left: auto; }

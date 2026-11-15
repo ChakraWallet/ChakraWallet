@@ -12,7 +12,7 @@ const hex = (b) => Buffer.from(b).toString('hex');
 
 /** Key pair and wallet version of an account of the active wallet, or null (e.g. an imported Ethereum key). */
 async function keyOf(address) {
-  const src = await vault.tonKeySource(address);
+  const src = await vault.familyKeySource('ton', address);
   if (!src) return null;
   if (src.phrase) return { ...hdKeyPair(src.phrase, src.index), version: DEFAULT_VERSION };
   return { ...tonKeyFromSecret(src.secret), version: src.version };
@@ -78,6 +78,6 @@ export const tonHandlers = {
     if (!VERSIONS.includes(version)) throw i18nError('errors.invalidPrivateKey');
     const k = await keyFromInput({ phrase, secret });
     const address = walletContract(k.publicKey, { version }).address.toRawString();
-    return vault.addTonAccount({ address, secret: hex(k.secretKey.subarray(0, 32)), version, name });
+    return vault.addFamilyAccount('ton', { address, secret: hex(k.secretKey.subarray(0, 32)), version }, name);
   },
 };

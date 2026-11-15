@@ -23,12 +23,12 @@ async function settings() { return { ...DEFAULT_SETTINGS, ...(await local.get('s
 async function customChains() { return local.get('customChains', []); }
 /**
  * The EVM network for sites and EVM operations. The app may show a non-EVM network (TON, Android app): sites keep
- * the last EVM network chosen (evmChainId), they never see a TON "chainId".
+ * the last EVM network chosen (evmChainId), they never see the chainId of another family (TON...).
  */
 async function currentChain() {
   const custom = await customChains();
   const c = getChain(await local.get('chainId', 1), custom);
-  if (c && c.kind !== 'ton') return c;
+  if (c && !c.kind) return c; // EVM networks have no kind of their own
   return getChain(await local.get('evmChainId', 1), custom) || BUILTIN_CHAINS[0];
 }
 
@@ -276,7 +276,7 @@ async function setChain(chainId) {
   const c = getChain(chainId, await customChains());
   if (!c) throw E.unknownChain();
   await local.set('chainId', c.id);
-  if (c.kind === 'ton') return; // the network shown in the app; sites stay on their EVM network
+  if (c.kind) return; // a network of another family: shown in the app; sites stay on their EVM network
   await local.set('evmChainId', c.id);
   await broadcastChain();
 }

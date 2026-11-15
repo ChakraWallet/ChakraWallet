@@ -84,7 +84,7 @@ export const BUILTIN_CHAINS = [
 // only on EVM networks iterates BUILTIN_CHAINS, or checks kind.
 const EXTRA = [];
 export function registerChains(list) { for (const c of list) if (!EXTRA.some((x) => x.id === c.id)) EXTRA.push(c); }
-export const isEvm = (c) => !!c && c.kind !== 'ton';
+export const isEvm = (c) => !!c && (!c.kind || c.kind === 'evm'); // other families (TON...) have a kind of their own
 
 /** Every network, in list order: Ethereum, then TON (Android app), the other networks, test networks, custom ones. */
 export function allChains(customChains = []) {

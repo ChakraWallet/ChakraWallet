@@ -23,6 +23,7 @@ import { Icon } from './components.jsx';
 import { useAuthorizer } from './auth.jsx';
 import { t, setLang } from '../shared/i18n.js';
 import { setDisplayCurrency } from '../shared/fx.js';
+import { accountFamily, familyOf, driverOf, isEvmAccount } from './chains/index.js';
 
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
 const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions']);
@@ -221,9 +222,13 @@ export function App() {
 
   const chain = useMemo(() => (state ? getChain(state.chainId, state.customChains) || BUILTIN_CHAINS[0] : BUILTIN_CHAINS[0]), [state?.chainId, state?.customChains]);
   const account = useMemo(() => state?.accounts?.find((a) => a.address === state.selected) || state?.accounts?.[0], [state?.selected, state?.accounts]);
-  // a TON-only account (imported from another TON app) lives on TON: selecting it shows the TON network
+  // an account of one family only (e.g. imported from another TON app) lives on that family's networks:
+  // selecting it shows its family's default network
+  const accFam = accountFamily(account);
+  const wrongFamily = !!account && accFam !== 'evm' && accFam !== familyOf(chain);
   useEffect(() => {
-    if (account?.type === 'ton' && chain.kind !== 'ton' && globalThis.__CK_TON__) bg('setChain', { chainId: -239 }).catch(() => {});
+    const id = wrongFamily && driverOf(accFam)?.defaultChainId;
+    if (id != null) bg('setChain', { chainId: id }).catch(() => {});
   }, [account?.address, chain.id]);
 
   const ctx = { state, refresh, chain, account, nav, back, reset, toast, mode: approvalOpen ? 'approve' : mode, portfolioCache, setPortfolioCache, authorize,
@@ -231,9 +236,9 @@ export function App() {
 
   let body;
   const top = stack[stack.length - 1];
-  // TON networks (Android app): their own home, send, receive... (src/ui/ton); the other screens are shared
-  const C = account?.type === 'ton' && chain.kind !== 'ton' ? Switching // a TON-only account: the TON network is being selected
-    : (chain.kind === 'ton' && globalThis.__CK_TON__?.screens[top.name]) || SCREENS[top.name] || globalThis.__CK_TON__?.extra?.[top.name] || Home;
+  // one set of screens for every network: TON (Android app) feeds them through its driver (src/ui/ton/driver.js)
+  const C = wrongFamily ? Switching // the account's own network is being selected
+    : SCREENS[top.name] || Home;
   if (!state) body = <div class="screen" style={{ alignItems: 'center', justifyContent: 'center' }}><Spinner lg /></div>;
   else if (!state.initialized || onboarding) body = <Onboarding onActive={setOnboarding} />;
   else if (!state.unlocked) body = <Unlock />;
@@ -254,7 +259,7 @@ export function App() {
         )}
         {(predictUsed || tab === 'predict') && (
           <div class={`screen pane ${tab === 'predict' ? paneAnim : ''}`} onAnimationEnd={endPane} style={{ display: !approvalOpen && tab === 'predict' ? 'flex' : 'none' }}>
-            {account?.type === 'ton' ? <EvmOnly /> : <Predict visible={!approvalOpen && tab === 'predict'} onDeep={setPredictDeep} openReq={predictReq} />}
+            {account && !isEvmAccount(account) ? <EvmOnly /> : <Predict visible={!approvalOpen && tab === 'predict'} onDeep={setPredictDeep} openReq={predictReq} />}
           </div>
         )}
         {ContractsTab && (contractsUsed || tab === 'contracts') && (
@@ -294,7 +299,7 @@ const Switching = () => <div class="screen" style={{ alignItems: 'center', justi
 function EvmOnly() {
   return (
     <div class="screen"><div class="content" style={{ justifyContent: 'center' }}>
-      <div class="card col" style={{ gap: '.5rem' }}><b>{t('ton.evmOnly.title')}</b><span class="small muted">{t('ton.evmOnly.body')}</span></div>
+      <div class="card col" style={{ gap: '.5rem' }}><b>{t('accounts.evmOnly.title')}</b><span class="small muted">{t('accounts.evmOnly.body')}</span></div>
     </div></div>
   );
 }

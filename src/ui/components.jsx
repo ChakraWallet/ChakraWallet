@@ -466,6 +466,30 @@ export function FeeBox({ chain, prepared, speed, setSpeed, nativePrice, valueWei
 }
 
 /**
+ * The network fee of a review, in the shape its chain driver gives (src/ui/chains/driver.d.md):
+ *   { kind: 'market', prepared, valueWei(speed), valueUsd, extraRows } - a fee market with Slow / Normal / Fast (EVM)
+ *   { kind: 'fixed', amount (raw | null), decimals, symbol, label?, unknownText?, extraRows } - one estimate (TON)
+ * fee null: still being prepared.
+ */
+export function FeeView({ chain, fee, speed, setSpeed, nativePrice }) {
+  if (!fee) return <div class="fee-box"><div class="fee-row"><span class="k">{t('fee.network')}</span><span class="v"><Spinner /></span></div></div>;
+  if (fee.kind === 'market') {
+    return <FeeBox chain={chain} prepared={fee.prepared} speed={speed} setSpeed={setSpeed} nativePrice={nativePrice}
+      valueWei={fee.valueWei ? fee.valueWei(speed) : 0n} valueUsd={fee.valueUsd ?? null} extraRows={fee.extraRows || []} />;
+  }
+  const f = fee.amount != null ? toFloat(fee.amount, fee.decimals) : null;
+  return (
+    <div class="fee-box">
+      {(fee.extraRows || []).map((r) => <div class="fee-row"><span class="k">{r.k}</span><span class="v">{r.v}{r.sub && <span class="sub">{r.sub}</span>}</span></div>)}
+      <div class="fee-row">
+        <span class="k">{fee.label || t('fee.estimated')}</span>
+        <span class="v">{f != null ? `≈ ${fmtAmount(fee.amount, fee.decimals, 6)} ${fee.symbol}${nativePrice != null ? ` · ${fmtUsd(f * nativePrice)}` : ''}` : fee.unknownText || '—'}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Translated text with inline markup, so word order can differ between languages:
  * <b>bold</b>, <m>bold monospace</m>, and {name} placeholders that may hold JSX (e.g. a bold amount).
  *   richText(t('swap.approveInfo', { provider }), { token: <b>{sym}</b> })     rich('browser.clearInfo', { host })

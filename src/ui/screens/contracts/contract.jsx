@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Icon, Spinner, Btn, ChainIcon, useApp, explorerAddr, explorerTx } from '../../components.jsx';
 import { getChain } from '../../../shared/chains.js';
+import { isEvmAccount } from '../../chains/index.js';
 import { loadContract, readOverview, recentLogs, recentTxs } from '../../../shared/contracts.js';
 import { display, toJson } from '../../../shared/abiInput.js';
 import { shortAddr, fmtDateTime } from '../../../shared/format.js';
@@ -160,7 +161,7 @@ function WriteTab({ c, chain, onSend, onOpenAddress }) {
   const writes = c.fns.filter((f) => !f.read && match(f, q));
   return (
     <>
-      {account.type === 'ton' ? <div class="warn small">{t('ton.evmOnly.body')}</div>
+      {!isEvmAccount(account) ? <div class="warn small">{t('accounts.evmOnly.body')}</div>
         : <div class="info small">{t('contracts.write.as', { name: account.name, chain: chain.name })}{active.id !== chain.id ? ` ${t('contracts.write.otherChain')}` : ''}</div>}
       {c.fns.filter((f) => !f.read).length > 6 && <input class="input" placeholder={t('contracts.searchFn')} value={q} onInput={(e) => setQ(e.target.value)} />}
       {writes.map((f) => <FnCard key={f.key} fn={f} contract={c} chain={chain} onSend={onSend} onOpenAddress={onOpenAddress} />)}

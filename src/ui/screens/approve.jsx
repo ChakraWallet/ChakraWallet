@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { Interface, MaxUint256, formatUnits } from 'ethers';
 import { bg, ext } from '../../shared/ext.js';
 import { getChain } from '../../shared/chains.js';
+import { isEvmAccount } from '../chains/index.js';
 import { getTokenInfo } from '../../shared/rpc.js';
 import { prepareTx, finalizeTx } from '../../shared/tx.js';
 import { fmtAmount, shortAddr, hexToUtf8, toFloat, fmtUsd } from '../../shared/format.js';
@@ -48,7 +49,7 @@ function AccountLine({ address }) {
 function Connect({ req, done }) {
   const { state } = useApp();
   // the selected account by default, unless it is a TON-only account (sites use Ethereum accounts)
-  const [sel, setSel] = useState(() => { const evm = state.accounts.filter((a) => a.type !== 'ton'); return [(evm.find((a) => a.address === state.selected) || evm[0])?.address].filter(Boolean); });
+  const [sel, setSel] = useState(() => { const evm = state.accounts.filter(isEvmAccount); return [(evm.find((a) => a.address === state.selected) || evm[0])?.address].filter(Boolean); });
   const toggle = (a) => setSel(sel.includes(a) ? sel.filter((x) => x !== a) : [...sel, a]);
   return (
     <>
@@ -57,7 +58,7 @@ function Connect({ req, done }) {
         <h3 style={{ margin: '0.25rem 0 0' }}>{t('approve.connect.title')}</h3>
         <div class="small muted">{t('approve.connect.choose')}</div>
         <div class="card" style={{ padding: '0.375rem' }}>
-          {state.accounts.filter((a) => a.type !== 'ton').map((a) => ( // sites use Ethereum accounts
+          {state.accounts.filter(isEvmAccount).map((a) => ( // sites use Ethereum accounts
             <label class="item" style={{ cursor: 'pointer' }}>
               <input type="checkbox" checked={sel.includes(a.address)} onChange={() => toggle(a.address)} />
               <Avatar address={a.address} />

@@ -2,6 +2,7 @@
 // structs) and an advanced mode (JSON arguments, raw calldata, caller / block for reads). Results and reverts readable.
 import { useState } from 'preact/hooks';
 import { Icon, Spinner, Switch, Sheet, Avatar, useApp } from '../../components.jsx';
+import { isEvmAccount } from '../../chains/index.js';
 import { emptyValue, toArgs, argsFromJson, display, words, suggestUnit, toJson, parseInteger, ArgError } from '../../../shared/abiInput.js';
 import { encodeCall, decodeResult, simulate, decodeRevert } from '../../../shared/contracts.js';
 import { shortAddr, fmtDateTime } from '../../../shared/format.js';
@@ -29,7 +30,7 @@ function AccountPick({ onPick, onClose }) {
   return (
     <Sheet title={t('contracts.form.myAccounts')} onClose={onClose}>
       <div class="list">
-        {state.accounts.filter((a) => a.type !== 'ton').map((a) => (
+        {state.accounts.filter(isEvmAccount).map((a) => (
           <button class="item" onClick={() => { onPick(a.address); onClose(); }}>
             <Avatar address={a.address} /><div class="grow"><div class="bold">{a.name}</div><div class="small muted mono">{shortAddr(a.address, 6)}</div></div>
           </button>

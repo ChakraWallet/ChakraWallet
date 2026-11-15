@@ -7,6 +7,7 @@ export const PRICES = {
   'coingecko:binancecoin': 612.4,
   'coingecko:avalanche-2': 31.86,
   'coingecko:xdai': 1,
+  'coingecko:the-open-network': 3.12,
 };
 const USDC = 1.0001, USDT = 0.9998, DAI = 0.9999, WBTC = 97240.15, LINK = 18.42, UNI = 11.37;
 

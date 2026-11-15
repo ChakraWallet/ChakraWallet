@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'preact/hooks';
 import { bg, ext } from '../../shared/ext.js';
 import { BUILTIN_CHAINS, normalizeCustom, isChainEnabled, builtinNetworks, ALWAYS_ON } from '../../shared/chains.js';
+import { allDrivers } from '../chains/index.js';
 import { shortAddr, fmtDateTime } from '../../shared/format.js';
 import { TopBar, Icon, Btn, Sheet, Switch, ChainIcon, useApp, Empty, SecureScreen, CopyBtn, CopyPhrase } from '../components.jsx';
 import { BackupFile } from './onboarding.jsx';
@@ -179,7 +180,7 @@ function Networks() {
         {builtinNetworks().map((c) => ( // Ethereum, TON (Android app) right below, then the others
           <div class={`item ${isChainEnabled(c.id, state.settings) ? '' : 'net-off'}`}>
             <ChainIcon chain={c} size={24} />
-            <div class="grow"><div>{c.name}</div><div class="tiny muted">{c.kind === 'ton' ? c.native.symbol : `ID ${c.id}`}{ALWAYS_ON.has(c.id) ? ` · ${t('settings.networks.alwaysOn')}` : ''}</div></div>
+            <div class="grow"><div>{c.name}</div><div class="tiny muted">{c.kind ? c.native.symbol : `ID ${c.id}`}{ALWAYS_ON.has(c.id) ? ` · ${t('settings.networks.alwaysOn')}` : ''}</div></div>
             {ALWAYS_ON.has(c.id) ? <span class="net-lock"><Switch on onChange={() => {}} /></span> : sw(c)}
           </div>
         ))}
@@ -323,14 +324,12 @@ export function Settings({ section }) {
         <div class="card col" style={{ gap: '0.5rem' }}>
           <div class="small">{t('settings.etherscan')} <span class="muted">{t('settings.etherscan.hint')}</span></div>
           <EtherscanKey value={s.etherscanKey} onSave={(v) => save({ etherscanKey: v })} />
-          {globalThis.__CK_TON__ && ( // Android: TON data from TON Center (1 request/s without a key, 10/s with one)
+          {allDrivers().flatMap((d) => d.ui?.settings || []).map((f) => ( // e.g. TON: TON Center and TonAPI keys (driver.ui.settings)
             <>
-              <div class="small">{t('settings.toncenter')} <span class="muted">{t('settings.toncenter.hint')}</span></div>
-              <EtherscanKey value={s.tonCenterKey} onSave={(v) => save({ tonCenterKey: v })} />
-              <div class="small">{t('settings.tonapi')} <span class="muted">{t('settings.tonapi.hint')}</span></div>
-              <EtherscanKey value={s.tonApiKey} onSave={(v) => save({ tonApiKey: v })} />
+              <div class="small">{t(f.label)} <span class="muted">{t(f.hint)}</span></div>
+              <EtherscanKey value={s[f.key]} onSave={(v) => save({ [f.key]: v })} />
             </>
-          )}
+          ))}
           <div class="tiny muted">{t('settings.sources')}</div>
         </div>
         {globalThis.__CK_NOTIFY__ && ( // Android: the Predictions tab and its "Per te" suggestions

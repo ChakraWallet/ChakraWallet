@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { local } from '../shared/ext.js';
-import { loadPortfolio } from '../shared/portfolio.js';
 import { getNativePrice } from '../shared/prices.js';
 import { useApp } from './components.jsx';
 import { BUILTIN_CHAINS, normalizeCustom, isChainEnabled, getChain } from '../shared/chains.js';
 import { bridgeStatus } from '../shared/bridge.js';
 import { t, getLang } from '../shared/i18n.js';
+import { driverFor, familyOf, isEvmAccount, useAccountAddresses } from './chains/index.js';
 import { POPULAR_TOKENS } from '../shared/tokens.js';
 
 // ---- failed balance / history scans
@@ -37,29 +37,46 @@ export async function tokenPrefs(chainId) {
   return { customTokens: custom[chainId] || [], hiddenTokens: hidden[chainId] || [] };
 }
 
+// ---- the selected account on the current network (every family through its driver: src/ui/chains)
+/**
+ * The selected account's address on the current network: { address (as shown), raw (as the network's APIs want it),
+ * ready, missing (the account has no key for this family, e.g. an Ethereum private key on TON) }.
+ */
+export function useChainAddress() {
+  const { account, chain } = useApp();
+  const map = useAccountAddresses(chain, account ? [account] : []);
+  if (!account || !map) return { ready: false };
+  const a = map[account.address];
+  return a ? { ...a, ready: true } : { ready: true, missing: true };
+}
+
+/** Balances of an address on a network (the same portfolio shape for every family). */
+export const loadAnyPortfolio = (chain, raw, opts) => driverFor(chain).loadPortfolio(chain, raw, opts);
+
 export function usePortfolio() {
   const { chain, account, state, portfolioCache, setPortfolioCache } = useApp();
+  const addr = useChainAddress();
   const key = `${chain.id}:${account?.address}`;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const data = portfolioCache[key];
 
   const load = useCallback(async () => {
-    if (!account) return;
+    if (!account || !addr.raw) return;
     setLoading(true); setError('');
     try {
       const prefs = await tokenPrefs(chain.id);
-      const p = checkScan(await loadPortfolio(chain, account.address, { ...prefs, etherscanKey: state.settings.etherscanKey }), chain, account.address);
+      const p = checkScan(await loadAnyPortfolio(chain, addr.raw, { ...prefs, etherscanKey: state.settings.etherscanKey }), chain, addr.raw);
       setPortfolioCache((c) => ({ ...c, [key]: p }));
       local.set(`cache:${key}`, p).catch(() => {});
-    } catch (e) { setError(e.message); scanFailed(e, chain, account.address); }
+    } catch (e) { setError(e.message); scanFailed(e, chain, addr.raw); }
     setLoading(false);
-  }, [key]);
+  }, [key, addr.raw]);
 
   useEffect(() => {
     if (!data) local.get(`cache:${key}`, null).then((c) => c && setPortfolioCache((x) => (x[key] ? x : { ...x, [key]: { ...c, stale: true } })));
     if (!data || Date.now() - data.updated > 30000 || data.stale) load();
-  }, [key]);
+  }, [key, addr.raw]);
 
   return { data, loading, error, reload: load };
 }
@@ -67,7 +84,7 @@ export function usePortfolio() {
 /** Networks scanned by the multichain view: every mainnet + custom networks (+ the current one if it's a testnet). */
 export function scanChains(state, chain) {
   const list = [...BUILTIN_CHAINS.filter((c) => !c.testnet), ...(state.customChains || []).map(normalizeCustom)].filter((c) => isChainEnabled(c.id, state.settings));
-  if (!list.some((c) => c.id === chain.id) && chain.kind !== 'ton') list.push(chain); // TON has its own screens
+  if (!list.some((c) => c.id === chain.id) && familyOf(chain) === 'evm') list.push(chain); // other families: their own summary (driver ui.useSummaries)
   return list;
 }
 
@@ -89,7 +106,7 @@ export function useMultichainPortfolios() {
     let cancelled = false;
     (async () => {
       const pairs = [];
-      for (const a of state.accounts) if (a.type !== 'ton') for (const c of chains) pairs.push({ a, c, key: `${c.id}:${a.address}` }); // TON-only accounts: no EVM networks
+      for (const a of state.accounts) if (isEvmAccount(a)) for (const c of chains) pairs.push({ a, c, key: `${c.id}:${a.address}` }); // accounts of one other family only: no EVM networks
       // 1) cached values first
       const fromDisk = {};
       await Promise.all(pairs.filter((p) => !cacheRef.current[p.key]).map(async (p) => {
@@ -110,7 +127,7 @@ export function useMultichainPortfolios() {
           const p = todo.shift();
           try {
             prefs[p.c.id] ??= await tokenPrefs(p.c.id);
-            const r = checkScan(await loadPortfolio(p.c, p.a.address, { ...prefs[p.c.id], etherscanKey: state.settings.etherscanKey }), p.c, p.a.address);
+            const r = checkScan(await loadAnyPortfolio(p.c, p.a.address, { ...prefs[p.c.id], etherscanKey: state.settings.etherscanKey }), p.c, p.a.address);
             if (!cancelled) setPortfolioCache((c) => ({ ...c, [p.key]: r }));
             local.set(`cache:${p.key}`, r).catch(() => {});
           } catch (e) { if (!cancelled) scanFailed(e, p.c, p.a.address); /* keep the cached value */ }
