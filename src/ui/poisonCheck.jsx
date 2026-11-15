@@ -5,6 +5,7 @@ import { isAddress } from 'ethers';
 import { addressBook, checkRecipient } from '../shared/poison.js';
 import { Icon, useApp } from './components.jsx';
 import { t } from '../shared/i18n.js';
+import { driverFor } from './chains/index.js';
 
 const books = new Map(); // `${chainId}:${account}` -> promise (one history scan per screen session)
 
@@ -13,7 +14,9 @@ export function useRecipientCheck(to, chain) {
   const { chain: current, account, state } = useApp();
   const c = chain || current;
   const [book, setBook] = useState(null);
+  const enabled = !!driverFor(c).features?.poisonCheck; // families whose history the check reads (EVM)
   useEffect(() => {
+    if (!enabled) return;
     const key = `${c.id}:${account.address}`;
     if (!books.has(key)) {
       books.set(key, addressBook(c, account.address, state.accounts.map((a) => a.address), { etherscanKey: state.settings.etherscanKey }).catch(() => null));
@@ -22,7 +25,7 @@ export function useRecipientCheck(to, chain) {
     books.get(key).then(setBook);
   }, [c.id, account.address]);
   const addr = String(to || '').trim();
-  const v = isAddress(addr) ? checkRecipient(addr, book) : { level: null };
+  const v = enabled && isAddress(addr) ? checkRecipient(addr, book) : { level: null };
   return { ...v, risky: v.level === 'lookalike' || v.level === 'poisoned' };
 }
 

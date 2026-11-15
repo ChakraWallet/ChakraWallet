@@ -28,7 +28,10 @@ The wallet under test is the public test phrase `test test … junk` (Anvil's): 
 Proved: our code end to end - reading quotes, allowance checks, approvals of the exact amount, one password for the
 steps of an operation, transactions and TON messages built and signed correctly (the nodes and the TON contracts
 reject anything wrong), fees, the first TON send deploying the wallet, jetton transfers, waiting for confirmation,
-balances, history, bridge tracking until arrival.
+balances, history, bridge tracking until arrival. Bridges with TON: GRAM both ways, any EVM token to TON, GRAM to an
+EVM token for another address with gas on arrival, a jetton in two steps (swap to GRAM, then the bridge), the warning
+about the memo when the recipient is outside the wallet. (The local USD₮ has another address than the real one: for
+the app it is "another jetton", which is what the two-step test uses.)
 
 Not covered here: the real contracts of STON.fi, Uniswap and the bridges, the routes real aggregators choose, changes
 in their APIs (the simulated services always answer the same way), Polymarket, the Android native side.

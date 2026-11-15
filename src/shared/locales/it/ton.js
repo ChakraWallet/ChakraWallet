@@ -54,4 +54,8 @@ export default {
   'ton.swap.needGram': "Servono almeno {amount} {symbol} (importo e gas).",
   'ton.swap.buildFailed': "Lo scambio non si può preparare: probabilmente il saldo del token non basta.",
   'ton.bridge.usdtNote': "USD₮ su TON passa da Symbiosis, che trattiene una commissione fissa (circa 0,25–0,5 USD₮): conviene per importi non troppo piccoli.",
+  'ton.bridge.memoWarn': "Arrivando su TON il bridge non può aggiungere un commento (memo): non inviarlo direttamente a un exchange che lo richiede.",
+  'ton.bridge.symbiosisLimit': "Symbiosis sta ricevendo troppe richieste: riprova tra un minuto, oppure aggiungi una chiave Symbiosis in Impostazioni › Dati.",
+  'settings.symbiosis': "Chiave Symbiosis",
+  'settings.symbiosis.hint': "(facoltativa, gratuita su explorer.symbiosis.finance/partners: bridge di USD₮ su TON senza limite di richieste)",
 };

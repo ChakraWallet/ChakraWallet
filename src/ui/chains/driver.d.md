@@ -50,17 +50,27 @@ Both are drawn by `FeeView` (`components.jsx`).
 
 ## Steps (swap and bridge)
 
-`[{ key: 'approve' | 'swap' | 'bridge', title, waitBeforeNext?, prepare() → review-like { fee, problem() },
-send(review, { speed, auth }) → { hash?, wait? } }]`. The screen prepares and confirms them in order
+`[{ key: 'approve' | 'swap' | 'bridge', title, note?, waitBeforeNext?, prepare() → review-like { fee, problem() },
+send(review, { speed, auth }) → { hash?, wait?, quote? } }]`. The screen prepares and confirms them in order
 (`src/ui/steps.js`); `auth(fn)` reuses one password for the whole operation; `waitBeforeNext`: the step must be
-mined before the next one (an approval).
+mined before the next one (an approval, a swap whose output the next step spends); `note`: a line shown above the
+step (what it does, in a multi-step operation); `quote`: the quote the step actually used, when it asked for a
+fresh one (after an approval or a swap): its `ref` and `provider` are what the transfer is tracked with.
 
 ## Bridge (optional): `driver.bridge`
 
-`{ chains() → networks offered, supports(from, to), freeRecipient, refuel, onlyTokens, tokens(chain, other),
-reserve(chain, token, balance) → bigint, quotes(p) → { quotes, errors }, steps(quote, p), note?(p) }`, with
+`{ chains() → networks offered, supports(from, to), freeRecipient, recipientNote?(toChain), refuel,
+onlyTokens, tokens(chain, other), reserve(chain, token, balance) → bigint, quotes(p) → { quotes, errors },
+steps(quote, p), note?(p) }`, with
 `p = { fromChain, toChain, fromToken, toToken, amount, fromAddr, toAddr, account, refuel, nativePrice, portfolio, title }`.
 One bridge per pair of networks: `bridgeFor(from, to)` picks the driver whose `supports` says yes.
+
+- `refuel` and `onlyTokens` are a value or a function: `refuel({ fromChain, toChain, fromToken, toToken })` → the
+  gas top-up on arrival is offered; `onlyTokens(chain, side)` (`side`: `'from'` | `'to'`) → on that side only the
+  tokens of `tokens()` (otherwise the source can be any token held).
+- `recipientNote(toChain)` → a warning shown when the funds go to an address outside the wallet (TON: no memo).
+- A quote with `twoStep` is an operation in two transactions (TON: jetton → GRAM, then GRAM → the other network):
+  the screen marks it and explains both before anything is signed.
 
 ## Accounts and settings (optional): `driver.ui`
 

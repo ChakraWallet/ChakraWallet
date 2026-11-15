@@ -42,6 +42,7 @@ export async function startServices(evm, { port = 9100, extra = {} } = {}) {
         ? await w.sendTransaction({ to: req.recipient, value: BigInt(req.amountOut) })
         : await new Contract(req.toToken, dest.abi.token, w).mint(req.recipient, BigInt(req.amountOut));
       await tx.wait();
+      if (req.topupWei) await (await w.sendTransaction({ to: req.recipient, value: BigInt(req.topupWei) })).wait(); // gas on arrival (topupGas)
       return tx.hash;
     },
   };
@@ -152,15 +153,15 @@ export async function startServices(evm, { port = 9100, extra = {} } = {}) {
     async relay(parts, q, body) {
       if (parts[0] === 'quote') {
         const from = byId[body.originChainId], to = byId[body.destinationChainId];
-        const handled = extra.relayQuote?.(body, { requests, relayer, newId: () => `0x${(++seq).toString(16).padStart(64, '0')}` });
+        const handled = extra.relayQuote?.(body, { requests, relayer, nets: byId, newId: () => `0x${(++seq).toString(16).padStart(64, '0')}` });
         if (handled) return handled;
         const toTon = body.destinationChainId === 224235520 && extra.payOut; // EVM -> TON (ETH -> GRAM), paid by the TON side
         if (!from || (!to && !toTon)) return { message: 'unsupported route' };
         const native = lc(body.originCurrency) === ZERO;
-        if (toTon && !native) return { message: 'unsupported route' };
         const token = native ? ZERO : getAddress(body.originCurrency);
         const amount = BigInt(body.amount);
-        const out = toTon ? (amount * 1000n) / 10n ** 9n : (amount * 998n) / 1000n; // ETH ($3,000) -> GRAM ($3); else a 0.2% fee
+        // to TON: ETH ($3,000) or USDC ($1) -> GRAM ($3); else a 0.2% fee
+        const out = toTon ? (native ? (amount * 1000n) / 10n ** 9n : (amount * 10n ** 9n) / 3_000_000n) : (amount * 998n) / 1000n;
         const requestId = `0x${(++seq).toString(16).padStart(64, '0')}`;
         requests.set(requestId, { toChainId: toTon ? 'ton' : to.id, toToken: toTon || lc(body.destinationCurrency) === ZERO ? ZERO : to.usdc, amountOut: out.toString(), recipient: body.recipient, status: 'waiting' });
         const deposit = bridgeIface.encodeFunctionData('deposit', [requestId, token, amount, toTon ? body.destinationChainId : to.id, toTon ? ZERO : body.recipient]);

@@ -210,7 +210,7 @@ export const bridgeTokens = () => [
  */
 export async function bridgeQuote(p) {
   const tonAsset = p.tonToken.native ? TON_ASSETS.GRAM : TON_ASSETS.USDT;
-  const r = await tonBridgeQuote({ ...p, tonAsset });
+  const r = await tonBridgeQuote({ ...p, tonAsset }); // p.refuel: gas on arrival (Relay, TON -> EVM)
   return { ...r, tool: null, tx: r.exec.kind === 'evm' ? r.exec.tx : null, spender: r.exec.kind === 'evm' ? r.exec.spender : null };
 }
 
@@ -227,6 +227,56 @@ export async function bridgeSendTon(chain, { exec, gramBalance, from, authorize,
 const STABLES = ['USDC', 'USDT', 'USD₮0', 'USDT0'];
 const WALLET_FEE = 30_000_000n; // what the wallet itself spends on a transfer (rough; the unused part is not taken)
 const fixedFee = (chain, amount, extra = {}) => ({ kind: 'fixed', amount, decimals: 9, symbol: chain.native.symbol, unknownText: t('ton.send.feeUnknown'), ...extra });
+
+const GRAM_TOKEN = { address: NATIVE, symbol: 'GRAM', name: 'Gram', decimals: 9, native: true };
+const isUsdt = (tk) => !tk.native && sameTonAddress(tk.address, TON_ASSETS.USDT.master);
+let twoStepSession = null; // the live Omniston session of the latest two-step quote (it builds the swap)
+
+/** The first quote of an Omniston session, as a promise (the session stays open: it builds the swap's messages). */
+function firstSwapQuote(params, timeoutMs = 20000) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const tm = setTimeout(() => { if (!done) { done = true; session.stop(); reject(new Error(t('errors.bridgeNoRoute'))); } }, timeoutMs);
+    const session = swapQuotes(params, {
+      onQuote: (q) => { if (!done) { done = true; clearTimeout(tm); resolve({ session, quote: q }); } },
+      onNone: () => { if (!done) { done = true; clearTimeout(tm); session.stop(); reject(new Error(t('errors.bridgeNoRoute'))); } },
+      onError: (m) => { if (!done) { done = true; clearTimeout(tm); session.stop(); reject(new Error(m || 'Omniston')); } },
+    });
+  });
+}
+
+/** Waits until a TON wallet holds at least `need` nanoGRAM (the GRAM of a swap arrive after the wallet's own transaction). */
+async function waitGram(chain, raw, need, timeoutMs = 90000) {
+  const t0 = Date.now();
+  for (;;) {
+    const b = (await tonAccount(chain, raw).catch(() => null))?.balance ?? 0n;
+    if (b >= need) return b;
+    if (Date.now() - t0 > timeoutMs) throw new Error(t('bridge.twoStep.notArrived'));
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+}
+
+/**
+ * A jetton other than GRAM and USD₮ has no bridge of its own: two operations, quoted together. 1) jetton -> GRAM on TON
+ * (Omniston); 2) GRAM -> the EVM token (Relay), for the minimum the swap guarantees (anything above stays in the wallet).
+ */
+async function twoStepQuote(p, evmAddr, tonAddr) {
+  const { session, quote: swap } = await firstSwapQuote({ from: p.fromToken, to: GRAM_TOKEN, amountRaw: BigInt(p.amount), slippageBps: 100 });
+  twoStepSession?.stop();
+  twoStepSession = session;
+  const gram = swap.minOut;
+  const bridge = await bridgeQuote({ dir: 'out', evmChain: p.toChain, evmToken: p.toToken, tonToken: GRAM_TOKEN, amount: gram.toString(), evmAddress: evmAddr.raw, tonAddress: tonAddr.address, refuel: p.refuel });
+  return {
+    ...bridge, provider: 'Omniston + Relay', tool: null, durationSec: (bridge.durationSec || 0) + 15,
+    twoStep: { session, swap, gram, from: p.fromToken },
+  };
+}
+
+/** An EVM step whose quote may be refreshed when built (after an approval): the step's result carries the quote used. */
+function withLatestQuote(step, quote, latest) {
+  const send = step.send;
+  return { ...step, send: async (...a) => ({ ...(await send(...a)), quote: latest() || quote }) };
+}
 
 export const tonDriver = {
   kind: 'ton',
@@ -311,23 +361,60 @@ export const tonDriver = {
   bridge: {
     chains: () => Object.values(TON_CHAINS).filter((c) => !c.testnet), // TON (and a local test network in e2e/)
     supports: (a, b) => (a.kind === 'ton') !== (b.kind === 'ton') && !a.testnet && !b.testnet,
-    freeRecipient: false, refuel: false, // the funds go to the same account on the other side
-    onlyTokens: true, // GRAM and USD₮ on TON, the native coin or a stablecoin on the EVM side
-    note: (p) => ((p.fromToken.symbol === 'USD₮' || p.toToken.symbol === 'USD₮') ? t('ton.bridge.usdtNote') : null),
+    freeRecipient: true, // any address on the other side (TON -> EVM: an EVM address; EVM -> TON: a TON address)
+    /** Arriving on TON the bridge can't attach a comment: no exchange deposit that needs one. */
+    recipientNote: (chain) => (chain.kind === 'ton' ? t('ton.bridge.memoWarn') : null),
+    /** Gas on arrival: GRAM -> an EVM network, through Relay (and the second step of a two-step route). */
+    refuel: (p) => p.fromChain.kind === 'ton' && !isUsdt(p.fromToken),
+    /** On TON, what can arrive: GRAM and USD₮. What can leave: any jetton you hold (others than those in two steps). */
+    onlyTokens: (chain, side) => chain.kind === 'ton' && side === 'to',
+    note: (p) => (isUsdt(p.fromToken) || isUsdt(p.toToken) ? t('ton.bridge.usdtNote') : null),
     tokens(chain) {
       if (chain.kind === 'ton') return bridgeTokens();
-      return [{ address: NATIVE, symbol: chain.native.symbol, name: chain.native.name, decimals: chain.native.decimals, native: true }, ...(POPULAR_TOKENS[chain.id] || []).filter((x) => STABLES.includes(x.symbol))];
+      return [{ address: NATIVE, symbol: chain.native.symbol, name: chain.native.name, decimals: chain.native.decimals, native: true }, ...(POPULAR_TOKENS[chain.id] || [])];
     },
     reserve: async (chain, token, balance) => (chain.kind === 'ton' && token.native ? (balance > 200_000_000n ? balance - 200_000_000n : 0n) : balance),
     async quotes(p) {
       const out = p.fromChain.kind === 'ton';
       const evm = out ? p.toAddr : p.fromAddr, ton = out ? p.fromAddr : p.toAddr;
+      const tonToken = out ? p.fromToken : p.toToken;
+      const provider = tonToken.native ? 'Relay' : isUsdt(tonToken) ? 'Symbiosis' : 'Omniston + Relay';
       try {
-        const q = await bridgeQuote({ dir: out ? 'out' : 'in', evmChain: out ? p.toChain : p.fromChain, evmToken: out ? p.toToken : p.fromToken, tonToken: out ? p.fromToken : p.toToken, amount: p.amount, evmAddress: evm.raw, tonAddress: ton.address });
+        if (out && !tonToken.native && !isUsdt(tonToken)) return { quotes: [await twoStepQuote(p, evm, ton)], errors: [] };
+        const q = await bridgeQuote({ dir: out ? 'out' : 'in', evmChain: out ? p.toChain : p.fromChain, evmToken: out ? p.toToken : p.fromToken, tonToken, amount: p.amount, evmAddress: evm.raw, tonAddress: ton.address, refuel: out && p.refuel });
         return { quotes: [q], errors: [] };
-      } catch (e) { return { quotes: [], errors: [{ provider: (out ? p.fromToken : p.toToken).native ? 'Relay' : 'Symbiosis', error: e.message }] }; }
+      } catch (e) { return { quotes: [], errors: [{ provider, error: e.message }] }; }
     },
     async steps(quote, p) {
+      if (quote.twoStep) { // 1) jetton -> GRAM on TON, 2) GRAM -> the other network
+        const two = quote.twoStep;
+        let fresh = null;
+        const amount = fmtNum(Number(p.amount) / 10 ** two.from.decimals), gram = fmtNum(Number(two.gram) / 1e9);
+        return [{
+          key: 'swap', title: t('bridge.twoStep.swapTitle'), waitBeforeNext: true,
+          note: t('bridge.twoStep.step1Info', { amount, symbol: two.from.symbol, gram }),
+          prepare: async () => ({ fee: fixedFee(p.fromChain, two.swap.gasRaw, { label: t('ton.swap.gas') }), problem: () => null }),
+          send: (review, { auth }) => swapSend(p.fromChain, {
+            session: two.session, quote: two.swap, wallet: p.fromAddr, gramBalance: p.portfolio?.native.balance || '0', from: p.account.address,
+            authorize: (fn) => auth(fn), title: t('bridge.twoStep.swapTx', { amount, symbol: two.from.symbol }),
+          }),
+        }, {
+          key: 'bridge', title: t('bridge.twoStep.bridgeTitle'),
+          note: t('bridge.twoStep.step2Info', { gram, network: p.toChain.name }),
+          async prepare() {
+            // the swap's GRAM, then a fresh quote for them (the first one may have expired while the swap ran)
+            fresh = await bridgeQuote({ dir: 'out', evmChain: p.toChain, evmToken: p.toToken, tonToken: GRAM_TOKEN, amount: two.gram.toString(), evmAddress: p.toAddr.raw, tonAddress: p.fromAddr.address, refuel: p.refuel });
+            const need = fresh.exec.messages.reduce((x, m) => x + BigInt(m.value), 0n) + WALLET_FEE;
+            await waitGram(p.fromChain, p.fromAddr.raw, need);
+            return { fee: fixedFee(p.fromChain, WALLET_FEE), problem: () => null };
+          },
+          async send(review, { auth }) {
+            const balance = (await tonAccount(p.fromChain, p.fromAddr.raw)).balance;
+            const r = await bridgeSendTon(p.fromChain, { exec: fresh.exec, gramBalance: balance, from: p.account.address, authorize: (fn) => auth(fn), title: p.title });
+            return { ...r, quote: { ...fresh, provider: 'Relay', tool: quote.provider } }; // tracked at Relay
+          },
+        }];
+      }
       if (quote.exec.kind === 'ton') { // out of TON: the route's messages, signed like a send
         return [{
           key: 'bridge', title: t('bridge.confirm'),
@@ -338,11 +425,13 @@ export const tonDriver = {
       // into TON: an EVM transaction, after an approval of the exact amount when the source is a token
       const from = p.fromAddr.raw;
       const approve = await approvalStep({ chain: p.fromChain, from, token: p.fromToken, spender: quote.spender, amount: BigInt(p.amount), provider: quote.provider });
-      return [approve, txStep({
+      let latest = null;
+      const send = txStep({
         key: 'bridge', title: t('bridge.confirm'), chain: p.fromChain, from, sentTitle: p.title,
-        build: async () => (approve ? (await this.quotes(p)).quotes[0]?.tx : quote.tx), // quotes expire
+        build: async () => { if (!approve) return quote.tx; latest = (await this.quotes(p)).quotes[0]; return latest?.tx; }, // quotes expire
         valueWei: p.fromToken.native ? BigInt(p.amount) : 0n,
-      })].filter(Boolean);
+      });
+      return [approve, withLatestQuote(send, quote, () => latest)].filter(Boolean);
     },
   },
 };

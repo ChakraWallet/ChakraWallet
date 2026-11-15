@@ -14,6 +14,7 @@ export const tonChainDriver = {
     settings: [ // Settings > Data: TON Center (1 request/s without a key, 10/s with one) and TonAPI keys
       { key: 'tonCenterKey', label: 'settings.toncenter', hint: 'settings.toncenter.hint' },
       { key: 'tonApiKey', label: 'settings.tonapi', hint: 'settings.tonapi.hint' },
+      { key: 'symbiosisKey', label: 'settings.symbiosis', hint: 'settings.symbiosis.hint' }, // bridges of USD₮ on TON
     ],
   },
 };

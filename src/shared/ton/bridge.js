@@ -23,6 +23,17 @@ async function fetchJson(url, init = {}, timeout = 25000) {
   if (!res.ok) throw new Error(json.message || json.error || `HTTP ${res.status}`);
   return json;
 }
+
+// Symbiosis limits requests per address without a key (a free partner key raises it): optional, Settings > Data
+let symbiosisKey = '';
+export const setSymbiosisKey = (k) => { symbiosisKey = String(k || '').trim(); };
+async function symbiosisJson(url, init = {}) {
+  const headers = { ...(init.headers || {}), ...(symbiosisKey ? { 'x-api-key': symbiosisKey } : {}) };
+  try { return await fetchJson(url, { ...init, headers }, 30000); } catch (e) {
+    if (/limit of requests|too many requests|HTTP 429/i.test(e.message)) throw new Error(t('ton.bridge.symbiosisLimit'));
+    throw e;
+  }
+}
 const num = (x) => (x == null || x === '' ? null : Number(x));
 
 /**
@@ -39,6 +50,7 @@ async function relay(p) {
     originChainId: inbound ? p.evmChain.id : RELAY_TON, destinationChainId: inbound ? RELAY_TON : p.evmChain.id,
     originCurrency: inbound ? evmCur : ZERO_TON, destinationCurrency: inbound ? ZERO_TON : evmCur,
     amount: p.amount, tradeType: 'EXACT_INPUT', slippageTolerance: String(p.slippageBps ?? 100),
+    ...(p.refuel && !inbound ? { topupGas: true } : {}), // TON -> EVM: some of the network's coin on arrival, for gas
   };
   const r = await fetchJson(`${ENDPOINTS.relay}/quote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const steps = r.steps || [];
@@ -56,10 +68,11 @@ async function relay(p) {
     if (approve?.items?.[0]?.data) { try { spender = erc20.decodeFunctionData('approve', approve.items[0].data.data)[0]; } catch { /* none */ } }
     exec = { kind: 'evm', tx: { to: data.to, data: data.data, value: data.value || '0' }, spender };
   }
-  const d = r.details || {}, out = d.currencyOut || {};
+  const d = r.details || {}, out = d.currencyOut || {}, top = d.currencyGasTopup;
   return {
     provider: 'Relay', amountOut: out.amount, minOut: out.minimumAmount || out.amount, outUsd: num(out.amountUsd), durationSec: d.timeEstimate,
     feesUsd: (num(r.fees?.relayer?.amountUsd) || 0) + (num(r.fees?.gas?.amountUsd) || 0), exec, ref: { requestId: deposit.requestId || r.requestId },
+    refuel: top && top.amount && top.amount !== '0' ? { amount: top.amount, usd: num(top.amountUsd), symbol: top.currency?.symbol, decimals: top.currency?.decimals } : null,
   };
 }
 
@@ -71,7 +84,7 @@ async function symbiosis(p) {
     tokenAmountIn: { ...(inbound ? evm : ton), amount: p.amount }, tokenOut: inbound ? ton : evm,
     from: inbound ? p.evmAddress : p.tonAddress, to: inbound ? p.tonAddress : p.evmAddress, slippage: p.slippageBps ?? 200,
   };
-  const r = await fetchJson(`${ENDPOINTS.symbiosis}/crosschain/v2/quote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await symbiosisJson(`${ENDPOINTS.symbiosis}/crosschain/v2/quote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   // only on-chain routes: "changelly-trade" is a deposit-address exchange, not for a self-custodial wallet
   if (r.kind !== 'crosschain-swap' || !r.tx) throw new Error(r.message || t('errors.bridgeNoRoute'));
   const out = r.tokenAmountOut || {}, min = r.tokenAmountOutMin || out;
@@ -97,10 +110,10 @@ export function tonBridgeQuote(p) {
 export async function symbiosisStatus(entry) {
   const map = (code, dest) => (code === 0 ? { status: 'done', destTxHash: dest } : code === 3 ? { status: 'failed' } : { status: 'pending' });
   if (!entry.ref?.inbound && entry.ref?.tonAddress) {
-    const r = await fetchJson(`${ENDPOINTS.symbiosis}/crosschain/v1/txs?search=${encodeURIComponent(entry.ref.tonAddress)}&chain_id=${SYMBIOSIS_TON}`);
+    const r = await symbiosisJson(`${ENDPOINTS.symbiosis}/crosschain/v1/txs?search=${encodeURIComponent(entry.ref.tonAddress)}&chain_id=${SYMBIOSIS_TON}`);
     const rec = (r.records || []).find((x) => x.txIn?.time && Date.parse(x.txIn.time) >= entry.created - 120000);
     return rec ? map(rec.status?.code, rec.tx?.hash) : { status: 'pending' };
   }
-  const r = await fetchJson(`${ENDPOINTS.symbiosis}/crosschain/v1/tx/${entry.fromChainId}/${entry.txHash}`);
+  const r = await symbiosisJson(`${ENDPOINTS.symbiosis}/crosschain/v1/tx/${entry.fromChainId}/${entry.txHash}`);
   return map(r.status?.code, r.tx?.hash);
 }

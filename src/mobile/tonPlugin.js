@@ -6,6 +6,7 @@ import { registerChains } from '../shared/chains.js';
 import { registerUiHandlers } from '../background/index.js';
 import { TON_CHAINS, setTonCenterKey } from '../shared/ton/api.js';
 import { setTonApiKey } from '../shared/ton/tonapi.js';
+import { setSymbiosisKey } from '../shared/ton/bridge.js';
 import { tonHandlers } from '../background/ton.js';
 import { tonChainDriver } from '../ui/ton/index.jsx';
 import { registerDriver } from '../ui/chains/index.js';
@@ -15,7 +16,7 @@ registerChains(Object.values(TON_CHAINS));
 registerUiHandlers(tonHandlers);
 registerDriver(tonChainDriver);
 
-// optional TON Center and TonAPI keys (Settings > Data)
-const keys = (s) => { setTonCenterKey(s?.tonCenterKey); setTonApiKey(s?.tonApiKey); };
+// optional TON Center, TonAPI and Symbiosis keys (Settings > Data)
+const keys = (s) => { setTonCenterKey(s?.tonCenterKey); setTonApiKey(s?.tonApiKey); setSymbiosisKey(s?.symbiosisKey); };
 local.get('settings', {}).then(keys);
 ext.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.settings) keys(changes.settings.newValue); });

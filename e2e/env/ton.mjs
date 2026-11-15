@@ -194,17 +194,27 @@ export async function startTon({ port = 9300, wsPort = 9301 } = {}) {
       },
     },
     priceOf: (key) => (key.startsWith('ton:') ? 1 : null),
-    /** Relay, TON -> EVM (GRAM): a transfer to the treasury with the request in its comment; the relayer pays on the EVM side. */
-    relayQuote(body, { requests, newId, relayer }) {
+    /**
+     * Relay, TON -> EVM (GRAM): a transfer to the treasury with the request in its comment; the relayer pays on the EVM side,
+     * in ETH or in the network's USDC, plus some ETH for gas when asked (topupGas: $3, taken from the output).
+     */
+    relayQuote(body, { requests, newId, relayer, nets }) {
       if (body.originChainId !== RELAY_TON) return null;
-      const amount = BigInt(body.amount), id = newId();
-      const outWei = (amount * BigInt(GRAM_USD) * 10n ** 9n) / 3000n; // GRAM ($3) -> ETH ($3,000)
-      const req = { toChainId: body.destinationChainId, toToken: '0x0000000000000000000000000000000000000000', amountOut: outWei.toString(), recipient: body.recipient, status: 'waiting' };
+      const dest = nets[body.destinationChainId], native = /^0x0{40}$/i.test(body.destinationCurrency);
+      if (!dest || (!native && body.destinationCurrency.toLowerCase() !== dest.usdc.toLowerCase())) return { message: 'unsupported route' };
+      const amount = BigInt(body.amount), id = newId(), usd = Number(amount) / 1e9 * GRAM_USD;
+      const topup = body.topupGas && !native ? { wei: 10n ** 15n, usd: 3 } : null; // 0.001 ETH
+      const out = native ? (amount * BigInt(GRAM_USD) * 10n ** 9n) / 3000n // GRAM ($3) -> ETH ($3,000)
+        : (amount * BigInt(GRAM_USD)) / 1000n - (topup ? BigInt(topup.usd * 1e6) : 0n); // GRAM -> USDC (6 decimals)
+      const req = { toChainId: body.destinationChainId, toToken: native ? '0x0000000000000000000000000000000000000000' : dest.usdc, amountOut: out.toString(), recipient: body.recipient, status: 'waiting', topupWei: topup?.wei.toString() };
       requests.set(id, req);
       bridges.set(id, { onDeposit: async (hash) => { req.status = 'pending'; req.txHashes = [hash]; try { req.txHashes.push(await relayer.pay(req)); req.status = 'success'; } catch { req.status = 'failure'; } } });
       return {
         steps: [{ id: 'deposit', kind: 'transaction', requestId: id, items: [{ data: { messages: [{ to: friendly(treasury.address), value: String(amount + toNano('0.05')), bounce: false, mode: 1, body: b64(commentCell(`bridge:${id}`)) }] } }] }],
-        details: { timeEstimate: 5, currencyOut: { amount: outWei.toString(), minimumAmount: outWei.toString(), amountUsd: String(Number(amount) / 1e9 * GRAM_USD) } },
+        details: {
+          timeEstimate: 5, currencyOut: { amount: out.toString(), minimumAmount: out.toString(), amountUsd: String(usd - (topup?.usd || 0)) },
+          ...(topup ? { currencyGasTopup: { amount: topup.wei.toString(), amountUsd: String(topup.usd), currency: { symbol: 'ETH', decimals: 18 } } } : {}),
+        },
         fees: { relayer: { amountUsd: '0.05' }, gas: { amountUsd: '0.01' } },
       };
     },

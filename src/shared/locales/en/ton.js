@@ -54,4 +54,8 @@ export default {
   'ton.swap.needGram': "At least {amount} {symbol} are needed (amount and gas).",
   'ton.swap.buildFailed': "The swap can’t be prepared: the token balance is probably not enough.",
   'ton.bridge.usdtNote': "USD₮ on TON goes through Symbiosis, which keeps a fixed fee (about 0.25–0.5 USD₮): better for amounts that aren’t too small.",
+  'ton.bridge.memoWarn': "Arriving on TON the bridge can't add a comment (memo): don't send it straight to an exchange that asks for one.",
+  'ton.bridge.symbiosisLimit': "Symbiosis is receiving too many requests: try again in a minute, or add a Symbiosis key in Settings › Data.",
+  'settings.symbiosis': "Symbiosis key",
+  'settings.symbiosis.hint': "(optional, free at explorer.symbiosis.finance/partners: bridges of USD₮ on TON without the request limit)",
 };

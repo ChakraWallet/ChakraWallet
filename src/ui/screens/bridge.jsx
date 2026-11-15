@@ -26,6 +26,8 @@ function sameOn(tk, c, other) {
   if (tk.native || tk.address === NATIVE) return list.find((x) => x.native) || nativeToken(c);
   return list.find((x) => plain(x.symbol) === plain(tk.symbol)) || (STABLES.includes(tk.symbol) && list.find((x) => STABLES.includes(x.symbol))) || list.find((x) => x.native) || nativeToken(c);
 }
+/** A route's capability that may depend on the tokens / direction (a function of the route's parameters) or not. */
+const cap = (v, ...a) => (typeof v === 'function' ? v(...a) : !!v);
 const minutes = (s) => (s == null ? '' : s < 60 ? t('bridge.time.sec', { n: Math.max(1, Math.round(s)) }) : t('bridge.time.min', { n: Math.round(s / 60) }));
 
 export function Bridge() {
@@ -87,28 +89,32 @@ export function Bridge() {
     const p = portfolio;
     const nat = { ...nativeToken(fromChain), amount: p?.native.amount, usd: p?.native.usd, balance: p?.native.balance };
     let list = (p?.tokens || []).filter((x) => !x.spam && (x.price != null || x.custom) && BigInt(x.balance || 0) > 0n);
-    if (route?.onlyTokens) { const ok = route.tokens(fromChain, toChain); list = list.filter((x) => ok.some((y) => y.address.toLowerCase() === x.address.toLowerCase())); }
+    if (route && cap(route.onlyTokens, fromChain, 'from')) { const ok = route.tokens(fromChain, toChain); list = list.filter((x) => ok.some((y) => y.address.toLowerCase() === x.address.toLowerCase())); }
     return [nat, ...list];
   }, [portfolio, fromId, toId]);
   const balance = BigInt(sourceTokens.find((x) => x.address.toLowerCase() === fromToken.address.toLowerCase())?.balance || 0);
   const destTokens = useMemo(() => tokensOn(toChain, fromChain), [toId, fromId]);
   // a route that moves only some tokens: switch to one that it does
   useEffect(() => {
-    if (!route?.onlyTokens) return;
-    if (!route.tokens(fromChain, toChain).some((x) => x.address.toLowerCase() === fromToken.address.toLowerCase())) setFromToken(nativeToken(fromChain));
-    if (!route.tokens(toChain, fromChain).some((x) => x.address.toLowerCase() === toToken.address.toLowerCase())) setToToken(sameOn(fromToken, toChain, fromChain));
+    if (!route) return;
+    const ok = (c, other, tk) => route.tokens(c, other).some((x) => x.address.toLowerCase() === tk.address.toLowerCase());
+    if (cap(route.onlyTokens, fromChain, 'from') && !ok(fromChain, toChain, fromToken)) setFromToken(nativeToken(fromChain));
+    if (!ok(toChain, fromChain, toToken)) setToToken(sameOn(fromToken, toChain, fromChain));
   }, [fromId, toId]);
 
   const raw = parseAmount(amount, fromToken.decimals);
   const tooMuch = raw != null && raw > balance;
-  const extRecipient = !!recipient && !state.accounts.some((a) => a.address.toLowerCase() === recipient.toLowerCase());
+  // the wallet's accounts on the destination network, by their address there (TON: UQ…)
+  const mine = state.accounts.filter((a) => toMap?.[a.address]).map((a) => ({ name: a.name, address: toMap[a.address].address }));
+  const extRecipient = !!recipient && !mine.some((a) => a.address.toLowerCase() === recipient.toLowerCase());
   const recipCheck = useRecipientCheck(extRecipient ? recipient : '', toChain);
   const [recipAck, setRecipAck] = useState(false);
   useEffect(() => setRecipAck(false), [recipient]);
   useEffect(() => { if (!route?.freeRecipient) setRecipient(''); }, [route]);
 
   // suggest the gas top-up when the destination has no native currency for gas
-  useEffect(() => { setRefuel(!!route?.refuel && !toToken.native && destNative === 0); }, [toId, toToken.address, destNative, route]);
+  const canRefuel = !!route && cap(route.refuel, { fromChain, toChain, fromToken, toToken }) && !toToken.native;
+  useEffect(() => { setRefuel(canRefuel && destNative === 0); }, [toId, toToken.address, fromToken.address, destNative, route]);
 
   const setMax = async () => setAmount(rawToInput(await route.reserve(fromChain, fromToken, balance), fromToken.decimals));
 
@@ -161,11 +167,12 @@ export function Bridge() {
         setBusy(t('bridge.busy.preparing')); setReview(null); setIdx(idx + 1);
         setReview(await steps[idx + 1].prepare());
       } else {
+        const used = r.quote || quote; // a quote refreshed by the last step (after an approval or a swap): its reference tracks the transfer
         const entry = {
-          id: r.hash, txHash: r.hash, provider: quote.provider, tool: quote.tool, ref: quote.ref, created: Date.now(), status: 'pending',
+          id: r.hash, txHash: r.hash, provider: used.provider, tool: used.tool, ref: used.ref, created: Date.now(), status: 'pending',
           fromChainId: fromId, toChainId: toId, from: fromAddr.address, to: toAddr.address,
           fromToken: { symbol: fromToken.symbol, decimals: fromToken.decimals }, toToken: { symbol: toToken.symbol, decimals: toToken.decimals },
-          amountIn: raw.toString(), amountOut: quote.amountOut, durationSec: quote.durationSec, refuel: quote.refuel,
+          amountIn: raw.toString(), amountOut: used.amountOut, durationSec: used.durationSec, refuel: used.refuel,
         };
         await local.update('bridges', [], (l) => [entry, ...l].slice(0, 50));
         setPortfolioCache((c) => { const n = { ...c }; delete n[pKey]; return n; });
@@ -185,18 +192,20 @@ export function Bridge() {
     const approving = s.key === 'approve';
     return (
       <div class="screen">
-        <TopBar title={steps.length > 1 ? (approving ? t('swap.step1') : t('swap.step2')) : t('bridge.confirm')} onBack={cancel} />
+        <TopBar title={steps.length > 1 ? t('bridge.stepOf', { i: idx + 1, n: steps.length, title: approving ? t('bridge.approveTitle') : s.title }) : s.title} onBack={cancel} />
         <div class="content">
           {steps.length > 1 && <div class="steps">{steps.map((_, i) => <div class={`s ${i <= idx ? 'on' : ''}`} />)}</div>}
+          {s.note && <div class="info small">{s.note}</div>}
           {approving && (
             <div class="info small">
               {richText(t('swap.approveInfo', { provider: quote.provider }), { token: <b>{fromToken.symbol}</b>, exact: <b>{t('swap.exactly', { amount: fmtAmount(raw, fromToken.decimals), symbol: fromToken.symbol })}</b> })}
             </div>
           )}
-          <RouteSummary q={quote} fromChain={fromChain} toChain={toChain} fromToken={fromToken} toToken={toToken} raw={raw} recipient={toAddr.address} self={selfTo?.address} ext={extRecipient} />
+          <RouteSummary q={quote} fromChain={fromChain} toChain={toChain} fromToken={fromToken} toToken={toToken} raw={raw} recipient={toAddr.address} self={selfTo?.address} mine={mine} ext={extRecipient} />
           <FeeView chain={fromChain} fee={review?.fee} speed={speed} setSpeed={setSpeed} nativePrice={nativePrice} />
           {busy && <div class="info small row"><Spinner />{busy}</div>}
           {err && <div class="error">{err}</div>}
+          {err && quote.twoStep && idx > 0 && <div class="warn small">{t('bridge.twoStep.afterSwap')}</div>}
         </div>
         <div class="footer">
           <Btn kind="secondary" onClick={cancel}>{t('common.cancel')}</Btn>
@@ -241,7 +250,7 @@ export function Bridge() {
           {route?.freeRecipient ? (
             <button class="row recip" onClick={() => setSheet('recipient')}>
               <Avatar address={recipient || account.address} />
-              <span class="small grow ellipsis" style={{ textAlign: 'left' }}>{recipientLabel(recipient || selfTo?.address || '', selfTo?.address, state.accounts)}</span>
+              <span class="small grow ellipsis" style={{ textAlign: 'left' }}>{recipientLabel(recipient || selfTo?.address || '', selfTo?.address, mine)}</span>
               <Icon name="chevron" size={14} />
             </button>
           ) : ( // the funds go to this account on the other side
@@ -251,13 +260,14 @@ export function Bridge() {
             </div>
           )}
           {extRecipient && !recipCheck.risky && <div class="warn small">{t('bridge.externalWarn')}</div>}
+          {extRecipient && route?.recipientNote?.(toChain) && <div class="warn small">{route.recipientNote(toChain)}</div>}
           <PoisonWarning check={recipCheck} to={recipient} ack={recipAck} setAck={setRecipAck} />
         </div>
 
         {missing && <div class="error small">{t('chain.noKey.body', { network: missing.name })}</div>}
         {!route && <div class="warn small">{t('bridge.noRoutes')}</div>}
         {note && <div class="tiny muted">{note}</div>}
-        {route?.refuel && !toToken.native && (
+        {canRefuel && (
           <button class="item card refuel" onClick={() => setRefuel(!refuel)}>
             <span class="tx-icon" style={{ background: 'var(--card-2)', color: 'var(--primary)' }}><Icon name="send" size={16} /></span>
             <div class="grow" style={{ textAlign: 'left' }}>
@@ -281,6 +291,7 @@ export function Bridge() {
                 <div class="row between">
                   <span class="bold">{q.provider}{q.tool && q.tool !== q.provider ? <span class="muted"> · {q.tool}</span> : ''}</span>
                   <span class="row" style={{ gap: '0.25rem' }}>
+                    {q.twoStep && <span class="badge amber">{t('bridge.twoStep.badge')}</span>}
                     {i === 0 && <span class="badge green">{t('bridge.best')}</span>}
                     {fastest === q && quotes.length > 1 && <span class="badge primary">{t('bridge.fastest')}</span>}
                   </span>
@@ -295,7 +306,15 @@ export function Bridge() {
                 </div>
               </button>
             ))}
-            {quotes && !quotes.length && !quoting && <div class="warn small">{t('bridge.noRoutes')}{qErrors.length ? ` (${qErrors.map((e) => e.provider).join(', ')})` : ''}</div>}
+            {quotes && !quotes.length && !quoting && <div class="warn small">{t('bridge.noRoutes')}{qErrors.length ? ` ${qErrors.map((e) => `${e.provider}: ${e.error}`).join(' · ')}` : ''}</div>}
+            {quote?.twoStep && ( // what a two-step route does, before anything is signed
+              <div class="info small col" style={{ gap: '.375rem' }}>
+                <b>{t('bridge.twoStep.title')}</b>
+                <span>1. {t('bridge.twoStep.line1', { amount: fmtAmount(raw, fromToken.decimals), symbol: fromToken.symbol, gram: fmtAmount(quote.twoStep.gram, 9) })}</span>
+                <span>2. {t('bridge.twoStep.line2', { gram: fmtAmount(quote.twoStep.gram, 9), out: fmtAmount(quote.amountOut, toToken.decimals), symbol: toToken.symbol, network: toChain.name })}</span>
+                <span class="muted">{t('bridge.twoStep.footer')}</span>
+              </div>
+            )}
             {quote && (
               <div class="kv small card">
                 <span class="k">{t('bridge.minReceived')}</span><span class="v">{fmtAmount(quote.minOut, toToken.decimals)} {toToken.symbol}</span>
@@ -325,19 +344,20 @@ export function Bridge() {
       )}
       {sheet === 'fromToken' && <TokenSheet chain={fromChain} tokens={sourceTokens} onClose={() => setSheet(null)} onPick={(tk) => { setFromToken(tk); setToToken(sameOn(tk, toChain, fromChain)); setAmount(''); setSheet(null); }} />}
       {sheet === 'toToken' && <TokenSheet chain={toChain} tokens={destTokens} onClose={() => setSheet(null)} onPick={(tk) => { setToToken(tk); setSheet(null); }} />}
-      {sheet === 'recipient' && <RecipientSheet chain={toChain} current={recipient || account.address} self={account.address} onClose={() => setSheet(null)} onPick={(a) => { setRecipient(a === account.address ? '' : a); setSheet(null); }} />}
+      {sheet === 'recipient' && <RecipientSheet chain={toChain} current={recipient || selfTo?.address || ''} self={account.address} note={route?.recipientNote?.(toChain)}
+        onClose={() => setSheet(null)} onPick={(a) => { setRecipient(a === selfTo?.address ? '' : a); setSheet(null); }} />}
     </div>
   );
 }
 
+/** accounts: the wallet's accounts as { name, address } with their address on the destination network. */
 function recipientLabel(addr, self, accounts) {
-  if (addr.toLowerCase() === self.toLowerCase()) return t('bridge.toSelf');
+  if (self && addr.toLowerCase() === self.toLowerCase()) return t('bridge.toSelf');
   const a = accounts.find((x) => x.address.toLowerCase() === addr.toLowerCase());
   return a ? t('bridge.toAccount', { name: a.name }) : t('bridge.toExternal', { address: shortAddr(addr, 6) });
 }
 
-function RouteSummary({ q, fromChain, toChain, fromToken, toToken, raw, recipient, self, ext }) {
-  const { state } = useApp();
+function RouteSummary({ q, fromChain, toChain, fromToken, toToken, raw, recipient, self, mine, ext }) {
   return (
     <div class="card col" style={{ gap: '0.625rem' }}>
       <div class="row between">
@@ -351,7 +371,7 @@ function RouteSummary({ q, fromChain, toChain, fromToken, toToken, raw, recipien
         {q.refuel && <><span class="k">{t('bridge.gasTopup')}</span><span class="v">{fmtAmount(q.refuel.amount, q.refuel.decimals || 18)} {q.refuel.symbol || toChain.native.symbol}</span></>}
         <span class="k">{t('bridge.estTime')}</span><span class="v">{minutes(q.durationSec)}</span>
         <span class="k">{t('bridge.bridgeFees')}</span><span class="v">{fmtUsd(q.feesUsd || 0)}</span>
-        <span class="k">{t('bridge.recipient')}</span><span class="v">{recipientLabel(recipient, self, state.accounts)}</span>
+        <span class="k">{t('bridge.recipient')}</span><span class="v">{recipientLabel(recipient, self, mine)}</span>
       </div>
       {ext && <div class="warn small">{t('bridge.externalWarn')}</div>}
     </div>
@@ -399,7 +419,7 @@ function TokenSheet({ chain, tokens, onPick, onClose }) {
   );
 }
 
-function RecipientSheet({ current, self, onPick, onClose, chain }) {
+function RecipientSheet({ current, self, note, onPick, onClose, chain }) {
   const { state } = useApp();
   const mine = useAccountAddresses(chain, state.accounts); // the wallet's accounts that have an address on this network
   const [addr, setAddr] = useState('');
@@ -424,6 +444,7 @@ function RecipientSheet({ current, self, onPick, onClose, chain }) {
         <input class="input mono" placeholder={driverFor(chain).addressPlaceholder(chain)} value={addr} onInput={(e) => setAddr(e.target.value)} autoCapitalize="off" spellcheck={false} />
       </div>
       {addr && valid && !check.risky && <div class="warn small">{t('bridge.externalWarn')}</div>}
+      {addr && valid && note && <div class="warn small">{note}</div>}
       <PoisonWarning check={check} to={addr} ack={ack} setAck={setAck} />
       <Btn kind={check.risky ? 'danger' : 'primary'} disabled={!valid || (check.risky && !ack)} onClick={() => onPick(checked.normalized)}>{t('bridge.useAddress')}</Btn>
     </Sheet>

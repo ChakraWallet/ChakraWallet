@@ -183,13 +183,15 @@ export const evmDriver = {
     async steps(quote, p) {
       const from = p.fromAddr.raw;
       const approve = await approvalStep({ chain: p.fromChain, from, token: p.fromToken, spender: quote.spender, amount: BigInt(p.amount), provider: quote.provider });
+      let latest = null;
       const bridge = txStep({
         key: 'bridge', title: t('bridge.confirm'), chain: p.fromChain, from, sentTitle: p.title,
-        // after an approval the quote may have expired: a fresh transaction
-        build: async () => (approve ? (await requote(quote.provider, bridgeParams(p))).tx : quote.tx),
+        // after an approval the quote may have expired: a fresh transaction (and its reference, to track the transfer)
+        build: async () => { if (!approve) return quote.tx; latest = { ...quote, ...(await requote(quote.provider, bridgeParams(p))) }; return latest.tx; },
         valueWei: p.fromToken.native ? BigInt(p.amount) : 0n,
       });
-      return [approve, bridge].filter(Boolean);
+      const send = bridge.send;
+      return [approve, { ...bridge, send: async (...a) => ({ ...(await send(...a)), quote: latest || quote }) }].filter(Boolean);
     },
   },
 };
