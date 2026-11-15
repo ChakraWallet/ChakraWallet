@@ -1,6 +1,7 @@
 // Display currency. Prices stay in USD inside the app; only what is shown is converted, with the daily
 // reference rates of the European Central Bank (frankfurter.dev, free, no key), cached for a day.
 import { local } from './ext.js';
+import { ENDPOINTS } from './endpoints.js';
 
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'CHF'];
 let current = { code: 'USD', rate: 1 };
@@ -11,7 +12,7 @@ export async function setDisplayCurrency(code) {
   let cache = await local.get('fxRates', null);
   if (!cache || Date.now() - cache.t > 12 * 3600e3 || !cache.rates?.[code]) {
     try {
-      const r = await fetch(`https://api.frankfurter.dev/v1/latest?base=USD&symbols=${CURRENCIES.filter((c) => c !== 'USD').join(',')}`, { signal: AbortSignal.timeout(10000) });
+      const r = await fetch(`${ENDPOINTS.frankfurter}/v1/latest?base=USD&symbols=${CURRENCIES.filter((c) => c !== 'USD').join(',')}`, { signal: AbortSignal.timeout(10000) });
       const j = await r.json();
       if (j.rates) { cache = { t: Date.now(), rates: j.rates }; await local.set('fxRates', cache); }
     } catch { /* keep the cached rates if any */ }

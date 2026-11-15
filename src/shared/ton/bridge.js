@@ -3,6 +3,7 @@
 // TON messages to sign when the source is TON. Public APIs, no keys, no fee added by Chakra.
 import { erc20 } from '../rpc.js';
 import { t } from '../i18n.js';
+import { ENDPOINTS } from '../endpoints.js';
 
 export const RELAY_TON = 224235520; // TON in Relay
 export const SYMBIOSIS_TON = 85918; // TON in Symbiosis
@@ -39,7 +40,7 @@ async function relay(p) {
     originCurrency: inbound ? evmCur : ZERO_TON, destinationCurrency: inbound ? ZERO_TON : evmCur,
     amount: p.amount, tradeType: 'EXACT_INPUT', slippageTolerance: String(p.slippageBps ?? 100),
   };
-  const r = await fetchJson('https://api.relay.link/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetchJson(`${ENDPOINTS.relay}/quote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const steps = r.steps || [];
   if (steps.some((s) => s.kind === 'signature')) throw new Error(t('errors.bridgeNoRoute'));
   const deposit = steps.find((s) => s.id === 'deposit') || steps[steps.length - 1];
@@ -70,7 +71,7 @@ async function symbiosis(p) {
     tokenAmountIn: { ...(inbound ? evm : ton), amount: p.amount }, tokenOut: inbound ? ton : evm,
     from: inbound ? p.evmAddress : p.tonAddress, to: inbound ? p.tonAddress : p.evmAddress, slippage: p.slippageBps ?? 200,
   };
-  const r = await fetchJson('https://api.symbiosis.finance/crosschain/v2/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetchJson(`${ENDPOINTS.symbiosis}/crosschain/v2/quote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   // only on-chain routes: "changelly-trade" is a deposit-address exchange, not for a self-custodial wallet
   if (r.kind !== 'crosschain-swap' || !r.tx) throw new Error(r.message || t('errors.bridgeNoRoute'));
   const out = r.tokenAmountOut || {}, min = r.tokenAmountOutMin || out;
@@ -96,10 +97,10 @@ export function tonBridgeQuote(p) {
 export async function symbiosisStatus(entry) {
   const map = (code, dest) => (code === 0 ? { status: 'done', destTxHash: dest } : code === 3 ? { status: 'failed' } : { status: 'pending' });
   if (!entry.ref?.inbound && entry.ref?.tonAddress) {
-    const r = await fetchJson(`https://api.symbiosis.finance/crosschain/v1/txs?search=${encodeURIComponent(entry.ref.tonAddress)}&chain_id=${SYMBIOSIS_TON}`);
+    const r = await fetchJson(`${ENDPOINTS.symbiosis}/crosschain/v1/txs?search=${encodeURIComponent(entry.ref.tonAddress)}&chain_id=${SYMBIOSIS_TON}`);
     const rec = (r.records || []).find((x) => x.txIn?.time && Date.parse(x.txIn.time) >= entry.created - 120000);
     return rec ? map(rec.status?.code, rec.tx?.hash) : { status: 'pending' };
   }
-  const r = await fetchJson(`https://api.symbiosis.finance/crosschain/v1/tx/${entry.fromChainId}/${entry.txHash}`);
+  const r = await fetchJson(`${ENDPOINTS.symbiosis}/crosschain/v1/tx/${entry.fromChainId}/${entry.txHash}`);
   return map(r.status?.code, r.tx?.hash);
 }

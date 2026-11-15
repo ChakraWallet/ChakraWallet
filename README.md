@@ -69,6 +69,7 @@ Once published on the Chrome Web Store it installs with one click.
 - Decrypted keys stay only in `storage.session` (memory) while the wallet is unlocked.
 - Development: `npm run watch` rebuilds on every change. After each build, reload the extension from the extensions page.
 - Tests: `npm test` runs the unit tests in `tests/` (vault, Android storage, anti-spam and anti-poisoning, payment links, HTTP retry, vanity addresses) and the translation check. `npm run test:unit -- vault` runs only the matching files.
+- End-to-end: `npm run e2e` sends, swaps and bridges on EVM and TON through the real interface, on local networks (Anvil, TON sandbox) with simulated services - no testnet or faucet; also on GitHub at every push (see [e2e/README.md](e2e/README.md)).
 - Translations: `node scripts/i18n-check.mjs` lists keys used in the code that are missing from the English or Italian dictionaries (`src/shared/locales/`).
 
 ## Structure

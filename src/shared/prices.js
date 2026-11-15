@@ -1,4 +1,5 @@
 // USD prices from DefiLlama (free, no API key). In-memory cache of 60s.
+import { ENDPOINTS } from './endpoints.js';
 const cache = new Map(); // key -> {price, t}
 const TTL = 60_000;
 
@@ -13,7 +14,7 @@ export async function getPrices(keys) {
   for (let i = 0; i < missing.length; i += 80) {
     const chunk = missing.slice(i, i + 80);
     try {
-      const res = await fetch(`https://coins.llama.fi/prices/current/${chunk.join(',')}?searchWidth=6h`);
+      const res = await fetch(`${ENDPOINTS.llama}/prices/current/${chunk.join(',')}?searchWidth=6h`);
       const json = await res.json();
       for (const k of chunk) {
         const c = json.coins?.[k];
@@ -53,7 +54,7 @@ export async function priceChart(key, range = '1w') {
   const ck = `${key}|${range}`, hit = chartCache.get(ck);
   if (hit && Date.now() - hit.t < 5 * 60e3) return hit.points;
   const start = Math.floor(Date.now() / 1000) - r.secs;
-  const res = await fetch(`https://coins.llama.fi/chart/${encodeURIComponent(key)}?start=${start}&span=${r.span}&period=${r.period}&searchWidth=600`, { signal: AbortSignal.timeout(15000) });
+  const res = await fetch(`${ENDPOINTS.llama}/chart/${encodeURIComponent(key)}?start=${start}&span=${r.span}&period=${r.period}&searchWidth=600`, { signal: AbortSignal.timeout(15000) });
   const json = await res.json();
   const points = (json.coins?.[key]?.prices || []).map((x) => ({ t: x.timestamp * 1000, p: Number(x.price) })).filter((x) => isFinite(x.p)).sort((a, b) => a.t - b.t);
   chartCache.set(ck, { t: Date.now(), points });

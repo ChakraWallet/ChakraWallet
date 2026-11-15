@@ -1,7 +1,7 @@
 // EVM driver: Ethereum and every EVM network (Base, Arbitrum, Polygon, custom networks...). Interface: driver.d.md.
 import { isAddress, getAddress } from 'ethers';
 import { bg } from '../../shared/ext.js';
-import { NATIVE, BUILTIN_CHAINS } from '../../shared/chains.js';
+import { NATIVE, getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { erc20, getTokenInfo, getAllowance, waitForReceipt } from '../../shared/rpc.js';
 import { prepareTx, finalizeTx, getFeeData } from '../../shared/tx.js';
@@ -171,7 +171,7 @@ export const evmDriver = {
 
   // ---------------------------------------------------------------- bridge (EVM <-> EVM: LI.FI, Relay, Across, deBridge)
   bridge: {
-    chains: () => BRIDGE_CHAINS.map((id) => BUILTIN_CHAINS.find((c) => c.id === id)).filter(Boolean),
+    chains: () => BRIDGE_CHAINS.map((id) => getChain(id)).filter((c) => c && !c.kind),
     supports: (a, b) => !a.kind && !b.kind,
     freeRecipient: true, refuel: true,
     tokens: (chain) => [{ address: NATIVE, symbol: chain.native.symbol, name: chain.native.name, decimals: chain.native.decimals, native: true }, ...(POPULAR_TOKENS[chain.id] || [])],

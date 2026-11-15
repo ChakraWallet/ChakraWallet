@@ -5,6 +5,7 @@
 import { Buffer } from './buffer.js';
 import { Address } from '@ton/core';
 import { getPrices } from '../prices.js';
+import { ENDPOINTS } from '../endpoints.js';
 
 export const TON_CHAINS = {
   [-239]: { id: -239, kind: 'ton', name: 'TON', short: 'TON', color: '#0098EA', native: { symbol: 'GRAM', name: 'Gram', decimals: 9, priceId: 'coingecko:the-open-network' }, api: 'https://toncenter.com', explorer: 'https://tonscan.org', rpc: ['https://toncenter.com/api/v3'], swap: true },
@@ -134,7 +135,7 @@ export async function stonAsset(master) {
   let out = { known: false, t: Date.now() };
   try {
     const a = addr(master);
-    const res = await fetch(`https://api.ston.fi/v1/assets/${a.toString({ urlSafe: true, bounceable: true })}`, { signal: AbortSignal.timeout(12000) });
+    const res = await fetch(`${ENDPOINTS.ston}/v1/assets/${a.toString({ urlSafe: true, bounceable: true })}`, { signal: AbortSignal.timeout(12000) });
     if (res.ok) {
       const j = (await res.json())?.asset;
       if (j) {

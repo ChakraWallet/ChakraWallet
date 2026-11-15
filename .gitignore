@@ -5,3 +5,7 @@ dist/
 
 # Italian notes and plans (local only)
 /docs-it/
+
+# end-to-end tests: build and screenshots of failures
+e2e/.build/
+e2e/.artifacts/

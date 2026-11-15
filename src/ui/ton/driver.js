@@ -309,7 +309,7 @@ export const tonDriver = {
 
   // ---------------------------------------------------------------- bridge: TON <-> EVM (GRAM through Relay, USD₮ through Symbiosis)
   bridge: {
-    chains: () => [TON_CHAINS[-239]],
+    chains: () => Object.values(TON_CHAINS).filter((c) => !c.testnet), // TON (and a local test network in e2e/)
     supports: (a, b) => (a.kind === 'ton') !== (b.kind === 'ton') && !a.testnet && !b.testnet,
     freeRecipient: false, refuel: false, // the funds go to the same account on the other side
     onlyTokens: true, // GRAM and USD₮ on TON, the native coin or a stablecoin on the EVM side

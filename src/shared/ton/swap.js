@@ -3,8 +3,9 @@
 // Protocol v1beta8: wss://omni-ws.ston.fi - QuoteRpc.Quote (subscription) / TonRpc.BuildSwap.
 import { Buffer } from './buffer.js';
 import { Address } from '@ton/core';
+import { ENDPOINTS } from '../endpoints.js';
 
-const WS_URL = 'wss://omni-ws.ston.fi';
+const WS_URL = () => ENDPOINTS.omniston;
 const NS = 'stonfi.omni.v1beta8';
 export const DEFAULT_SLIPPAGE_PIPS = 10000; // 1% (1 pip = 1/1,000,000)
 
@@ -36,7 +37,7 @@ export function omnistonQuotes({ from, to, units, slippagePips = DEFAULT_SLIPPAG
     pending.set(id, { resolve, reject });
     ws.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
   });
-  try { ws = new WebSocket(WS_URL); } catch (e) { onError?.(e.message); return { stop() {}, build: () => Promise.reject(e) }; }
+  try { ws = new WebSocket(WS_URL()); } catch (e) { onError?.(e.message); return { stop() {}, build: () => Promise.reject(e) }; }
   ws.onopen = async () => {
     try {
       sub = await call(`${NS}.QuoteRpc.Quote`, {

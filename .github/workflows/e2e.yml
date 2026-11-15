@@ -1,0 +1,43 @@
+name: End-to-end tests
+
+# Send, swap and bridge on EVM and TON, through the real interface, on local networks with simulated services:
+# no testnet, no faucet, no external service (see e2e/README.md).
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # includes the local chains: Anvil (@foundry-rs/anvil) and the TON emulator (@ton/sandbox)
+      - run: npm ci
+
+      # unit tests + translation check (fast: before the end-to-end run)
+      - name: Unit tests
+        run: npm test
+
+      # the runner's Google Chrome drives the app (set CHROME_PATH to use another Chromium)
+      - name: End-to-end tests
+        run: npm run e2e
+
+      - name: Screenshots of the failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failures
+          path: e2e/.artifacts/
+          if-no-files-found: ignore

@@ -5,6 +5,7 @@ import { NATIVE } from './chains.js';
 import { erc20 } from './rpc.js';
 import { t } from './i18n.js';
 import { symbiosisStatus } from './ton/bridge.js';
+import { ENDPOINTS } from './endpoints.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
 const isNative = (a) => String(a).toLowerCase() === NATIVE;
@@ -35,7 +36,7 @@ const providers = {
       fromChain: p.fromChain.id, toChain: p.toChain.id, fromToken: tok(p.fromToken), toToken: tok(p.toToken),
       fromAmount: p.amount, fromAddress: p.from, toAddress: p.to, slippage: String(p.slippageBps / 10000),
     });
-    const r = await fetchJson(`https://li.quest/v1/quote?${q}`);
+    const r = await fetchJson(`${ENDPOINTS.lifi}/v1/quote?${q}`);
     const e = r.estimate;
     const fees = e.feeCosts || [];
     return {
@@ -59,7 +60,7 @@ const providers = {
       tradeType: 'EXACT_INPUT', slippageTolerance: String(p.slippageBps),
       ...(p.refuel ? { topupGas: true } : {}),
     };
-    const r = await fetchJson('https://api.relay.link/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const r = await fetchJson(`${ENDPOINTS.relay}/quote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const steps = r.steps || [];
     const deposit = steps.find((s) => s.id === 'deposit') || steps[steps.length - 1];
     const approve = steps.find((s) => s.id === 'approve');
@@ -92,7 +93,7 @@ const providers = {
       outputToken: tok(p.toToken), destinationChainId: p.toChain.id, depositor: p.from, recipient: p.to,
       slippageTolerance: String(p.slippageBps / 100),
     });
-    const r = await fetchJson(`https://app.across.to/api/swap/approval?${q}`);
+    const r = await fetchJson(`${ENDPOINTS.across}/api/swap/approval?${q}`);
     if (!r.swapTx?.to) throw new Error(t('errors.bridgeNoRoute'));
     return {
       tool: 'Across',
@@ -117,7 +118,7 @@ const providers = {
       dstChainTokenOutRecipient: p.to, senderAddress: p.from,
       srcChainOrderAuthorityAddress: p.from, dstChainOrderAuthorityAddress: p.to, prependOperatingExpenses: 'true',
     });
-    const r = await fetchJson(`https://dln.debridge.finance/v1.0/dln/order/create-tx?${q}`);
+    const r = await fetchJson(`${ENDPOINTS.debridge}/v1.0/dln/order/create-tx?${q}`);
     const out = r.estimation.dstChainTokenOut;
     // fixed fee paid in the source network's currency on top of the amount
     const fixUsd = p.nativePrice != null && r.fixFee ? (Number(r.fixFee) / 10 ** p.fromChain.native.decimals) * p.nativePrice : 0;
@@ -141,7 +142,8 @@ const providers = {
  * returns { quotes: [...] best first (each with netUsd), errors: [{provider, error}] }
  */
 export async function getBridgeQuotes(params) {
-  const entries = Object.entries(providers);
+  const SERVICE = { 'LI.FI': 'lifi', Relay: 'relay', Across: 'across', deBridge: 'debridge' };
+  const entries = Object.entries(providers).filter(([name]) => ENDPOINTS[SERVICE[name]]); // services switched off: skipped
   const settled = await Promise.allSettled(entries.map(([, fn]) => fn(params)));
   const quotes = [], errors = [];
   settled.forEach((s, i) => {
@@ -178,20 +180,20 @@ export async function requote(provider, params) {
 export async function bridgeStatus(entry) {
   if (entry.provider === 'LI.FI') {
     const q = new URLSearchParams({ txHash: entry.txHash, fromChain: entry.fromChainId, toChain: entry.toChainId, ...(entry.ref?.tool ? { bridge: entry.ref.tool } : {}) });
-    const r = await fetchJson(`https://li.quest/v1/status?${q}`);
+    const r = await fetchJson(`${ENDPOINTS.lifi}/v1/status?${q}`);
     if (r.status === 'DONE') return { status: r.substatus === 'REFUNDED' ? 'refunded' : 'done', destTxHash: r.receiving?.txHash };
     if (r.status === 'FAILED' || r.status === 'INVALID') return { status: 'failed' };
     return { status: 'pending' };
   }
   if (entry.provider === 'Relay') {
-    const r = await fetchJson(`https://api.relay.link/intents/status/v2?requestId=${entry.ref.requestId}`);
+    const r = await fetchJson(`${ENDPOINTS.relay}/intents/status/v2?requestId=${entry.ref.requestId}`);
     if (r.status === 'success') return { status: 'done', destTxHash: r.txHashes?.[r.txHashes.length - 1] };
     if (r.status === 'refund') return { status: 'refunded' };
     if (r.status === 'failure') return { status: 'failed' };
     return { status: 'pending' };
   }
   if (entry.provider === 'Across') {
-    const r = await fetchJson(`https://app.across.to/api/deposit/status?originChainId=${entry.fromChainId}&depositTxHash=${entry.txHash}`);
+    const r = await fetchJson(`${ENDPOINTS.across}/api/deposit/status?originChainId=${entry.fromChainId}&depositTxHash=${entry.txHash}`);
     if (r.status === 'filled') return { status: 'done', destTxHash: r.fillTx || r.fillTxHash };
     if (r.status === 'refunded' || r.status === 'expired') return { status: 'refunded' };
     return { status: 'pending' };
@@ -199,7 +201,7 @@ export async function bridgeStatus(entry) {
   if (entry.provider === 'Symbiosis') return symbiosisStatus(entry); // EVM <-> TON (Android app)
   if (entry.provider === 'deBridge') {
     try {
-      const r = await fetchJson(`https://dln.debridge.finance/v1.0/dln/order/${entry.ref.orderId}/status`);
+      const r = await fetchJson(`${ENDPOINTS.debridge}/v1.0/dln/order/${entry.ref.orderId}/status`);
       if (['Fulfilled', 'SentUnlock', 'ClaimedUnlock'].includes(r.status)) return { status: 'done' };
       if (['OrderCancelled', 'SentOrderCancel', 'ClaimedOrderCancel'].includes(r.status)) return { status: 'refunded' };
       return { status: 'pending' };
@@ -216,7 +218,7 @@ export async function bridgeStatus(entry) {
 const DEBRIDGE_BACK = Object.fromEntries(Object.entries(DEBRIDGE_IDS).map(([k, v]) => [String(v), Number(k)]));
 export async function lookupBridge(chainId, hash) {
   try {
-    const r = await fetchJson(`https://api.relay.link/requests/v2?hash=${hash}`, {}, 12000);
+    const r = await fetchJson(`${ENDPOINTS.relay}/requests/v2?hash=${hash}`, {}, 12000);
     const q = r.requests?.[0];
     if (q) {
       const out = q.data?.outTxs?.[0];
@@ -225,24 +227,24 @@ export async function lookupBridge(chainId, hash) {
     }
   } catch { /* next */ }
   try {
-    const r = await fetchJson(`https://li.quest/v1/status?txHash=${hash}&fromChain=${chainId}`, {}, 12000);
+    const r = await fetchJson(`${ENDPOINTS.lifi}/v1/status?txHash=${hash}&fromChain=${chainId}`, {}, 12000);
     if (r.status && r.status !== 'NOT_FOUND') {
       const st = r.status === 'DONE' ? (r.substatus === 'REFUNDED' ? 'refunded' : 'done') : r.status === 'FAILED' ? 'failed' : 'pending';
       return { provider: 'LI.FI', tool: r.tool, fromChainId: chainId, toChainId: r.receiving?.chainId ?? r.toChain ?? null, status: st, destTxHash: r.receiving?.txHash || null };
     }
   } catch { /* next */ }
   try {
-    const r = await fetchJson(`https://app.across.to/api/deposit/status?originChainId=${chainId}&depositTxHash=${hash}`, {}, 12000);
+    const r = await fetchJson(`${ENDPOINTS.across}/api/deposit/status?originChainId=${chainId}&depositTxHash=${hash}`, {}, 12000);
     if (r.status && r.destinationChainId) {
       const st = r.status === 'filled' ? 'done' : r.status === 'refunded' || r.status === 'expired' ? 'refunded' : 'pending';
       return { provider: 'Across', fromChainId: chainId, toChainId: Number(r.destinationChainId), status: st, destTxHash: r.fillTx || null };
     }
   } catch { /* next */ }
   try {
-    const ids = await fetchJson(`https://stats-api.dln.trade/api/Transaction/${hash}/orderIds`, {}, 12000);
+    const ids = await fetchJson(`${ENDPOINTS.debridgeStats}/api/Transaction/${hash}/orderIds`, {}, 12000);
     const id = ids.orderIds?.[0]?.stringValue || ids.orderIds?.[0];
     if (id) {
-      const o = await fetchJson(`https://stats-api.dln.trade/api/Orders/${id}`, {}, 12000);
+      const o = await fetchJson(`${ENDPOINTS.debridgeStats}/api/Orders/${id}`, {}, 12000);
       const dst = o.takeOfferWithMetadata?.chainId?.bigIntegerValue ?? o.takeOfferWithMetadata?.chainId;
       const st = /Fulfilled|Unlock/.test(o.state) ? 'done' : /Cancel/.test(o.state) ? 'refunded' : 'pending';
       return { provider: 'deBridge', fromChainId: chainId, toChainId: DEBRIDGE_BACK[String(dst)] ?? Number(dst) ?? null, status: st };

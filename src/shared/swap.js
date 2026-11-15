@@ -2,14 +2,16 @@
 // and ranks quotes by net value = output value - estimated network cost.
 import { NATIVE } from './chains.js';
 import { t } from './i18n.js';
+import { ENDPOINTS } from './endpoints.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
 const isNative = (a) => a.toLowerCase() === NATIVE;
 
-const KYBER_CHAINS = { 1: 'ethereum', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avalanche', 8453: 'base' };
-const PARASWAP_CHAINS = new Set([1, 10, 56, 137, 8453, 42161, 43114, 100]);
-const OPENOCEAN_CHAINS = { 1: 'eth', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avax', 8453: 'base', 100: 'xdai' };
-const LIFI_CHAINS = new Set([1, 10, 56, 100, 137, 8453, 42161, 43114]);
+// networks of each aggregator (exported: a test build adds its local networks)
+export const KYBER_CHAINS = { 1: 'ethereum', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avalanche', 8453: 'base' };
+export const PARASWAP_CHAINS = new Set([1, 10, 56, 137, 8453, 42161, 43114, 100]);
+export const OPENOCEAN_CHAINS = { 1: 'eth', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avax', 8453: 'base', 100: 'xdai' };
+export const LIFI_CHAINS = new Set([1, 10, 56, 100, 137, 8453, 42161, 43114]);
 
 async function fetchJson(url, init = {}, timeout = 12000) {
   const ctrl = new AbortController();
@@ -29,13 +31,13 @@ const providers = {
     if (!slug) return null;
     const headers = { 'x-client-id': 'Chakra' };
     const q = new URLSearchParams({ tokenIn, tokenOut, amountIn: amountIn.toString(), gasInclude: 'true' });
-    const r = await fetchJson(`https://aggregator-api.kyberswap.com/${slug}/api/v1/routes?${q}`, { headers });
+    const r = await fetchJson(`${ENDPOINTS.kyber}/${slug}/api/v1/routes?${q}`, { headers });
     const d = r.data;
     if (!d?.routeSummary) throw new Error(r.message || t('errors.swapNoRoute'));
     return {
       amountOut: BigInt(d.routeSummary.amountOut), gas: BigInt(d.routeSummary.gas || 0), spender: d.routerAddress,
       async build() {
-        const b = await fetchJson(`https://aggregator-api.kyberswap.com/${slug}/api/v1/route/build`, {
+        const b = await fetchJson(`${ENDPOINTS.kyber}/${slug}/api/v1/route/build`, {
           method: 'POST', headers: { ...headers, 'content-type': 'application/json' },
           body: JSON.stringify({ routeSummary: d.routeSummary, sender: from, recipient: from, slippageTolerance: slippageBps }),
         });
@@ -51,13 +53,13 @@ const providers = {
       srcToken: tokenIn, destToken: tokenOut, amount: amountIn.toString(), srcDecimals: decIn, destDecimals: decOut,
       side: 'SELL', network: chainId, userAddress: from, version: '6.2',
     });
-    const r = await fetchJson(`https://api.paraswap.io/prices/?${q}`);
+    const r = await fetchJson(`${ENDPOINTS.paraswap}/prices/?${q}`);
     const pr = r.priceRoute;
     if (!pr) throw new Error(r.error || t('errors.swapNoRoute'));
     return {
       amountOut: BigInt(pr.destAmount), gas: BigInt(pr.gasCost || 0), spender: pr.tokenTransferProxy || pr.contractAddress,
       async build() {
-        const b = await fetchJson(`https://api.paraswap.io/transactions/${chainId}?ignoreChecks=true`, {
+        const b = await fetchJson(`${ENDPOINTS.paraswap}/transactions/${chainId}?ignoreChecks=true`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ srcToken: tokenIn, destToken: tokenOut, srcAmount: amountIn.toString(), slippage: slippageBps, priceRoute: pr, userAddress: from, srcDecimals: decIn, destDecimals: decOut }),
         });
@@ -74,7 +76,7 @@ const providers = {
       inTokenAddress: tokenIn, outTokenAddress: tokenOut, amountDecimals: amountIn.toString(),
       gasPriceDecimals: (gasPrice || 1n).toString(), slippage: (slippageBps / 100).toString(), account: from,
     });
-    const r = await fetchJson(`https://open-api.openocean.finance/v4/${code}/swap?${q}`);
+    const r = await fetchJson(`${ENDPOINTS.openocean}/v4/${code}/swap?${q}`);
     const d = r.data;
     if (!d?.outAmount || !d?.data) throw new Error(r.error || r.message || t('errors.swapNoRoute'));
     return {
@@ -89,7 +91,7 @@ const providers = {
       fromChain: chainId, toChain: chainId, fromToken: isNative(tokenIn) ? ZERO : tokenIn, toToken: isNative(tokenOut) ? ZERO : tokenOut,
       fromAmount: amountIn.toString(), fromAddress: from, slippage: (slippageBps / 10000).toString(),
     });
-    const r = await fetchJson(`https://li.quest/v1/quote?${q}`, {}, 15000);
+    const r = await fetchJson(`${ENDPOINTS.lifi}/v1/quote?${q}`, {}, 15000);
     if (!r.estimate || !r.transactionRequest) throw new Error(r.message || t('errors.swapNoRoute'));
     const gas = (r.estimate.gasCosts || []).reduce((s, g) => s + BigInt(g.estimate || g.limit || 0), 0n);
     return {
@@ -110,7 +112,8 @@ export function swapSupported(chainId) {
  */
 export async function getQuotes(params) {
   const p = { ...params, tokenIn: params.tokenIn.toLowerCase(), tokenOut: params.tokenOut.toLowerCase() };
-  const entries = Object.entries(providers);
+  const SERVICE = { KyberSwap: 'kyber', 'Velora (ParaSwap)': 'paraswap', OpenOcean: 'openocean', 'LI.FI': 'lifi' };
+  const entries = Object.entries(providers).filter(([name]) => ENDPOINTS[SERVICE[name]]); // services switched off: skipped
   const settled = await Promise.allSettled(entries.map(([, fn]) => fn(p)));
   const quotes = [], errors = [];
   settled.forEach((s, i) => {
