@@ -3,5 +3,5 @@
 export const DONATE = {
   evm: '0x27C94EC37Dfc9a5E8799A84DEb3c4BFfDE5bA027', // one address for every EVM network (Ethereum, Base, Arbitrum, ...)
   ton: 'UQCHxPljAvQzsVeZ-V142TGoxKACyUksrBoJVV75llxGqZ3q', // TON address (user-friendly, non-bounceable: a wallet)
-  repo: '', // GitHub repository, e.g. https://github.com/<owner>/chakra
+  repo: 'https://github.com/ChakraWallet/ChakraWallet', // GitHub repository
 };

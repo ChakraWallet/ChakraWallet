@@ -6,7 +6,7 @@ const LINKS = {
   android: '#download',
   chrome: '#download',
   firefox: '#download',
-  github: '#open-source', // the GitHub repository
+  github: 'https://github.com/ChakraWallet/ChakraWallet', // the GitHub repository
 };
 
 const shot = (name) => `${import.meta.env.BASE_URL}shots/${name}.jpg`;
