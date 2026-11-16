@@ -37,6 +37,8 @@ Both are drawn by `FeeView` (`components.jsx`).
 `priceKey(chain, token)` (DefiLlama key for the price chart, or null), `explorerToken(chain, address)`,
 `tokenInfo(chain, address)` (custom tokens), `tokenWarning(chain, token)` → i18n key | null,
 `homeNotice(chain, portfolio)` → i18n key | null, `displayAddress(account)` (accounts of this family only),
+`loadNfts(chain, raw, { etherscanKey })` (optional) → `{ items: [{ key, contract, tokenId, name, collection, image, description,
+standard, amount, spam, address? }], unsupported }` (the home screen's NFTs, `src/shared/nft.js`), `explorerNft(chain, nft)`,
 `defaultChainId` (where an account of this family only lives).
 
 ## Swap (optional: no `swapSupported` → no swap)

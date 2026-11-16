@@ -15,6 +15,7 @@ export const tonChainDriver = {
       { key: 'tonCenterKey', label: 'settings.toncenter', hint: 'settings.toncenter.hint' },
       { key: 'tonApiKey', label: 'settings.tonapi', hint: 'settings.tonapi.hint' },
       { key: 'symbiosisKey', label: 'settings.symbiosis', hint: 'settings.symbiosis.hint' }, // bridges of USD₮ on TON
+      { key: 'getgemsKey', label: 'settings.getgems', hint: 'settings.getgems.hint' }, // TON NFTs: floor prices and sales
     ],
   },
 };

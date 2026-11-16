@@ -55,7 +55,7 @@ export function Contracts({ visible, onDeep }) {
       : e.name === 'tx' ? <TxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined} renderDone={e.renderDone}
         onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />
         : e.name === 'create' ? <CreateTemplate kind={e.kind} {...common} />
-          : e.name === 'studio' ? <Studio projectId={e.projectId} autoDeploy={e.autoDeploy} {...common} />
+          : e.name === 'studio' ? <Studio projectId={e.projectId} draft={e.draft} autoDeploy={e.autoDeploy} {...common} />
             : e.name === 'deploy' ? <Deploy artifact={e.artifact} compilation={e.compilation} chainId={e.chainId} {...common} />
               : e.name === 'source' ? <SourceView title={e.title} files={e.files} noProject={e.noProject} {...common} /> : null;
   };

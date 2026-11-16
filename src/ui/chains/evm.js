@@ -7,6 +7,7 @@ import { erc20, getTokenInfo, getAllowance, waitForReceipt } from '../../shared/
 import { prepareTx, finalizeTx, getFeeData } from '../../shared/tx.js';
 import { loadPortfolio } from '../../shared/portfolio.js';
 import { loadHistory } from '../../shared/history.js';
+import { loadEvmNfts } from '../../shared/nft.js';
 import { getPrices, tokenPriceKey } from '../../shared/prices.js';
 import { getQuotes, swapSupported } from '../../shared/swap.js';
 import { BRIDGE_CHAINS, getBridgeQuotes, requote } from '../../shared/bridge.js';
@@ -95,6 +96,8 @@ export const evmDriver = {
   tokenInfo: (chain, address) => getTokenInfo(chain, address),
   priceKey: (chain, token) => (token.native || token.address === NATIVE ? chain.native.priceId : tokenPriceKey(chain, token.address)),
   explorerToken: (chain, address) => (chain.explorer ? `${chain.explorer}/token/${address}` : null),
+  loadNfts: (chain, raw, opts) => loadEvmNfts(chain, raw, opts),
+  explorerNft: (chain, nft) => (chain.explorer ? `${chain.explorer}/nft/${nft.contract}/${nft.tokenId}` : null),
   tokenWarning: () => null,
   homeNotice: () => null,
 

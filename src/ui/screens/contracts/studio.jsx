@@ -33,11 +33,11 @@ function Bar({ title, onBack, right }) {
   );
 }
 
-/** Creates a project from files and opens it in the studio. */
-export async function createProject({ name, files, main, mainContract }) {
-  const p = await putProject({ id: newProjectId(), name, files, main, mainContract, settings: { ...DEFAULT_SETTINGS } });
-  return p.id;
-}
+/**
+ * A new project, not saved yet: the studio saves it at the first change, compilation or deployment. Opened and left
+ * as it was (e.g. by mistake), it leaves nothing behind.
+ */
+export const draftProject = ({ name, files, main, mainContract }) => ({ id: newProjectId(), name, files, main, mainContract, settings: { ...DEFAULT_SETTINGS } });
 
 // ------------------------------------------------------------ templates
 const OPTS = {
@@ -53,10 +53,10 @@ export function CreateTemplate({ kind, onBack, open }) {
   const set = (k, v) => setO({ ...o, [k]: v });
   let gen = null, genErr = '';
   try { gen = generate(kind, o); } catch { genErr = t('contracts.tpl.invalid'); }
-  const go = async (autoDeploy) => {
+  const go = (autoDeploy) => {
     setBusy(true);
-    const id = await createProject({ name: o.name || t(`contracts.tpl.${kind}`), files: { [gen.fileName]: gen.source }, main: gen.fileName, mainContract: gen.contractName });
-    open({ name: 'studio', projectId: id, autoDeploy }, { replace: true });
+    const draft = draftProject({ name: o.name || t(`contracts.tpl.${kind}`), files: { [gen.fileName]: gen.source }, main: gen.fileName, mainContract: gen.contractName });
+    open({ name: 'studio', draft, autoDeploy }, { replace: true });
   };
   const text = (k, extra = {}) => (
     <div class="field">
@@ -112,7 +112,7 @@ function CodePreview({ title, file, source }) {
 }
 
 // ------------------------------------------------------------ studio
-export function Studio({ projectId, autoDeploy, onBack, open }) {
+export function Studio({ projectId, draft, autoDeploy, onBack, open }) {
   const { chain: active } = useApp();
   const [p, setP] = useState(null);
   const [file, setFile] = useState(null);
@@ -124,14 +124,18 @@ export function Studio({ projectId, autoDeploy, onBack, open }) {
   const pRef = useRef(null);
   const timer = useRef(0);
   const gone = useRef(false); // deleted: nothing must save it again
+  const dirty = useRef(false); // changed since opened: saved on exit (a project only looked at isn't touched)
   pRef.current = p;
 
   useEffect(() => {
-    getProject(projectId).then((pr) => { if (!pr) return; setP(pr); setFile(pr.main || Object.keys(pr.files)[0]); });
-    return () => { clearTimeout(timer.current); if (pRef.current && !gone.current) putProject(pRef.current); };
-  }, [projectId]);
+    const id = projectId || draft?.id;
+    // a draft already saved (changed, then reopened from the stack) is loaded as saved
+    getProject(id).then((pr) => { pr ||= draft; if (!pr) return; setP(pr); setFile(pr.main || Object.keys(pr.files)[0]); });
+    return () => { clearTimeout(timer.current); if (pRef.current && dirty.current && !gone.current) putProject(pRef.current); };
+  }, [projectId, draft?.id]);
   const update = (fn) => setP((prev) => {
     const n = fn(prev);
+    dirty.current = true;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (!gone.current) putProject(n); }, 700);
     return n;
@@ -397,8 +401,7 @@ export function SourceView({ title, files, noProject, onBack, open }) {
   const asProject = async () => {
     setBusy(true);
     const main = files[i].path;
-    const id = await createProject({ name: title, files: Object.fromEntries(files.map((x) => [x.path, x.content])), main });
-    open({ name: 'studio', projectId: id });
+    open({ name: 'studio', draft: draftProject({ name: title, files: Object.fromEntries(files.map((x) => [x.path, x.content])), main }) });
     setBusy(false);
   };
   return (

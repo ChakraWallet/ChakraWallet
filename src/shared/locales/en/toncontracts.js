@@ -331,4 +331,9 @@ export default {
   'tonc.tact.err.varint': 'variable-length integers other than coins aren’t supported yet',
   'tonc.tact.err.bytes': '{n} bytes in hex expected',
   'tonc.tact.err.arg': 'this argument type isn’t supported',
+  'tonc.code.title': "Contract code",
+  'tonc.code.sub': "Generated from the form + official sources",
+  'tonc.code.note': "The code isn't generated: it is the official one ({repo}), unchanged. These FunC sources compile to exactly the code that is deployed. Only the initial data and the message come from the form: first tab.",
+  'tonc.code.generated': "generated",
+  'tonc.review.simReason': "Reason: {reason}",
 };

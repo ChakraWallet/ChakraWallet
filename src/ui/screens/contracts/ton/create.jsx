@@ -13,6 +13,7 @@ import { showAddress } from '../../../../shared/ton/contracts.js';
 import { NetworkSheet } from '../../home.jsx';
 import { useTonWalletFor } from './parts.jsx';
 import { errText } from './write.jsx';
+import { TonTemplateCode } from './templateCode.jsx';
 
 const JETTON = { name: '', symbol: '', decimals: '9', supply: '', image: '', description: '' };
 const NFT = { name: '', description: '', image: '', itemsBase: '', royalty: '5', royaltyTo: '' };
@@ -123,6 +124,7 @@ export function TonCreate({ kind, chainId: initialChain, onBack, open }) {
             )}
           </div>
         )}
+        {wallet && <TonTemplateCode kind={kind} o={o} ctx={{ me: wallet.raw, address: raw, supply: built?.supply || 0n, symbol: chain.native.symbol, testnet: chain.testnet }} />}
       </div>
       <div class="footer">
         <Btn disabled={!raw || exists === 'checking' || exists === 'active'} onClick={go}>{t('tonc.create.go')}</Btn>

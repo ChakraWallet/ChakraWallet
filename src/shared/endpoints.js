@@ -16,6 +16,9 @@ const DEFAULTS = {
   symbiosis: 'https://api.symbiosis.finance',
   ston: 'https://api.ston.fi', // TON jettons: prices, icons
   omniston: 'wss://omni-ws.ston.fi', // TON swaps
+  opensea: 'https://api.opensea.io', // NFT floor prices and sales (with a key)
+  coingecko: 'https://api.coingecko.com', // NFT floor prices of the larger collections (no key)
+  getgems: 'https://api.getgems.io/public-api', // TON NFT floor prices and sales (with a key)
 };
 
 export const ENDPOINTS = { ...DEFAULTS, ...(globalThis.__CK_ENDPOINTS__ || {}) };

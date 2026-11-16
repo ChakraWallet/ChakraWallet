@@ -257,4 +257,10 @@ export default {
   'settings.notifications.denied': "Le notifiche sono bloccate: consentile nelle impostazioni di Android per Chakra",
   'settings.networks.toggleHint': "Le reti disattivate non vengono controllate per i saldi, non compaiono nel selettore delle reti né nel Bridge e non mandano notifiche. Non si cancella niente: puoi riattivarle quando vuoi.",
   'settings.networks.alwaysOn': "sempre attiva",
+  'settings.opensea': "Chiave OpenSea",
+  'settings.opensea.hint': "(facoltativa: prezzi NFT di ogni collezione e storico delle vendite)",
+  'settings.openseaAuto': "Chiave gratuita, rinnovata in automatico",
+  'settings.openseaAuto.sub': "Chakra ottiene una chiave OpenSea gratuita (valida 7 giorni) e la rinnova da sola. Non viene inviato nulla di personale.",
+  'settings.getgems': "Chiave Getgems",
+  'settings.getgems.hint': "(facoltativa, gratuita da Getgems: prezzi e vendite degli NFT su TON)",
 };

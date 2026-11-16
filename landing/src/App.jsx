@@ -188,6 +188,12 @@ const FEATURES = [
     img: 'accounts',
   },
   {
+    id: 'nfts', kicker: 'NFTs', title: 'Your collectibles, next to your tokens.',
+    text: 'The NFTs you own on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis and TON appear right under your tokens, with their artwork, collection and details.',
+    points: ['Scam airdrops and fake brand collections hidden', 'Spam artwork never loaded, so it can’t track you', 'Details and explorer link in one tap'],
+    img: 'nfts',
+  },
+  {
     id: 'swap', kicker: 'Swap & Bridge', title: 'The best price, not the first price.',
     text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. Bridges compare LI.FI, Relay, Across and deBridge the same way.',
     points: ['Approvals for the exact amount — never unlimited', 'Fees shown in dollars before you sign', 'Bridge transfers tracked until they arrive'],
@@ -208,7 +214,7 @@ const FEATURES = [
   {
     id: 'contracts', kicker: 'Builders', title: 'Deploy contracts from your pocket.',
     text: 'Create tokens, NFTs and multi-token contracts from templates, write your own in Solidity or Tact, or open any contract by address and call it with a generated form.',
-    points: ['Solidity and Tact compilers on device', 'Decode any calldata before you sign', 'Deploy artifacts from Remix, Hardhat or Foundry'],
+    points: ['Solidity and Tact compilers on device', 'Official TON jetton and NFT code, shown before you deploy', 'Decode any calldata before you sign'],
     img: 'contracts',
   },
   {
@@ -246,7 +252,7 @@ function Features() {
 }
 
 const GALLERY = [
-  ['home', false, 'Home'], ['predict-dark', true, 'Predictions · dark'], ['receive', false, 'Receive'], ['swap-dark', true, 'Swap · dark'],
+  ['home', false, 'Home'], ['nfts-dark', true, 'NFTs · dark'], ['predict-dark', true, 'Predictions · dark'], ['receive', false, 'Receive'], ['swap-dark', true, 'Swap · dark'],
   ['send', false, 'Send'], ['activity', false, 'Activity'], ['accounts', false, 'Accounts'], ['contracts', false, 'Contracts'], ['donate-dark', true, 'Support · dark'],
 ];
 function Gallery() {

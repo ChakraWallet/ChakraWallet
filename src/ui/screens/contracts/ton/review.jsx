@@ -7,7 +7,7 @@ import { bg } from '../../../../shared/ext.js';
 import { fmtAmount, shortAddr } from '../../../../shared/format.js';
 import { t } from '../../../../shared/i18n.js';
 import { emulateMessages, followSend, showAddress } from '../../../../shared/ton/contracts.js';
-import { tonTxUrl } from '../../../../shared/ton/api.js';
+import { tonTxUrl, tonAccount } from '../../../../shared/ton/api.js';
 import { saveContract } from '../../../contractsStore.js';
 import { StepsView, useTonWalletFor, Loading } from './parts.jsx';
 
@@ -22,6 +22,7 @@ export function TonTxReview({ chain, req, onBack, onMined, onOpenContract }) {
   const wallet = useTonWalletFor(chain);
   const [sim, setSim] = useState(null);
   const [simErr, setSimErr] = useState('');
+  const [plainBalance, setPlainBalance] = useState(null); // without a simulation: the balance, read on its own
   const [ack, setAck] = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState('');
@@ -29,16 +30,21 @@ export function TonTxReview({ chain, req, onBack, onMined, onOpenContract }) {
 
   useEffect(() => {
     if (!wallet) return;
-    emulateMessages(chain, wallet, req.messages).then(setSim).catch((e) => setSimErr(e.message || 'emulation'));
+    emulateMessages(chain, wallet, req.messages).then(setSim).catch((e) => {
+      setSimErr(e.message || 'emulation');
+      tonAccount(chain, wallet.address).then((a) => setPlainBalance(a.balance)).catch(() => {});
+    });
   }, [!!wallet]);
 
   const total = req.messages.reduce((s, m) => s + BigInt(m.value), 0n);
   const cost = sim && sim.net < 0n ? -sim.net : total + FEE_MARGIN;
-  const insufficient = sim && sim.balance < total + FEE_MARGIN;
+  const balance = sim ? sim.balance : plainBalance;
+  const insufficient = balance != null && balance < total + FEE_MARGIN;
   const risks = [...(req.risks || [])];
   if (sim?.risk?.transfer_all_remaining_balance) risks.push('drain');
   if (sim && sim.balance > 0n && total * 2n > sim.balance) risks.push('bigValue');
-  const simFailed = !!simErr || (sim && !sim.ok);
+  // a simulation that says it fails asks for a confirmation; one that couldn't run only warns (send without a preview)
+  const simFailed = !!sim && !sim.ok;
   const red = risks.some((r) => r === 'renounce' || r === 'drain' || r === 'burn');
 
   const confirm = async () => {
@@ -78,13 +84,13 @@ export function TonTxReview({ chain, req, onBack, onMined, onOpenContract }) {
           <span class="k">{t('tonc.review.attached')}</span><span class="v bold">{fmtAmount(total, 9, 6)} {chain.native.symbol}</span>
           {req.messages.length > 1 && <><span class="k">{t('tonc.review.messages')}</span><span class="v">{req.messages.length}</span></>}
           {sim && <><span class="k">{t('tonc.review.cost')}</span><span class="v">≈ {fmtAmount(cost, 9, 6)} {chain.native.symbol}</span></>}
-          {sim && <><span class="k">{t('tonc.balance')}</span><span class="v">{fmtAmount(sim.balance, 9, 4)} {chain.native.symbol}</span></>}
+          {balance != null && <><span class="k">{t('tonc.balance')}</span><span class="v">{fmtAmount(balance, 9, 4)} {chain.native.symbol}</span></>}
         </div>
         {sim && <div class="tiny muted">{t('tonc.review.costHint')}</div>}
         {risks.map((k) => <div class={k === 'renounce' || k === 'drain' || k === 'burn' ? 'error' : 'warn'}><b>{t('common.attention')}</b> {t(`tonc.risk.${k}`)}</div>)}
         {wallet === null && <div class="error">{t('tonc.write.noKey')}</div>}
         {wallet && !sim && !simErr && <Loading text={t('tonc.review.emulating')} />}
-        {simErr && <div class="warn">{t('tonc.review.simUnavailable')}</div>}
+        {simErr && <div class="warn col" style={{ gap: '.25rem' }}>{t('tonc.review.simUnavailable')}<span class="tiny" style={{ opacity: 0.8 }}>{t('tonc.review.simReason', { reason: simErr })}</span></div>}
         {sim && (
           <div class="card col">
             <div class={sim.bounced ? 'warn' : sim.ok ? 'success' : 'error'}>{sim.bounced ? t('tonc.review.simBounced') : sim.ok ? t('tonc.review.simOk') : t('tonc.review.simFailed')}</div>

@@ -22,15 +22,31 @@ export function fmtNum(n, maxFrac = 6, exact) {
 }
 
 /** A USD value shown in the display currency chosen in Settings (see fx.js). */
+// Amounts in the display currency: its short symbol ($, €, £) in every language (Italian would write "USD"), and the
+// thousands always grouped (Italian leaves 4-digit numbers ungrouped: 1433 -> 1.433).
+const money = (code, extra) => ({ style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', useGrouping: 'always', ...extra });
+
 export function fmtUsd(n) {
   if (n === null || n === undefined || !isFinite(n)) return '';
   const { code, rate } = displayCurrency();
   const v = n * rate;
-  const opts = { style: 'currency', currency: code, minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  const opts = money(code, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (v !== 0 && Math.abs(v) < 0.01) return `< ${(0.01).toLocaleString(locale(), opts)}`;
   return v.toLocaleString(locale(), opts);
 }
 
+/**
+ * A short amount in the display currency, for tight spaces (price tags), in the language's own way:
+ * 218,40 $ · 1,43K $ · 107,52K $ · 2,45 Mln $ (Italian); $218.40 · $1.43K · $107.52K · $2.45M (English).
+ */
+export function fmtUsdShort(n) {
+  if (n === null || n === undefined || !isFinite(n)) return '';
+  const { code, rate } = displayCurrency();
+  const v = n * rate, abs = Math.abs(v);
+  if (v !== 0 && abs < 0.01) return `< ${(0.01).toLocaleString(locale(), money(code, {}))}`;
+  const opts = abs >= 1000 ? { notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 2 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return v.toLocaleString(locale(), money(code, opts));
+}
 export const toFloat = (raw, decimals = 18) => Number(formatUnits(BigInt(raw || 0), decimals));
 
 export function parseAmount(str, decimals) {

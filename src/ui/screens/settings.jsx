@@ -10,6 +10,7 @@ import { resetTaste } from '../predictTaste.js';
 import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
+import { TermsSheet } from '../terms.jsx';
 
 function Row({ icon, title, sub, onClick, right }) {
   return (
@@ -324,6 +325,14 @@ export function Settings({ section }) {
         <div class="card col" style={{ gap: '0.5rem' }}>
           <div class="small">{t('settings.etherscan')} <span class="muted">{t('settings.etherscan.hint')}</span></div>
           <EtherscanKey value={s.etherscanKey} onSave={(v) => save({ etherscanKey: v })} />
+          <div class="small">{t('settings.opensea')} <span class="muted">{t('settings.opensea.hint')}</span></div>
+          <EtherscanKey value={s.openseaKey} onSave={(v) => save({ openseaKey: v })} />
+          {!s.openseaKey?.trim() && ( // without a key of one's own: the app can get a free one and renew it
+            <label class="row small" style={{ gap: '.75rem', cursor: 'pointer' }}>
+              <span class="grow">{t('settings.openseaAuto')}<br /><span class="tiny muted">{t('settings.openseaAuto.sub')}</span></span>
+              <Switch on={s.nftHistory === 'auto'} onChange={(v) => save({ nftHistory: v ? 'auto' : 'local' })} />
+            </label>
+          )}
           {allDrivers().flatMap((d) => d.ui?.settings || []).map((f) => ( // e.g. TON: TON Center and TonAPI keys (driver.ui.settings)
             <>
               <div class="small">{t(f.label)} <span class="muted">{t(f.hint)}</span></div>
@@ -342,7 +351,7 @@ export function Settings({ section }) {
         <div class="card" style={{ padding: '0.375rem' }}>
           <Row icon="trash" title={t('settings.reset')} sub={t('settings.reset.sub')} onClick={() => setSheet('reset')} />
         </div>
-        <div class="tiny muted center">Chakra v{__VERSION__}{build ? ` (${build})` : ''}</div>
+        <div class="tiny muted center">Chakra v{__VERSION__}{build ? ` (${build})` : ''} · <button class="link tiny" onClick={() => setSheet('terms')}>{t('terms.read')}</button></div>
       </div>
 
       {sheet === 'pw' && <ChangePassword onClose={() => setSheet(null)} />}
@@ -357,6 +366,7 @@ export function Settings({ section }) {
           }} />
       )}
       {sheet === 'exportBackup' && <ExportBackup onClose={() => setSheet(null)} />}
+      {sheet === 'terms' && <TermsSheet onClose={() => setSheet(null)} />}
       {sheet === 'importBackup' && <ImportBackup onClose={() => setSheet(null)} />}
       {sheet === 'language' && <LanguageSheet value={s.language} onPick={(v) => save({ language: v })} onClose={() => setSheet(null)} />}
       {sheet === 'resetTaste' && (

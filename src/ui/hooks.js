@@ -7,6 +7,7 @@ import { bridgeStatus } from '../shared/bridge.js';
 import { t, getLang } from '../shared/i18n.js';
 import { driverFor, familyOf, isEvmAccount, useAccountAddresses } from './chains/index.js';
 import { POPULAR_TOKENS } from '../shared/tokens.js';
+import { nftFloor, nftValueKey } from '../shared/nftPrices.js';
 
 // ---- failed balance / history scans
 // One toast (at most every 20 s) naming the networks that could not be updated; "you're offline" when that's
@@ -234,4 +235,66 @@ export function useAsync(fn, deps) {
   }, deps);
   useEffect(() => { run(); }, deps);
   return { ...s, reload: run };
+}
+
+// ---- NFTs of the account on the current network (home screen, under the tokens)
+const nftMem = new Map(); // key -> { items, unsupported, updated }
+/** { data: { items, unsupported, updated } | null, loading, error, reload }. Kept on the device; refreshed after 5 min. */
+export function useNfts(enabled = true) {
+  const { chain, account, state } = useApp();
+  const addr = useChainAddress();
+  const drv = driverFor(chain);
+  const key = `${chain.id}:${account?.address}`;
+  const [data, setData] = useState(() => nftMem.get(key) || null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    if (!drv.loadNfts || !addr.raw) return;
+    setLoading(true); setError('');
+    try {
+      const r = { ...(await drv.loadNfts(chain, addr.raw, { etherscanKey: state.settings.etherscanKey })), updated: Date.now() };
+      nftMem.set(key, r); setData(r);
+      local.set(`nfts:${key}`, r).catch(() => {});
+    } catch (e) { setError(e.message || 'NFT'); }
+    setLoading(false);
+  }, [key, addr.raw]);
+  useEffect(() => {
+    if (!enabled || !drv.loadNfts) return;
+    const mem = nftMem.get(key);
+    setData(mem || null);
+    if (!mem) local.get(`nfts:${key}`, null).then((c) => { if (c && !nftMem.has(key)) setData(c); }).catch(() => {});
+    if (!mem || Date.now() - mem.updated > 300000) load();
+  }, [key, addr.raw, enabled]);
+  return { data: drv.loadNfts ? data : null, loading, error, reload: load };
+}
+
+// ---- NFT values: the floor price of each collection held (src/shared/nftPrices.js), and their sum in USD
+const nftPriceMem = new Map(); // value key -> price | null
+/** { priceOf(nft) -> { native, symbol, usd, source } | null | undefined (loading), total (USD) }. Spam is never priced. */
+export function useNftPrices(items) {
+  const { chain, state } = useApp();
+  const s = state.settings;
+  const keys = `${s.openseaKey || ''}|${s.getgemsKey || ''}|${s.nftHistory || ''}`;
+  const [prices, setPrices] = useState({});
+  useEffect(() => {
+    const byCollection = new Map();
+    for (const n of items || []) if (!n.spam) { const k = nftValueKey(chain, n); if (!byCollection.has(k)) byCollection.set(k, n); }
+    const list = chain.testnet ? [] : [...byCollection.entries()].slice(0, 40); // the free services allow a few requests a minute
+    setPrices(Object.fromEntries(list.filter(([k]) => nftPriceMem.has(k)).map(([k]) => [k, nftPriceMem.get(k)])));
+    let alive = true;
+    const queue = [...list];
+    const worker = async () => {
+      for (let e = queue.shift(); e; e = queue.shift()) {
+        const [k, n] = e;
+        const v = await nftFloor(chain, n, s).catch(() => null);
+        nftPriceMem.set(k, v);
+        if (alive) setPrices((p) => ({ ...p, [k]: v }));
+      }
+    };
+    Promise.all([worker(), worker()]);
+    return () => { alive = false; };
+  }, [chain.id, items, keys]);
+  const priceOf = (n) => (n.spam ? null : prices[nftValueKey(chain, n)]);
+  const total = (items || []).reduce((sum, n) => { const v = priceOf(n); return v?.usd ? sum + v.usd * Math.min(Math.max(1, Number(n.amount) || 1), 1000) : sum; }, 0);
+  return { priceOf, total };
 }

@@ -9,5 +9,6 @@ import predict from './predict.js';
 import contracts from './contracts.js';
 import ton from './ton.js';
 import toncontracts from './toncontracts.js';
+import legal from './legal.js';
 
-export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts };
+export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...legal };

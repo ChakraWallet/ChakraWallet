@@ -331,4 +331,9 @@ export default {
   'tonc.tact.err.varint': 'gli interi a lunghezza variabile diversi da coins non sono ancora supportati',
   'tonc.tact.err.bytes': 'servono {n} byte in hex',
   'tonc.tact.err.arg': 'questo tipo di argomento non è supportato',
+  'tonc.code.title': "Codice del contratto",
+  'tonc.code.sub': "Generato dal modulo + sorgenti ufficiali",
+  'tonc.code.note': "Il codice non viene generato: è quello ufficiale ({repo}), non modificato. Questi sorgenti FunC compilano esattamente nel codice che viene pubblicato. Dal modulo nascono solo i dati iniziali e il messaggio: prima scheda.",
+  'tonc.code.generated': "generato",
+  'tonc.review.simReason': "Motivo: {reason}",
 };

@@ -6,4 +6,5 @@ globalThis.__CK_ENDPOINTS__ = {
   kyber: `${S.services}/kyber`, paraswap: null, openocean: null, lifi: null,
   relay: `${S.services}/relay`, across: null, debridge: null, debridgeStats: null,
   symbiosis: `${S.services}/symbiosis`, ston: `${S.services}/ston`, omniston: S.omniston || null,
+  opensea: null, coingecko: null, getgems: null, // NFT prices: not simulated
 };

@@ -21,7 +21,7 @@ async function open() {
   await page.waitForFunction(() => globalThis.chrome?.runtime && globalThis.__demoEthers);
   await page.evaluate(async ({ entropy, chainId }) => {
     const bg = async (type, p = {}) => { const r = await chrome.runtime.sendMessage({ type, ...p }); if (!r?.ok) throw new Error(`${type}: ${r?.error}`); return r.result; };
-    await bg('saveSettings', { settings: { language: 'en', theme: 'light', notifications: false, autoLockMin: 240 } });
+    await bg('saveSettings', { settings: { language: 'en', theme: 'light', notifications: false, autoLockMin: 240, termsAccepted: { version: 1, at: 0 } } }); // terms of use accepted (src/ui/terms.jsx)
     await bg('createVault', { password: 'demo-password-x', mnemonic: globalThis.__demoEthers.Mnemonic.fromEntropy('0x' + entropy).phrase, name: 'Main' });
     await bg('addAccount', { name: 'Savings', mode: 'hd' });
     const { accounts } = await bg('getState');

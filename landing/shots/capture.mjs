@@ -26,7 +26,7 @@ async function setup(page, { lang, dark, chainId = 1 }) {
     };
     const { Mnemonic } = globalThis.__demoEthers;
     const mnemonic = Mnemonic.fromEntropy('0x' + entropy).phrase;
-    await bg('saveSettings', { settings: { language: lang, theme: dark ? 'dark' : 'light', notifications: false, autoLockMin: 240 } });
+    await bg('saveSettings', { settings: { language: lang, theme: dark ? 'dark' : 'light', notifications: false, autoLockMin: 240, termsAccepted: { version: 1, at: 0 } } }); // terms of use accepted (src/ui/terms.jsx)
     await bg('createVault', { password, mnemonic, name: 'Main' });
     await bg('addAccount', { name: 'Savings', mode: 'hd' });
     await bg('addAccount', { name: 'DeFi', mode: 'hd' });
@@ -56,6 +56,11 @@ const SCENES = {
     await action(page, 3); await sleep(800);
     await page.fill('.screen input.input.big', '0.5'); await sleep(2200);
   },
+  async nfts(page) { // the NFT grid under the tokens, at the top of the screen
+    await page.waitForSelector('.nft-section', { timeout: 20000 }); await sleep(1200);
+    await page.evaluate(() => { const c = document.querySelector('.nft-section'); const s = c.closest('.content') || document.scrollingElement; s.scrollTop += c.getBoundingClientRect().top - 130; });
+    await sleep(900);
+  },
   async receive(page) { await action(page, 2); await sleep(1200); },
   async send(page) { await action(page, 1); await sleep(1200); },
   async predict(page) { await tab(page, 'predict'); await sleep(2600); },
@@ -70,7 +75,7 @@ const b = await browser();
 const runs = [];
 for (const lang of ['en']) { // the landing page is in English only
   for (const name of Object.keys(SCENES)) runs.push({ name, lang, dark: false });
-  if (!process.env.NO_DARK) for (const name of ['home', 'predict', 'swap', 'donate']) runs.push({ name, lang, dark: true });
+  if (!process.env.NO_DARK) for (const name of ['home', 'predict', 'swap', 'nfts', 'donate']) runs.push({ name, lang, dark: true });
 }
 for (const r of runs.filter((x) => !only.length || only.includes(x.name))) {
   const file = `${r.name}${r.dark ? '-dark' : ''}.jpg`;

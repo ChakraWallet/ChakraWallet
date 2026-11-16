@@ -257,4 +257,10 @@ export default {
   'settings.notifications.denied': "Notifications are blocked: allow them in the Android settings for Chakra",
   'settings.networks.toggleHint': "Switched-off networks are not checked for balances, not shown in the network picker or in Bridge, and send no notifications. Nothing is deleted: turn them back on anytime.",
   'settings.networks.alwaysOn': "always on",
+  'settings.opensea': "OpenSea key",
+  'settings.opensea.hint': "(optional: NFT prices of every collection and their sales history)",
+  'settings.openseaAuto': "Free key, renewed automatically",
+  'settings.openseaAuto.sub': "Chakra gets a free OpenSea key (valid 7 days) and renews it on its own. Nothing personal is sent.",
+  'settings.getgems': "Getgems key",
+  'settings.getgems.hint': "(optional, free from Getgems: prices and sales of TON NFTs)",
 };

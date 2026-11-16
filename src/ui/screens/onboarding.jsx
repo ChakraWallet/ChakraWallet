@@ -2,12 +2,13 @@
 // A mandala of rosettes rises from the bottom and draws one more ring at every step; it is complete at the end.
 import { useState, useMemo, useEffect, useRef } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
-import { AppIcon, Btn, Icon, Switch, ChainIcon, useApp, SecureScreen, rich, CopyPhrase, mandalaRings } from '../components.jsx';
+import { AppIcon, Btn, Icon, Switch, ChainIcon, useApp, SecureScreen, rich, richText, CopyPhrase, mandalaRings } from '../components.jsx';
 import { isChainEnabled, builtinNetworks, ALWAYS_ON } from '../../shared/chains.js';
 import { bioStatus } from '../auth.jsx';
 import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencyTiles } from '../pickers.jsx';
+import { TermsSheet, acceptTerms } from '../terms.jsx';
 
 function strength(pw) {
   let s = 0;
@@ -69,6 +70,8 @@ export function Onboarding({ onActive }) {
   const [loading, setLoading] = useState(false);
   const [langSheet, setLangSheet] = useState(false);
   const [bio, setBio] = useState({ available: false, enabled: false });
+  const [agreed, setAgreed] = useState(false); // terms of use
+  const [terms, setTerms] = useState(false);
   const pwInput = useRef(null);
   const s = state?.settings || {};
 
@@ -131,7 +134,13 @@ export function Onboarding({ onActive }) {
   let body;
   if (step === 'welcome') {
     body = (
-      <Step center foot={<Btn onClick={() => go('look')}>{t('onboarding.welcome.start')}</Btn>}>
+      <Step center foot={<>
+        <label class="ack row small ob-terms">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+          <span>{richText(t('terms.agree'), { terms: <button class="link" onClick={(e) => { e.preventDefault(); setTerms(true); }}>{t('terms.link')}</button> })}</span>
+        </label>
+        <Btn disabled={!agreed} onClick={async () => { await acceptTerms().catch(() => {}); go('look'); }}>{t('onboarding.welcome.start')}</Btn>
+      </>}>
         <AppIcon size={104} class="ob-hero-icon" />
         <div class="ob-head">
           <h1 class="ob-title">{t('onboarding.welcome.title')}</h1>
@@ -347,6 +356,7 @@ export function Onboarding({ onActive }) {
       </div>
       <div class={`ob-stage ${dir}`} key={step}>{body}</div>
       {langSheet && <LanguageSheet value={s.language} onPick={(v) => save({ language: v })} onClose={() => setLangSheet(false)} />}
+      {terms && <TermsSheet onClose={() => setTerms(false)} onAccept={() => { setAgreed(true); setTerms(false); }} />}
     </div>
   );
 }

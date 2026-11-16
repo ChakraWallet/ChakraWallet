@@ -8,7 +8,7 @@ import {
   parseAddress, parseTonLink, tonLink, commentCell, jettonTransferCell, DEFAULT_JETTON_VALUE, walletContract, signTransfer, feeQuery, cellToBase64,
 } from '../../shared/ton/core.js';
 import {
-  TON_CHAINS, tonAccount, tonJettons, tonHistory, gramPrice, llamaKey, stonAsset, tonAddressStatus, tonEstimateFee, tonWaitApplied, tonTxUrl,
+  TON_CHAINS, tonAccount, tonJettons, tonHistory, gramPrice, llamaKey, stonAsset, tonAddressStatus, tonEstimateFee, tonWaitApplied, tonTxUrl, loadTonNfts,
 } from '../../shared/ton/api.js';
 import { bg } from '../../shared/ext.js';
 import { fmtNum } from '../../shared/format.js';
@@ -312,6 +312,8 @@ export const tonDriver = {
   loadHistory: (chain, raw, cursor) => loadTonHistory(chain, raw, cursor),
   priceKey: (chain, token) => (token.native ? chain.native.priceId : token.priceKey ?? null),
   explorerToken: (chain, address) => `${chain.explorer}/jetton/${address}`,
+  loadNfts: (chain, raw) => loadTonNfts(chain, raw),
+  explorerNft: (chain, nft) => `${chain.explorer}/nft/${nft.address}`,
   tokenWarning: (chain, token) => (!token.native && token.known === false ? 'ton.token.unknown' : null),
   /** A wallet contract is deployed with its first outgoing transfer. */
   homeNotice: (chain, p) => (p?.status && p.status !== 'active' && BigInt(p.native?.balance || 0) > 0n ? 'ton.notDeployed' : null),

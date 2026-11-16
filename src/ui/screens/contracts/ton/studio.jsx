@@ -50,19 +50,22 @@ export function TonStudio({ projectId, newProject, chainId, onBack, open }) {
   const pRef = useRef(null);
   const timer = useRef(0);
   const gone = useRef(false);
+  const dirty = useRef(false); // changed since opened: saved on exit (a new project only looked at leaves nothing behind)
   pRef.current = p;
 
   useEffect(() => {
     (async () => {
       let pr = projectId ? await getProject(projectId) : null;
-      if (!pr && newProject) pr = await putProject({ id: newProjectId(), name: 'Counter', lang: 'tact', files: { 'main.tact': DEFAULT_TACT }, main: 'main.tact' });
+      // a new project lives in memory until its first change, compilation or deployment
+      if (!pr && newProject) pr = { id: newProjectId(), name: 'Counter', lang: 'tact', files: { 'main.tact': DEFAULT_TACT }, main: 'main.tact' };
       if (!pr) return;
       setP(pr); setFile(pr.main || Object.keys(pr.files)[0]);
     })();
-    return () => { clearTimeout(timer.current); if (pRef.current && !gone.current) putProject(pRef.current); };
+    return () => { clearTimeout(timer.current); if (pRef.current && dirty.current && !gone.current) putProject(pRef.current); };
   }, []);
   const update = (fn) => setP((prev) => {
     const n = fn(prev);
+    dirty.current = true;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (!gone.current) putProject(n); }, 700);
     return n;

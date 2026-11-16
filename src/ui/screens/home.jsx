@@ -3,11 +3,12 @@ import { bg, ext, local } from '../../shared/ext.js';
 import { allChains, NATIVE, isChainEnabled } from '../../shared/chains.js';
 import { fmtUsd, fmtNum, shortAddr, fmtTime } from '../../shared/format.js';
 import { Icon, Avatar, TokenIcon, ChainIcon, ExpandBtn, Sheet, Btn, Spinner, useApp, Empty, Guilloche, useCountUp, cardStyle, richText } from '../components.jsx';
-import { usePortfolio, useChainAddress } from '../hooks.js';
+import { usePortfolio, useChainAddress, useNfts, useNftPrices } from '../hooks.js';
 import { driverFor, accountFamily, familyOf, isEvmAccount } from '../chains/index.js';
 import { usePolyFunds, POLY_CHAIN } from '../polyBalance.js';
 import { HistoryList } from './history.jsx';
 import { t, tn } from '../../shared/i18n.js';
+import { NftSection } from './nfts.jsx';
 
 /**
  * Network list. Without onPick it switches the wallet's network; with onPick (current, onPick) it only picks one.
@@ -114,7 +115,10 @@ export function Home() {
   const priced = data?.tokens.filter((t) => t.price != null || t.custom) || [];
   const unpriced = data?.tokens.filter((t) => t.price == null && !t.custom) || [];
 
-  const shown = useCountUp(data ? (chain.testnet ? data.native.amount : data.totalUsd + (poly?.total || 0)) : null);
+  // NFTs: shown under the tokens; their collections' floor prices count in the total
+  const nfts = useNfts(true);
+  const nftValue = useNftPrices(nfts.data?.items);
+  const shown = useCountUp(data ? (chain.testnet ? data.native.amount : data.totalUsd + (poly?.total || 0) + nftValue.total) : null);
   // the Polymarket row sits among the tokens by value
   const polyAt = poly ? priced.filter((x) => (x.usd ?? 0) >= poly.total).length : -1;
 
@@ -236,6 +240,7 @@ export function Home() {
             {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}
+        {tab === 'tokens' && data && <NftSection items={nfts.data?.items} priceOf={nftValue.priceOf} />}
 
         {tab === 'activity' && (
           <div class="card" style={{ padding: '0.375rem' }}>

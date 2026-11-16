@@ -3,6 +3,7 @@ import { ext, bg } from '../shared/ext.js';
 import { getChain, BUILTIN_CHAINS } from '../shared/chains.js';
 import { AppCtx, Spinner } from './components.jsx';
 import { Onboarding } from './screens/onboarding.jsx';
+import { TermsGate, needsTerms } from './terms.jsx';
 import { Predict } from './screens/predict.jsx';
 import { Unlock } from './screens/unlock.jsx';
 import { Home } from './screens/home.jsx';
@@ -24,11 +25,12 @@ import { useAuthorizer } from './auth.jsx';
 import { t, setLang } from '../shared/i18n.js';
 import { setDisplayCurrency } from '../shared/fx.js';
 import { accountFamily, familyOf, driverOf, isEvmAccount } from './chains/index.js';
+import { NftDetail } from './screens/nfts.jsx';
 
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
 const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions']);
 
-const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge };
+const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail };
 
 const scanStart = location.hash === '#full-scan'; // extension: QR scanning continues in a tab (camera)
 const mode = globalThis.__CK_MOBILE__ ? 'mobile' : scanStart ? 'full' : location.hash.replace('#', '') || 'popup';
@@ -242,6 +244,7 @@ export function App() {
   if (!state) body = <div class="screen" style={{ alignItems: 'center', justifyContent: 'center' }}><Spinner lg /></div>;
   else if (!state.initialized || onboarding) body = <Onboarding onActive={setOnboarding} />;
   else if (!state.unlocked) body = <Unlock />;
+  else if (needsTerms(state.settings)) body = <TermsGate />; // terms of use not accepted yet (a wallet from before, or new terms)
   else if (mode === 'approve') body = <Approvals standalone />;
   else if (mode === 'mobile') {
     // the mobile layout stays mounted under the approval screen, so the browser keeps its page;
