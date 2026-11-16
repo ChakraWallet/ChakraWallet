@@ -18,6 +18,10 @@ globalThis.__CK_NATIVE__ = DappBrowser;
 globalThis.__CK_BIO__ = registerPlugin('Biometric');
 globalThis.__CK_SYSUI__ = registerPlugin('SystemUi');
 globalThis.__CK_NOTIFY__ = registerPlugin('Notify');
+// the system's share sheet and browser (OsPlugin.java): the WebView has no navigator.share
+const Os = registerPlugin('Os');
+globalThis.__CK_share = (o) => Os.share(o);
+globalThis.__CK_openExternal = (url) => Os.openExternal({ url });
 
 // Keyboard: when the WebView shrinks above it, keep the focused field in view (inside its scroll container)
 const keepFocusedVisible = () => {
@@ -238,10 +242,12 @@ try {
   });
 } catch { /* ignore */ }
 
-// External links (explorers...) open in the integrated browser
+// External links (explorers...) open in the integrated browser; links marked data-external (e.g. GitHub, where the
+// user is signed in in their own browser) in the system browser
 document.addEventListener('click', (e) => {
   const a = e.target.closest?.('a[href]');
   if (!a || !/^https?:/.test(a.href)) return;
   e.preventDefault();
+  if (a.hasAttribute('data-external')) { Os.openExternal({ url: a.href }).catch(() => window.dispatchEvent(new CustomEvent('ck-open-url', { detail: a.href }))); return; }
   window.dispatchEvent(new CustomEvent('ck-open-url', { detail: a.href }));
 }, true);

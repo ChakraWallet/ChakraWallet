@@ -18,6 +18,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BiometricPlugin.class);
         registerPlugin(SystemUiPlugin.class);
         registerPlugin(NotifyPlugin.class);
+        registerPlugin(OsPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Edge-to-edge: the app draws behind the system bars, so the WebView gets margins for them.

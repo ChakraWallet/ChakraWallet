@@ -34,7 +34,10 @@ export function Donate() {
   const repo = DONATE.repo;
   const share = async () => {
     const text = t('donate.shareText');
-    try { if (navigator.share) { await navigator.share({ title: 'Chakra', text, ...(repo ? { url: repo } : {}) }); return; } } catch { return; /* closed */ }
+    const data = { title: 'Chakra', text, ...(repo ? { url: repo } : {}) };
+    // Android: the system share sheet (the WebView has no navigator.share); elsewhere the browser's; else a copy
+    if (globalThis.__CK_share) { try { await globalThis.__CK_share(data); return; } catch { /* no app to share with: copy */ } }
+    else if (navigator.share) { try { await navigator.share(data); } catch { /* closed */ } return; }
     await navigator.clipboard.writeText(repo ? `${text} ${repo}` : text); toast(t('common.copied'));
   };
 
@@ -47,7 +50,7 @@ export function Donate() {
           <AppIcon size={52} />
           <div class="dn-hero-title">{t('donate.heroTitle')}</div>
           <p class="dn-hero-text">{t('donate.heroText')}</p>
-          {repo && <a class="ct-hero-chip dn-repo" href={repo} target="_blank"><Icon name="code" size={14} /><span>{t('donate.repo')}</span><Icon name="external" size={12} /></a>}
+          {repo && <a class="ct-hero-chip dn-repo" href={repo} target="_blank" rel="noopener" data-external><Icon name="code" size={14} /><span>{t('donate.repo')}</span><Icon name="external" size={12} /></a>}
         </div>
 
         <div class="card dn-card">
@@ -75,8 +78,8 @@ export function Donate() {
 
         <div class="card dn-more">
           <b class="small">{t('donate.moreTitle')}</b>
-          {repo && <a class="dn-more-row" href={repo} target="_blank"><Icon name="star" size={16} /><span class="grow">{t('donate.star')}</span><Icon name="external" size={14} /></a>}
-          {repo && <a class="dn-more-row" href={`${repo.replace(/\/$/, '')}/issues`} target="_blank"><Icon name="warn" size={16} /><span class="grow">{t('donate.issue')}</span><Icon name="external" size={14} /></a>}
+          {repo && <a class="dn-more-row" href={repo} target="_blank" rel="noopener" data-external><Icon name="star" size={16} /><span class="grow">{t('donate.star')}</span><Icon name="external" size={14} /></a>}
+          {repo && <a class="dn-more-row" href={`${repo.replace(/\/$/, '')}/issues`} target="_blank" rel="noopener" data-external><Icon name="warn" size={16} /><span class="grow">{t('donate.issue')}</span><Icon name="external" size={14} /></a>}
           <button class="dn-more-row" onClick={share}><Icon name="send" size={16} /><span class="grow">{t('donate.share')}</span><Icon name="forward" size={14} /></button>
         </div>
       </div>

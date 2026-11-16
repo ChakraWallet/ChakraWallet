@@ -1629,3 +1629,6 @@ button.dn-row:active { background: var(--card-2); }
 .nftd-ask .btn { width: 100%; }
 .nftd-ask-ic { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; background: var(--primary-soft); color: var(--primary); }
 .tk-hide.show { color: var(--primary); } /* showing a hidden token again: not a warning */
+/* support card: a fainter guilloche, so the white text over it reads well */
+.dn-hero .guilloche path { opacity: .09; }
+.dn-hero .guilloche path.band { opacity: .05; }
