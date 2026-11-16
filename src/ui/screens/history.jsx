@@ -29,14 +29,17 @@ const tokenIcon = (chainId, x) => x.icon || (POPULAR_TOKENS[chainId] || []).find
 const hostOf = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
 const provider = (it) => { if (it.via) return it.via; const m = it.appTitle || it.method; return (m && /\(([^)]+)\)\s*$/.exec(m)?.[1]) || null; }; // "Swap … (KyberSwap)", the app's own title
 
-function title(it, bridge) {
+/** short: the list's row, where the icons and the amounts already say which networks and tokens (no "…"). */
+function title(it, bridge, short = false) {
   const outs = it.transfers.filter((x) => x.dir === 'out'), ins = it.transfers.filter((x) => x.dir === 'in');
   if (bridge) {
     const from = BRIDGE_CHAIN(bridge.fromChainId)?.name || `#${bridge.fromChainId}`;
     const to = bridge.toChainId ? BRIDGE_CHAIN(bridge.toChainId)?.name || `#${bridge.toChainId}` : null;
+    if (short && to) return t('history.titleBridgeTo', { to });
     return to ? t('history.titleBridge', { from, to }) : t('history.titleBridgeFrom', { from });
   }
   if (it.label) return it.label; // e.g. a TON action with a name of its own (contract deploy, NFT transfer...)
+  if (it.kind === 'swap' && short) return t('history.titleSwapShort');
   if (it.kind === 'swap') return t('history.titleSwap', { from: outs[0].symbol, to: ins[0].symbol });
   if (it.kind === 'send') return t('history.titleSent', { symbol: outs[0].symbol });
   if (it.kind === 'receive') return t('history.titleReceived', { symbol: ins[0].symbol });
@@ -75,16 +78,16 @@ function HistoryItem({ it, onOpen, bridge }) {
   // transactions made in the app have its name as origin, the ones of sites their URL
   const via = provider(it) || (it.origin && /^https?:\/\//.test(it.origin) ? hostOf(it.origin) : null);
   let sub;
-  if (bridge && bridge.status !== 'unknown') sub = <><span class={`badge ${{ pending: 'amber', done: 'green', refunded: 'primary', failed: 'red' }[bridge.status]}`}>{t(`bridge.badge.${bridge.status}`)}</span>{bridge.provider ? ` ${t('history.via', { name: bridge.provider })}` : ''}</>;
+  if (bridge && bridge.status !== 'unknown') sub = <><span class={`badge ${{ pending: 'amber', done: 'green', refunded: 'primary', failed: 'red' }[bridge.status]}`}>{t(`bridge.badge.${bridge.status}`)}</span>{bridge.provider ? ` ${bridge.provider}` : ''}</>;
   else if (bridge) sub = via || it.toName || null;
-  else if (it.kind === 'swap') sub = via ? t('history.via', { name: via }) : null;
+  else if (it.kind === 'swap') sub = via;
   else if (it.counterparty && (it.kind === 'send' || it.kind === 'receive')) sub = <>{t(it.kind === 'receive' ? 'history.from' : 'history.to')} <AddressLabel address={it.counterparty} /></>;
   else if (via) sub = via;
   return (
     <button class="item hist-item" onClick={() => onOpen(it)}>
       <Glyph it={it} k={k} bridge={bridge} chain={chain} />
       <div class="grow" style={{ minWidth: 0 }}>
-        <div class="bold ellipsis">{title({ ...it, chainId: chain.id }, bridge)}</div>
+        <div class="bold ellipsis">{title({ ...it, chainId: chain.id }, bridge, true)}</div>
         <div class="small muted ellipsis hist-sub">{fmtTime(it.time)}{sub ? <> · {sub}</> : null}</div>
       </div>
       <div class="right hist-amts">

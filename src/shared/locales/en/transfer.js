@@ -169,4 +169,7 @@ export default {
   'bridge.twoStep.swapTx': "Swap {amount} {symbol} → GRAM (for a bridge)",
   'bridge.twoStep.notArrived': "The GRAM from the swap haven't arrived yet. They will reach your TON wallet: you can start the transfer again from there.",
   'bridge.twoStep.afterSwap': "The swap is done: the GRAM are in your TON wallet. You can send them with a new transfer.",
+  'send.maybeSpam': "possible spam",
+  'send.noValue': "no value",
+  'send.spamHint': "Tokens named like well-known ones (USDT, USDC, ETH…) but with no market value are almost always spam: sent to your address to trick you. They are worth nothing and usually can't be swapped: don't use them and don't trust the balance they show.",
 };

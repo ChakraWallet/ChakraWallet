@@ -75,6 +75,21 @@ export function isSpamToken(t, chainId) {
   return false;
 }
 
+/** Names of the tokens fakes imitate most (stablecoins, the big coins). */
+const KNOWN_NAME = /USD|TETHER|ETH|BTC|DAI|GRAM|TON/;
+
+/**
+ * For the token pickers: a token that may be spam - flagged already, or named like a well-known token (USDT, ETH...)
+ * with no market price. Not the network's coin, the well-known tokens themselves or a token the user added.
+ */
+export function suspectToken(t, chainId) {
+  if (t.native || t.custom) return false;
+  const addr = String(t.address || '').toLowerCase();
+  if ((POPULAR_TOKENS[chainId] || []).some((p) => p.address === addr)) return false;
+  if (t.spam || isSpamToken(t, chainId)) return true;
+  return t.price == null && KNOWN_NAME.test(plain(`${t.symbol || ''} ${t.name || ''}`).toUpperCase().replace(/[^A-Z]/g, ''));
+}
+
 export async function loadPortfolio(chain, address, { customTokens = [], hiddenTokens = [], etherscanKey = '' } = {}) {
   let indexerOk = true, indexerError = '';
   const [nativeRaw, discovered] = await Promise.all([

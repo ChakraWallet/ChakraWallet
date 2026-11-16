@@ -7,6 +7,7 @@ import { usePortfolio, useChainAddress } from '../hooks.js';
 import { driverFor, useAccountAddresses } from '../chains/index.js';
 import { useRecipientCheck, PoisonWarning } from '../poisonCheck.jsx';
 import { QrScanner } from '../scanner.jsx';
+import { suspectToken } from '../../shared/portfolio.js';
 import { t } from '../../shared/i18n.js';
 
 export function TokenPicker({ tokens, onPick, onClose, title = t('send.pickToken'), allowCustom }) {
@@ -22,16 +23,20 @@ export function TokenPicker({ tokens, onPick, onClose, title = t('send.pickToken
       drv.tokenInfo(chain, q).then((t) => setCustom({ ...t, amount: null, balance: '0' }), () => setCustom(false));
     }
   }, [q]);
-  const list = tokens.filter((t) => !q || t.symbol.toLowerCase().includes(q.toLowerCase()) || t.name?.toLowerCase().includes(q.toLowerCase()) || t.address === q.toLowerCase());
+  const found = tokens.filter((x) => !q || x.symbol.toLowerCase().includes(q.toLowerCase()) || x.name?.toLowerCase().includes(q.toLowerCase()) || x.address === q.toLowerCase());
+  // tokens that may be spam (named like USDT, ETH... with no value): marked, and last
+  const suspect = new Set(found.filter((x) => suspectToken(x, chain.id)));
+  const list = [...found.filter((x) => !suspect.has(x)), ...suspect];
   return (
     <Sheet title={title} onClose={onClose}>
       <input class="input" placeholder={t('send.searchPlaceholder')} value={q} onInput={(e) => setQ(e.target.value.trim())} autoFocus />
+      {suspect.size > 0 && <div class="warn small">{t('send.spamHint')}</div>}
       <div class="list">
-        {list.map((t) => (
-          <button class="item" onClick={() => { onPick(t); onClose(); }}>
-            <TokenIcon symbol={t.symbol} icon={t.icon} color={t.color} />
-            <div class="grow"><div class="bold">{t.symbol}</div><div class="small muted ellipsis">{t.name}</div></div>
-            {t.amount != null && <div class="right small"><div class="bold">{fmtNum(t.amount)}</div>{t.usd != null && <div class="muted">{fmtUsd(t.usd)}</div>}</div>}
+        {list.map((x) => (
+          <button class="item" onClick={() => { onPick(x); onClose(); }}>
+            <TokenIcon symbol={x.symbol} icon={x.icon} color={x.color} />
+            <div class="grow" style={{ minWidth: 0 }}><div class="bold ellipsis">{x.symbol}{suspect.has(x) && <> <span class="badge amber">{t('send.maybeSpam')}</span></>}</div><div class="small muted ellipsis">{x.name}</div></div>
+            {x.amount != null && <div class="right small"><div class="bold">{fmtNum(x.amount)}</div>{x.usd != null ? <div class="muted">{fmtUsd(x.usd)}</div> : suspect.has(x) && <div class="muted">{t('send.noValue')}</div>}</div>}
           </button>
         ))}
         {custom && (

@@ -157,7 +157,6 @@ export default {
   'history.titleSwap': "Swap {from} → {to}",
   'history.titleBridge': "Bridge {from} → {to}",
   'history.titleApproveToken': "{symbol} approval",
-  'history.via': "via {name}",
   'history.bridgeTo': "Arrives on",
   'history.titleBridgeFrom': "Bridge from {from}",
   'history.viewArrival': "See the arrival on {chain}",
@@ -205,4 +204,6 @@ export default {
   'tx.waiting': "Waiting for the network to confirm it…",
   'tx.late': "The confirmation is taking longer than usual: check the activity in a while.",
   'swap.confirmed': "Swap completed",
+  'history.titleSwapShort': "Swap",
+  'history.titleBridgeTo': "Bridge to {to}",
 };

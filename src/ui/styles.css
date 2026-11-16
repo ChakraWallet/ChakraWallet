@@ -235,7 +235,7 @@ textarea.input { resize: vertical; min-height: 5rem; }
 .input-wrap { display: flex; align-items: center; gap: .5rem; border: 1px solid var(--border); background: var(--card); border-radius: 1rem; padding: .375rem .5rem .375rem .75rem; transition: border-color .15s, box-shadow .15s; }
 .input-wrap:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .input-wrap input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-family: var(--display); font-size: 1.5rem; font-weight: 600; padding: .375rem 0; font-variant-numeric: tabular-nums; }
-.error, .warn, .info, .success { padding: .625rem .75rem; border-radius: .75rem; font-size: .8125rem; line-height: 1.45; animation: note-in .22s var(--ease-out); }
+.error, .warn, .info, .success { overflow-wrap: anywhere; padding: .625rem .75rem; border-radius: .75rem; font-size: .8125rem; line-height: 1.45; animation: note-in .22s var(--ease-out); }
 .error { color: var(--red); background: var(--red-soft); }
 .warn { color: var(--amber); background: var(--amber-soft); }
 .info { color: var(--primary); background: var(--primary-soft); }
@@ -460,9 +460,9 @@ body.mobile.kb-open .toast { bottom: 1rem; }
 
 /* history rows */
 .glyph { position: relative; display: inline-flex; flex: none; width: 2.25rem; height: 2.25rem; }
-.glyph.pair { width: 2.75rem; }
-.glyph.pair > :first-child { position: absolute; left: 0; top: 0; width: 1.75rem !important; height: 1.75rem !important; }
-.glyph.pair > :last-child { position: absolute; right: 0; bottom: 0; width: 1.75rem !important; height: 1.75rem !important; box-shadow: 0 0 0 2px var(--card); border-radius: 50%; }
+.glyph.pair { width: 2.25rem; }
+.glyph.pair > :first-child { position: absolute; left: 0; top: 0; width: 1.625rem !important; height: 1.625rem !important; }
+.glyph.pair > :last-child { position: absolute; right: -.125rem; bottom: -.125rem; width: 1.625rem !important; height: 1.625rem !important; box-shadow: 0 0 0 2px var(--card); border-radius: 50%; }
 .dir-badge { position: absolute; right: -.1875rem; bottom: -.1875rem; width: 1rem; height: 1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 0 0 2px var(--card); }
 .dir-badge.send { background: var(--red); }
 .dir-badge.receive { background: var(--green); }
