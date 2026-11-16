@@ -34,11 +34,12 @@ export function Donate() {
   const repo = DONATE.repo;
   const share = async () => {
     const text = t('donate.shareText');
-    const data = { title: 'Chakra', text, ...(repo ? { url: repo } : {}) };
+    const site = DONATE.site || repo; // the website (where to get the app), not the code
+    const data = { title: 'Chakra', text, ...(site ? { url: site } : {}) };
     // Android: the system share sheet (the WebView has no navigator.share); elsewhere the browser's; else a copy
     if (globalThis.__CK_share) { try { await globalThis.__CK_share(data); return; } catch { /* no app to share with: copy */ } }
     else if (navigator.share) { try { await navigator.share(data); } catch { /* closed */ } return; }
-    await navigator.clipboard.writeText(repo ? `${text} ${repo}` : text); toast(t('common.copied'));
+    await navigator.clipboard.writeText(site ? `${text} ${site}` : text); toast(t('common.copied'));
   };
 
   return (
