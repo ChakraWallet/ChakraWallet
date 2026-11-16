@@ -224,7 +224,8 @@ const FEATURES = [
     img: 'browser',
   },
 ];
-function Features() {
+/** The features one after another (no scroll pinning: reduced motion, very short screens). */
+function FeatureList() {
   return (
     <section className="features" id="features">
       <div className="wrap">
@@ -246,6 +247,108 @@ function Features() {
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+const STEP_VH = 100; // page scroll per feature (% of the screen height)
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const ease = (x) => x * x * (3 - 2 * x); // smoothstep
+
+/**
+ * Features, driven by the scroll like the gallery: the stage stays on screen and every movement follows the page.
+ * Each feature's phone comes in from its own side (right, then left, then right...) with a slight turn, its text
+ * from the other side; it holds while it floats a little; then it rises and fades as the next one comes in.
+ */
+function Features() {
+  const outer = useRef(null), layers = useRef([]), bar = useRef(null), count = useRef(null);
+  const [pinned, setPinned] = useState(false);
+  const n = FEATURES.length;
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const check = () => setPinned(!reduce.matches && window.innerHeight >= 600);
+    check();
+    reduce.addEventListener?.('change', check); window.addEventListener('resize', check);
+    return () => { reduce.removeEventListener?.('change', check); window.removeEventListener('resize', check); };
+  }, []);
+  useEffect(() => {
+    if (!pinned) return undefined;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = outer.current, room = el.offsetHeight - window.innerHeight;
+      const p = clamp01(-el.getBoundingClientRect().top / Math.max(1, room));
+      const raw = p * (n - 1), k = Math.min(n - 2, Math.floor(raw)), u = raw - k;
+      // in each stretch the change takes the middle 60%: a short hold before and after
+      const s = k + ease(clamp01((u - 0.2) / 0.6));
+      const vw = window.innerWidth, narrow = vw < 900;
+      layers.current.forEach((L, i) => {
+        if (!L) return;
+        const o = s - i; // 0: on stage; -1: next (outside); +1: gone
+        const side = i % 2 ? -1 : 1; // the phone's side: right, left, right...
+        const vis = Math.abs(o) < 1;
+        L.root.style.visibility = vis && Math.abs(o) < 0.6 ? 'visible' : 'hidden'; // a short overlap: never an empty stage
+        if (!vis) return;
+        const float = Math.sin((raw - i) * Math.PI) * 10; // a slight float while on stage
+        let ph, tx;
+        if (o <= 0) { // coming in, as the previous one is almost gone
+          const e = clamp01(-o / 0.6);
+          ph = `translate3d(${side * e * (narrow ? 70 : 42)}vw, ${e * 40 + float}px, 0) rotate(${side * e * 9}deg) scale(${1 - e * 0.06})`;
+          tx = `translate3d(${-side * e * (narrow ? 40 : 16)}vw, 0, 0)`;
+          L.phone.style.opacity = String(1 - e * 0.9);
+          L.copy.style.opacity = String(1 - e * 1.4);
+        } else { // leaving first: up and away
+          const e = clamp01(o / 0.6);
+          ph = `translate3d(0, ${-e * (narrow ? 30 : 38)}vh, 0) rotate(${-side * e * 4}deg) scale(${1 - e * 0.12})`;
+          tx = `translate3d(0, ${-e * 120}px, 0)`;
+          L.phone.style.opacity = String(1 - e);
+          L.copy.style.opacity = String(1 - e * 1.4);
+        }
+        L.phone.style.transform = ph;
+        L.copy.style.transform = tx;
+        L.root.style.zIndex = String(o <= 0 ? 2 : 1);
+      });
+      if (bar.current) bar.current.style.transform = `scaleX(${p})`;
+      if (count.current) count.current.textContent = String(Math.min(n, Math.round(s) + 1)).padStart(2, '0');
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); cancelAnimationFrame(raf); };
+  }, [pinned]);
+  if (!pinned) return <FeatureList />;
+  return (
+    <section className="features fx" id="features">
+      <div className="wrap section-head reveal">
+        <span className="kicker">Features</span>
+        <h2>Everything a wallet should do.<br />Nothing it shouldn’t.</h2>
+      </div>
+      <div className="fx-track" ref={outer} style={{ height: `calc(100vh + ${(n - 1) * STEP_VH}vh)` }}>
+        <div className="fx-pin">
+          <div className="wrap fx-stage">
+            {FEATURES.map((f, i) => (
+              <article key={f.id} className={`fx-layer ${i % 2 ? 'flip' : ''}`}
+                ref={(r) => { if (r) layers.current[i] = { root: r, phone: r.querySelector('.fx-visual'), copy: r.querySelector('.fx-copy') }; }}>
+                <div className="fx-copy">
+                  <span className="kicker">{f.kicker}</span>
+                  <h3>{f.title}</h3>
+                  <p>{f.text}</p>
+                  <ul>{f.points.map((x) => <li key={x}><Icon name="check" size={18} />{x}</li>)}</ul>
+                </div>
+                <div className="fx-visual">
+                  <div className="glow" />
+                  <Phone src={shot(f.img)} alt={`${f.kicker} screen of the Chakra app`} eager={i < 2} />
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="wrap fx-foot" aria-hidden="true">
+            <span className="fx-count"><b ref={count}>01</b> / {String(n).padStart(2, '0')}</span>
+            <span className="fx-bar"><i ref={bar} /></span>
+          </div>
+        </div>
       </div>
     </section>
   );
