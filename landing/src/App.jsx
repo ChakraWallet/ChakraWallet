@@ -255,28 +255,74 @@ const GALLERY = [
   ['home', false, 'Home'], ['nfts-dark', true, 'NFTs · dark'], ['predict-dark', true, 'Predictions · dark'], ['receive', false, 'Receive'], ['swap-dark', true, 'Swap · dark'],
   ['send', false, 'Send'], ['activity', false, 'Activity'], ['accounts', false, 'Accounts'], ['contracts', false, 'Contracts'], ['donate-dark', true, 'Support · dark'],
 ];
+/**
+ * Light & dark: the screens move from right to left as the page scrolls down. The section stays pinned (sticky)
+ * while the strip crosses it, then the page goes on. Without room to scroll (wide screens) or with reduced motion,
+ * a plain horizontal strip.
+ */
 function Gallery() {
-  const ref = useRef(null);
-  const by = (d) => ref.current?.scrollBy({ left: d * ref.current.clientWidth * 0.8, behavior: 'smooth' });
+  const outer = useRef(null), track = useRef(null), bar = useRef(null);
+  const [dist, setDist] = useState(0); // how far the strip travels (px); 0 = not pinned
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const measure = () => {
+      const t = track.current;
+      if (!t) return;
+      // to the last screen's right edge plus the strip's end padding (scrollWidth leaves that padding out)
+      const last = t.lastElementChild;
+      const end = last ? last.offsetLeft + last.offsetWidth + parseFloat(getComputedStyle(t).paddingRight || 0) : t.scrollWidth;
+      setDist(reduce.matches ? 0 : Math.max(0, Math.round(end - t.clientWidth)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(track.current);
+    reduce.addEventListener?.('change', measure);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); reduce.removeEventListener?.('change', measure); window.removeEventListener('resize', measure); };
+  }, []);
+  useEffect(() => {
+    if (!dist) { if (track.current) track.current.style.transform = ''; return undefined; }
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = outer.current, room = el.offsetHeight - window.innerHeight;
+      const p = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / Math.max(1, room)));
+      track.current.style.transform = `translate3d(${-p * dist}px, 0, 0)`;
+      if (bar.current) bar.current.style.transform = `scaleX(${p})`;
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
+  }, [dist]);
+  // arrows: one screen further, by scrolling the page (pinned) or the strip itself
+  const by = (d) => {
+    const t = track.current, step = (t.firstElementChild?.offsetWidth || 280) + 28;
+    if (!dist) { t.scrollBy({ left: d * step, behavior: 'smooth' }); return; }
+    const room = outer.current.offsetHeight - window.innerHeight;
+    window.scrollBy({ top: d * step * (room / dist), behavior: 'smooth' });
+  };
   return (
-    <section className="gallery">
-      <div className="wrap gallery-head">
-        <div className="reveal">
-          <span className="kicker">Light & dark</span>
-          <h2>Designed down to the last pixel.</h2>
+    <section className={`gallery ${dist ? 'pinned' : ''}`} ref={outer} style={dist ? { height: `calc(100vh + ${dist}px)` } : undefined}>
+      <div className="gallery-pin">
+        <div className="wrap gallery-head">
+          <div className="reveal">
+            <span className="kicker">Light & dark</span>
+            <h2>Designed down to the last pixel.</h2>
+          </div>
+          <div className="gallery-nav">
+            <button onClick={() => by(-1)} aria-label="Previous screens"><span style={{ transform: 'scaleX(-1)', display: 'inline-flex' }}><Icon name="arrow" size={20} /></span></button>
+            <button onClick={() => by(1)} aria-label="Next screens"><Icon name="arrow" size={20} /></button>
+          </div>
         </div>
-        <div className="gallery-nav">
-          <button onClick={() => by(-1)} aria-label="Previous screens"><span style={{ transform: 'scaleX(-1)', display: 'inline-flex' }}><Icon name="arrow" size={20} /></span></button>
-          <button onClick={() => by(1)} aria-label="Next screens"><Icon name="arrow" size={20} /></button>
+        <div className="gallery-track" ref={track}>
+          {GALLERY.map(([img, dark, label]) => (
+            <figure key={img}>
+              <Phone src={shot(img)} dark={dark} alt={`${label} screen of the Chakra app`} />
+              <figcaption>{label}</figcaption>
+            </figure>
+          ))}
         </div>
-      </div>
-      <div className="gallery-track" ref={ref}>
-        {GALLERY.map(([img, dark, label]) => (
-          <figure key={img}>
-            <Phone src={shot(img)} dark={dark} alt={`${label} screen of the Chakra app`} />
-            <figcaption>{label}</figcaption>
-          </figure>
-        ))}
+        {dist > 0 && <div className="wrap gallery-progress" aria-hidden="true"><i ref={bar} /></div>}
       </div>
     </section>
   );
