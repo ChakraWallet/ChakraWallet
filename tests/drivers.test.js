@@ -124,6 +124,17 @@ for (const [kind, fx] of Object.entries(FIXTURES)) {
     assert.ok(d().receiveTokens(fx.chain, [{ ...p.native, address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', native: true }, ...p.tokens]).length >= 1);
   });
 
+  test(`${kind}: a hidden token stays apart, out of the list and of the total, ready to be shown again`, async () => {
+    globalThis.fetch = fx.fetch;
+    const all = await d().loadPortfolio(fx.chain, fx.me.raw, {});
+    const tk = all.tokens[0];
+    const p = await d().loadPortfolio(fx.chain, fx.me.raw, { hiddenTokens: [tk.address] });
+    serializable(p);
+    assert.ok(!p.tokens.some((x) => x.address === tk.address), 'out of the list');
+    assert.deepEqual(p.hidden.map((x) => [x.address, x.hidden]), [[tk.address, true]], 'kept apart, marked');
+    assert.ok(Math.abs(p.totalUsd - (all.totalUsd - (tk.usd || 0))) < 1e-6, 'out of the total');
+  });
+
   test(`${kind}: history in the shared shape`, async () => {
     globalThis.fetch = fx.fetch;
     const r = await d().loadHistory(fx.chain, fx.me.raw, null, {});

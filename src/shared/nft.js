@@ -16,7 +16,7 @@ const META_ON_CHAIN = 24; // Etherscan-compatible networks: metadata read for th
 const MAX_ITEMS = 200;
 const nftIface = new Interface(['function tokenURI(uint256) view returns (string)', 'function uri(uint256) view returns (string)']);
 
-export { mediaUrl, spamNft, fakeBrand, traitsOf } from './nftMeta.js';
+export { mediaUrl, spamNft, fakeBrand, hasDomain, traitsOf } from './nftMeta.js';
 
 /** Blockscout /api/v2/addresses/:a/nft items -> items. */
 export function fromBlockscout(list) {
@@ -29,7 +29,7 @@ export function fromBlockscout(list) {
       key: `${contract}:${x.id}`, contract, tokenId: String(x.id), name, collection: tk.name || tk.symbol || '',
       image: mediaUrl(x.image_url || x.metadata?.image), description: x.metadata?.description || '', traits: traitsOf(x.metadata?.attributes),
       standard: x.token_type || tk.type || 'ERC-721', amount: String(x.value ?? '1'),
-      spam: rep === 'scam' || rep === 'spam' || spamNft(x.metadata?.name, tk.name) || fakeBrand(tk.name, tk.holders_count ?? tk.holders ?? null),
+      spam: rep === 'scam' || rep === 'spam' || spamNft(x.metadata?.name, tk.name, { symbol: tk.symbol, description: x.metadata?.description }) || fakeBrand(tk.name, tk.holders_count ?? tk.holders ?? null),
     };
   });
 }
@@ -44,7 +44,7 @@ export function holdingsFromTransfers(address, erc721 = [], erc1155 = []) {
   const add = (x, standard, delta) => {
     const contract = String(x.contractAddress).toLowerCase(), tokenId = String(x.tokenID ?? x.tokenId);
     const k = `${contract}:${tokenId}`;
-    const cur = map.get(k) || { contract, tokenId, collection: x.tokenName || x.tokenSymbol || '', standard, amount: 0n, time: 0 };
+    const cur = map.get(k) || { contract, tokenId, collection: x.tokenName || x.tokenSymbol || '', symbol: x.tokenSymbol || '', standard, amount: 0n, time: 0 };
     cur.amount += delta;
     cur.time = Math.max(cur.time, Number(x.timeStamp || 0));
     map.set(k, cur);
@@ -102,13 +102,13 @@ export async function loadEvmNfts(chain, address, { etherscanKey = '' } = {}) {
   };
   const [e721, e1155] = await Promise.all([list('tokennfttx'), list('token1155tx').catch(() => [])]);
   const held = holdingsFromTransfers(address, e721, e1155).slice(0, MAX_ITEMS);
-  const metas = await Promise.all(held.slice(0, META_ON_CHAIN).map((h) => (spamNft('', h.collection) ? null : onChainMeta(chain, h))));
+  const metas = await Promise.all(held.slice(0, META_ON_CHAIN).map((h) => (spamNft('', h.collection, { symbol: h.symbol }) ? null : onChainMeta(chain, h))));
   const items = held.map((h, i) => {
     const m = metas[i] || {};
     return {
       key: `${h.contract}:${h.tokenId}`, contract: h.contract, tokenId: h.tokenId, name: m.name || `${h.collection || 'NFT'} #${h.tokenId}`,
       collection: h.collection, image: m.image || null, description: m.description || '', traits: m.traits || [], standard: h.standard, amount: h.amount,
-      spam: spamNft(m.name, h.collection) || fakeBrand(h.collection),
+      spam: spamNft(m.name, h.collection, { symbol: h.symbol, description: m.description }) || fakeBrand(h.collection),
     };
   });
   return { items, unsupported: false };

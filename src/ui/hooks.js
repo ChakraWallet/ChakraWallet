@@ -298,3 +298,32 @@ export function useNftPrices(items) {
   const total = (items || []).reduce((sum, n) => { const v = priceOf(n); return v?.usd ? sum + v.usd * Math.min(Math.max(1, Number(n.amount) || 1), 1000) : sum; }, 0);
   return { priceOf, total };
 }
+
+// ---- NFT visibility chosen by the user: over the automatic spam check, kept on the device per network
+const nftVisibilitySubs = new Set(); // every screen using it reloads after a change (home + the NFT's page)
+/**
+ * { apply(items) -> items with `spam` as the user wants and `autoSpam` (what the check said), of(nft) -> 'show' |
+ * 'hide' | null, set(nft, 'show' | 'hide' | null) }. null = the automatic choice.
+ */
+export function useNftVisibility() {
+  const { chain } = useApp();
+  const key = `nftVisibility:${chain.id}`;
+  const [map, setMap] = useState({});
+  useEffect(() => {
+    let alive = true;
+    const load = () => local.get(key, {}).then((m) => { if (alive) setMap(m || {}); }).catch(() => {});
+    load(); nftVisibilitySubs.add(load);
+    return () => { alive = false; nftVisibilitySubs.delete(load); };
+  }, [key]);
+  const set = async (nft, v) => {
+    await local.update(key, {}, (m) => { const n = { ...(m || {}) }; if (v) n[nft.key] = v; else delete n[nft.key]; return n; });
+    nftVisibilitySubs.forEach((f) => f());
+  };
+  const of = (nft) => map[nft.key] || null;
+  // stable while the choices don't change (the price hook reloads when its items change)
+  const apply = useCallback((items) => items?.map((n) => {
+    const auto = n.autoSpam ?? n.spam, v = map[n.key];
+    return { ...n, autoSpam: auto, spam: v ? v === 'hide' : auto };
+  }), [map]);
+  return { apply, of, set };
+}

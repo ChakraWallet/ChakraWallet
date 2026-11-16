@@ -3,6 +3,7 @@
 // Without an API key TON Center allows 1 request per second: requests go one at a time, spaced; with a key
 // (Settings, optional) up to 10 per second. Only addresses and signed messages are sent.
 import { mediaUrl, spamNft, traitsOf } from '../nftMeta.js';
+import { tonapiNfts } from './tonapi.js';
 import { Buffer } from './buffer.js';
 import { Address } from '@ton/core';
 import { getPrices } from '../prices.js';
@@ -271,25 +272,39 @@ export const tonTxUrl = (chain, hex) => (hex ? `${chain.explorer}/tx/${hex}` : n
 export const tonAddrUrl = (chain, a) => `${chain.explorer}/address/${a}`;
 
 /**
- * NFTs held by an address (TON Center's index, with its metadata): items as in src/shared/nft.js, plus `address`
- * (the NFT item contract). Items not indexed yet get "<collection> #<index>". Images of spam are never loaded.
+ * NFTs held by an address: TON Center's index with its metadata, and TonAPI's rating of each (its scam list) and the
+ * texts it has read for items TON Center hasn't indexed. Items as in src/shared/nft.js, plus `address` (the NFT item
+ * contract). Images of spam are never loaded.
  */
 export async function loadTonNfts(chain, owner) {
-  const r = await call(chain, '/api/v3/nft/items', { params: { owner_address: owner, limit: 200 } });
-  return { items: tonNftItems(r), unsupported: false };
+  const [r, rated] = await Promise.all([
+    call(chain, '/api/v3/nft/items', { params: { owner_address: owner, limit: 200 } }),
+    tonapiNfts(chain, owner).catch(() => ({})), // optional: without it, the checks below still run
+  ]);
+  return { items: tonNftItems(r, rated), unsupported: false };
 }
 
-/** TON Center /api/v3/nft/items answer -> items (pure: tested). */
-export function tonNftItems(r) {
+/**
+ * TON Center /api/v3/nft/items answer (+ TonAPI's ratings) -> items (pure: tested). Spam: on TonAPI's scam list,
+ * flagged by TON Center, texts that lure to a site, or an item outside any collection that TonAPI doesn't vouch for
+ * (the usual shape of airdropped "vouchers").
+ */
+export function tonNftItems(r, rated = {}) {
   const info = (a, type) => (r?.metadata?.[a]?.token_info || []).find((x) => x.type === type) || null;
   return (r?.nft_items || []).map((x) => {
     const m = info(x.address, 'nft_items'), c = x.collection_address ? info(x.collection_address, 'nft_collections') : null;
-    const collection = c?.name || '';
-    const name = m?.name || (collection ? `${collection} #${x.index}` : `NFT #${x.index}`);
+    const t = rated[String(x.address).toUpperCase()] || null;
+    const collection = c?.name || t?.collection || '';
+    const ownName = m?.name || t?.name || null;
+    const name = ownName || (collection ? `${collection} #${x.index}` : `NFT #${x.index}`);
+    const description = m?.description || t?.description || '';
+    const spam = t?.trust === 'blacklist' || !!(m?.is_scam || c?.is_scam)
+      || spamNft(ownName, collection, { description })
+      || (!x.collection_address && t?.trust !== 'whitelist');
     return {
       key: x.address, address: x.address, contract: x.collection_address || x.address, tokenId: String(x.index ?? ''),
-      name, collection, image: mediaUrl(m?.image), description: m?.description || '', traits: traitsOf(m?.extra?.attributes), standard: 'TEP-62', amount: '1',
-      spam: !!(m?.is_scam || c?.is_scam) || spamNft(m?.name, collection), onSale: !!x.on_sale,
+      name, collection, image: mediaUrl(m?.image) || mediaUrl(t?.image), description,
+      traits: traitsOf(m?.extra?.attributes || t?.attributes), standard: 'TEP-62', amount: '1', spam, onSale: !!x.on_sale,
     };
   });
 }

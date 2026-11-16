@@ -5,6 +5,7 @@
 // (src/shared/nftPrices.js), on a price tag in the gallery, under the title on the page, and over time in a chart.
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Icon, ChainIcon, Avatar, Guilloche, Btn, cardStyle, useApp } from '../components.jsx';
+import { useNftVisibility } from '../hooks.js';
 import { LineChart } from '../chart.jsx';
 import { driverFor } from '../chains/index.js';
 import { bg } from '../../shared/ext.js';
@@ -89,10 +90,16 @@ export function NftSection({ items: all0, priceOf }) {
 }
 
 /** The page of one NFT (wallet screen 'nft'). */
-export function NftDetail({ nft, price: given }) {
+export function NftDetail({ nft: item, price: given }) {
   const { chain, account, back, toast, state } = useApp();
+  // shown or hidden: the user's choice when there is one, else the automatic spam check
+  const visibility = useNftVisibility();
+  const auto = item ? item.autoSpam ?? item.spam : false;
+  const choice = item ? visibility.of(item) : null;
+  const hidden = choice ? choice === 'hide' : auto;
+  const nft = item && { ...item, spam: hidden };
   const [price, setPrice] = useState(given);
-  useEffect(() => { if (nft && !nft.spam) nftFloor(chain, nft, state.settings).then((v) => v && setPrice(v)).catch(() => {}); }, [nft?.key, state.settings.openseaKey, state.settings.nftHistory, state.settings.getgemsKey]);
+  useEffect(() => { if (nft && !hidden) nftFloor(chain, nft, state.settings).then((v) => v && setPrice(v)).catch(() => {}); }, [nft?.key, hidden, state.settings.openseaKey, state.settings.nftHistory, state.settings.getgemsKey]);
   const [full, setFull] = useState(false);
   const [more, setMore] = useState(false);
   const [ready, setReady] = useState(false);
@@ -139,7 +146,8 @@ export function NftDetail({ nft, price: given }) {
             {price.usd != null && <span class="usd">≈ {fmtUsd(price.usd)}</span>}
           </div>
         )}
-        {nft.spam && <div class="warn small">{t('nft.spamHint')}</div>}
+        {nft.spam && <div class="warn small">{choice === 'hide' ? t('nft.hiddenByYou') : t('nft.spamHint')}</div>}
+        {!nft.spam && choice === 'show' && auto && <div class="info small">{t('nft.shownByYou')}</div>}
         {nft.description && !nft.spam && (
           <div class="nftd-desc">
             <p class={longDesc && !more ? 'clamp' : ''}>{nft.description}</p>
@@ -178,6 +186,15 @@ export function NftDetail({ nft, price: given }) {
 
         <div class="nftd-actions">
           {explorer && <a class="btn secondary" href={explorer} target="_blank" rel="noopener"><Icon name="external" size={16} /> {t('nft.explorer')}</a>}
+          {/* the user's call over the automatic check: a hidden NFT leaves the gallery and the total, a shown one comes back */}
+          <button class="btn secondary" onClick={async () => {
+            const want = !hidden; // hide it now?
+            await visibility.set(item, want === auto ? null : want ? 'hide' : 'show');
+            toast(t(want ? 'nft.hiddenToast' : 'nft.shownToast'));
+          }}>
+            <Icon name={hidden ? 'eye' : 'eyeOff'} size={16} /> {t(hidden ? 'nft.show' : 'nft.hide')}
+          </button>
+          {choice && <button class="link small nftd-collink" onClick={() => visibility.set(item, null)}>{t('nft.autoChoice')}</button>}
           {collectionUrl && <a class="link small nftd-collink" href={collectionUrl} target="_blank" rel="noopener">{t('nft.collectionLink', { name: nft.collection })}</a>}
         </div>
       </div>

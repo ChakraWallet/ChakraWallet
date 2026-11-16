@@ -1628,3 +1628,4 @@ button.dn-row:active { background: var(--card-2); }
 .nftd-ask p { margin: 0; line-height: 1.5; }
 .nftd-ask .btn { width: 100%; }
 .nftd-ask-ic { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; background: var(--primary-soft); color: var(--primary); }
+.tk-hide.show { color: var(--primary); } /* showing a hidden token again: not a warning */

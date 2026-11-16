@@ -48,6 +48,12 @@ export function TokenDetails({ token: tk }) {
     setPortfolioCache({});
     toast(t('token.hidden', { symbol: tk.symbol })); back();
   };
+  // a hidden token (opened from "hidden tokens" on the home screen): back among the others
+  const unhide = async () => {
+    await local.update('hiddenTokens', {}, (all) => ({ ...all, [chain.id]: (all[chain.id] || []).filter((a) => a !== tk.address) }));
+    setPortfolioCache({});
+    toast(t('token.shown', { symbol: tk.symbol })); back();
+  };
   const copy = async () => { await navigator.clipboard.writeText(tk.address); toast(t('common.copied')); };
   const explorer = !tk.native && chain.explorer ? drv.explorerToken(chain, tk.address) : null;
   const priceKey = drv.priceKey(chain, tk);
@@ -94,7 +100,9 @@ export function TokenDetails({ token: tk }) {
           )}
         </div>
 
-        {!tk.native && <button class="tk-hide" onClick={hide}><Icon name="eye" size={16} />{t('token.hide')}</button>}
+        {!tk.native && (tk.hidden
+          ? <button class="tk-hide show" onClick={unhide}><Icon name="eye" size={16} />{t('token.unhide')}</button>
+          : <button class="tk-hide" onClick={hide}><Icon name="eyeOff" size={16} />{t('token.hide')}</button>)}
       </div>
     </div>
   );

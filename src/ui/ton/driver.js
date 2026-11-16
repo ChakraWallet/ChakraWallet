@@ -36,15 +36,17 @@ export async function loadTonPortfolio(chain, raw, { hiddenTokens = [] } = {}) {
   const [acc, jettons, price] = await Promise.all([tonAccount(chain, raw), tonJettons(chain, raw), gramPrice(chain).catch(() => null)]);
   const amount = Number(acc.balance) / 1e9;
   const hidden = new Set(hiddenTokens);
-  const tokens = jettons.filter((j) => !j.scam).map((j) => ({
+  const all = jettons.filter((j) => !j.scam).map((j) => ({
     address: jettonId(j.master, chain.testnet), symbol: j.symbol, name: j.name, decimals: j.decimals,
     balance: j.balance.toString(), amount: j.amount, price: j.price, usd: j.usd, icon: j.image || '',
     wallet: j.wallet, known: j.known, priceKey: chain.testnet ? null : llamaKey(j.master),
-  })).filter((x) => !hidden.has(x.address));
+  }));
+  const tokens = all.filter((x) => !hidden.has(x.address));
   const nativeUsd = price != null ? amount * price : null;
   return {
     native: { balance: acc.balance.toString(), amount, price, usd: nativeUsd },
     tokens,
+    hidden: all.filter((x) => hidden.has(x.address)).map((x) => ({ ...x, hidden: true })), // the user's hidden jettons: apart, out of the total
     totalUsd: (nativeUsd || 0) + tokens.reduce((s, x) => s + (x.usd || 0), 0),
     status: acc.status, seqno: acc.seqno,
     indexerOk: true, indexerError: '', noIndexer: false, updated: Date.now(),

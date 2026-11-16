@@ -114,7 +114,7 @@ export async function loadPortfolio(chain, address, { customTokens = [], hiddenT
   needBalance.forEach((t, i) => { t.balance = results[i] ? BigInt(results[i]) : (t.indexerBalance ?? 0n); });
 
   const hidden = new Set(hiddenTokens);
-  let tokens = [...map.values()].filter((t) => !hidden.has(t.address) && (t.balance > 0n || t.custom));
+  let tokens = [...map.values()].filter((t) => t.balance > 0n || t.custom);
 
   // Spam filter: airdropped tokens advertising websites / claims are never priced
   tokens = tokens.map((t) => ({ ...t, spam: !t.custom && isSpamToken(t, chain.id) }));
@@ -134,10 +134,14 @@ export async function loadPortfolio(chain, address, { customTokens = [], hiddenT
   }).sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1) || b.amount - a.amount);
 
   const nativeUsd = nativePrice !== null ? nativeAmount * nativePrice : null;
+  // tokens the user hid: kept apart (they can be shown again), out of the list and of the total
+  const hiddenList = tokens.filter((t) => hidden.has(t.address)).map((t) => ({ ...t, hidden: true }));
+  tokens = tokens.filter((t) => !hidden.has(t.address));
   const totalUsd = (nativeUsd || 0) + tokens.reduce((s, t) => s + (t.usd || 0), 0);
   return {
     native: { balance: nativeRaw.toString(), amount: nativeAmount, price: nativePrice, usd: nativeUsd },
     tokens,
+    hidden: hiddenList,
     totalUsd,
     indexerOk,
     indexerError,

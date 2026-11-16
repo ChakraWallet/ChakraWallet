@@ -93,3 +93,21 @@ export async function tonapiJetton(chain, master) {
  * the TonAPI MessageConsequences object ({ trace, event, risk }).
  */
 export const tonapiEmulate = (chain, boc) => call(chain, '/v2/wallet/emulate', { body: { boc }, timeout: 30000 });
+
+/**
+ * NFTs of an address as TonAPI knows them: { [raw address, upper case]: { trust, name, description, image, collection,
+ * attributes } }. trust: 'whitelist' | 'none' | 'graylist' | 'blacklist' (TonAPI's scam list). image: TonAPI's cached
+ * preview (the NFT's own link isn't opened).
+ */
+export async function tonapiNfts(chain, owner) {
+  const r = await call(chain, `/v2/accounts/${encodeURIComponent(owner)}/nfts?limit=1000&indirect_ownership=false`);
+  const out = {};
+  for (const x of r.nft_items || []) {
+    const pv = (x.previews || []).find((p) => p.resolution === '500x500') || (x.previews || [])[0];
+    out[String(x.address).toUpperCase()] = {
+      trust: x.trust || 'none', name: x.metadata?.name || null, description: x.metadata?.description || '',
+      image: pv?.url || null, collection: x.collection?.name || null, attributes: x.metadata?.attributes || null,
+    };
+  }
+  return out;
+}

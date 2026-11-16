@@ -2,7 +2,7 @@
 import './helpers/chrome.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mediaUrl, spamNft, fakeBrand, traitsOf, fromBlockscout, holdingsFromTransfers } from '../src/shared/nft.js';
+import { mediaUrl, spamNft, fakeBrand, hasDomain, traitsOf, fromBlockscout, holdingsFromTransfers } from '../src/shared/nft.js';
 import { tonNftItems } from '../src/shared/ton/api.js';
 
 const ME = '0x1111111111111111111111111111111111111111', X = '0x2222222222222222222222222222222222222222';
@@ -50,8 +50,8 @@ test('Etherscan NFT transfers -> what is still held', () => {
     tx({ tokenID: '9', tokenValue: '2', from: ME, to: X, timeStamp: '50' }),
   ]);
   assert.deepEqual(held, [
-    { contract: C.toLowerCase(), tokenId: '9', collection: 'Things', standard: 'ERC-1155', amount: '3' },
-    { contract: C.toLowerCase(), tokenId: '2', collection: 'Things', standard: 'ERC-721', amount: '1' },
+    { contract: C.toLowerCase(), tokenId: '9', collection: 'Things', symbol: '', standard: 'ERC-1155', amount: '3' },
+    { contract: C.toLowerCase(), tokenId: '2', collection: 'Things', symbol: '', standard: 'ERC-721', amount: '1' },
   ]);
 });
 
@@ -87,4 +87,37 @@ test('traits: OpenSea-style attributes, dates readable, junk left out', () => {
   assert.deepEqual(traitsOf([{ trait_type: 'Expires', display_type: 'date', value: 1801481255 }, { trait_type: 'Eyes', value: 'Laser' }, { value: 3 }, null, { trait_type: 'x', value: [1] }]),
     [{ trait: 'Expires', value: '2027-02-01' }, { trait: 'Eyes', value: 'Laser' }, { trait: '', value: '3' }]);
   assert.deepEqual(traitsOf('nope'), []);
+});
+
+// Seen in a real wallet, shown as normal NFTs before (TON item 0:B484…, Polygon 0xca26…, 0x00d1…)
+test('spam NFTs seen in a real wallet: domains, $tickers, bait, TonAPI\'s scam list, orphan items', () => {
+  assert.equal(spamNft('', '🎁 Bonus at 3eth.us', { symbol: 'Reward at [3eth.us]' }), true, 'a domain the old list missed (.us)');
+  assert.equal(spamNft('', 'A PUDGY PENGUIN', { symbol: '$PENGU' }), true, 'a $TICKER, airdropped to thousands');
+  assert.equal(spamNft('$HMSTR Reward Holder', ''), true);
+  assert.equal(spamNft('Pass #3', 'Club', { description: 'Activate voucher on the website' }), true, 'bait in the description');
+  // ... and what must stay: name-service domains, ordinary names, a real link in a description without bait
+  assert.equal(hasDomain('vitalik.eth alice.ton x.wei'), false);
+  assert.equal(hasDomain('3eth.us'), true);
+  assert.equal(spamNft('vitalik.eth', 'ENS: Ethereum Name Service'), false);
+  assert.equal(spamNft('vitalik.cloud', 'NamefiNFT'), false, 'a domain-name NFT: the name is the domain');
+  assert.equal(spamNft('', 'yearn Gift NFT'), false);
+  assert.equal(spamNft('Fox #77', 'Paper Foxes', { symbol: 'FOX', description: 'Made by the studio, see https://foxes.art' }), false);
+  assert.equal(spamNft('Pudgy Penguin #12', 'Pudgy Penguins', { symbol: 'PPG' }), false, 'the real collection (its name alone is no spam)');
+  const items = tonNftItems(
+    { nft_items: [
+      { address: '0:B4844691C84C51ADDEB07F3120F7CEFD3547C047174075B8143252AD33FDF8B7', index: '0', collection_address: null },
+      { address: '0:AA', index: '1', collection_address: '0:CC' },
+      { address: '0:DD', index: '2', collection_address: null },
+      { address: '0:EE', index: '3', collection_address: '0:CC' },
+    ], metadata: { '0:CC': { token_info: [{ type: 'nft_collections', name: 'Cats' }] } } },
+    {
+      '0:B4844691C84C51ADDEB07F3120F7CEFD3547C047174075B8143252AD33FDF8B7': { trust: 'blacklist', name: '$HMSTR Reward Holder', description: 'Activate voucher on the website' },
+      '0:AA': { trust: 'whitelist', name: 'Cat #1', image: 'https://cache.tonapi.io/x.png' },
+      '0:DD': { trust: 'whitelist', name: 'Standalone art' },
+      '0:EE': { trust: 'blacklist' },
+    },
+  );
+  assert.deepEqual(items.map((x) => [x.name, x.spam]), [['$HMSTR Reward Holder', true], ['Cat #1', false], ['Standalone art', false], ['Cats #3', true]]);
+  assert.equal(items[1].image, 'https://cache.tonapi.io/x.png', 'TonAPI\'s cached preview when TON Center has no image');
+  assert.equal(tonNftItems({ nft_items: [{ address: '0:FF', index: '0', collection_address: null }] })[0].spam, true, 'outside any collection, unrated');
 });
