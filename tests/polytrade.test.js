@@ -139,3 +139,7 @@ test('Deposit Wallet batch typed data (relayer)', async () => {
   const sig = await owner.signTypedData(b.domain, b.types, b.message);
   assert.equal(verifyTypedData(b.domain, b.types, b.message, sig), owner.address);
 });
+
+test('ramp pause check: the selector Polymarket\'s on/offramp expose (paused(address) on chain)', () => {
+  assert.equal(iface.ramp.getFunction('paused').selector, '0x2e48152c');
+});

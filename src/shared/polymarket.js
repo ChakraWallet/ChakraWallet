@@ -225,7 +225,11 @@ export async function userPnl(user, interval = '1m') {
   }).filter((x) => isFinite(x.t) && isFinite(x.p));
 }
 
-/** { trades, biggestWin, joined (ms), pnl } */
+/**
+ * { trades, biggestWin, joined (ms), pnl, income }. income: all-time totals credited by Polymarket, maker and taker
+ * rebates kept apart: { maker, taker, rewards, referral, yield, fees (paid: refunds minus charges, ≤ 0) }; a null
+ * field = not covered by Polymarket's books (not zero).
+ */
 export async function userStats(user) {
   const r = await getJson(`${DATA}/v2/user-stats?${qs({ user })}`, { label: 'Polymarket' });
   const d = r && typeof r === 'object' && 'data' in r ? r.data : r; // { data: null }: no stats yet (new account)
@@ -234,5 +238,89 @@ export async function userStats(user) {
   return {
     trades: num(d.trades), biggestWin: num(d.biggest_win), joined: d.join_date ? Number(d.join_date) * 1000 : null,
     pnl: a ? Number(a.economic_pnl ?? ((Number(a.realized_pnl) || 0) + (Number(a.unrealized_pnl) || 0))) : null,
+    income: a ? {
+      maker: num(a.maker_rebate), taker: num(a.taker_rebate), rewards: num(a.reward_income), referral: num(a.referral_income),
+      yield: num(a.yield_income), fees: num(a.fees_paid),
+    } : null,
+  };
+}
+
+// ------------------------------------------------------------ activity (history)
+/** Activity kinds as Polymarket names them, for the history filters. Rebates and rewards are paid in pUSD. */
+export const INCOME_TYPES = ['MAKER_REBATE', 'TAKER_REBATE', 'REWARD', 'REFERRAL_REWARD', 'YIELD'];
+export const TRADE_TYPES = ['TRADE', 'REDEEM', 'SPLIT', 'MERGE', 'CONVERSION'];
+const CASH_OUT = ['SPLIT', 'DIRECTIONAL_SPLIT', 'WITHDRAWAL']; // cash leaves the account (and a buy)
+const NO_CASH = ['CONVERSION', 'MIGRATION', 'THRESHOLD_COMPOSE', 'THRESHOLD_DECOMPOSE']; // positions only
+
+/**
+ * One activity row: { type, side, at (ms), usd (≥ 0), flow (+1 cash in, −1 cash out, 0 none), market (condition id), shares, price,
+ * title, icon, slug, outcome, tx, income }. Rebates and rewards come without a market (empty title).
+ */
+export function normActivity(a) {
+  const type = String(a.type || '').toUpperCase(), side = String(a.side || '').toUpperCase();
+  const ts = Number(a.timestamp) || 0;
+  return {
+    type, side, at: ts < 1e12 ? ts * 1000 : ts, usd: Math.abs(Number(a.usdc_size ?? a.usdcSize) || 0),
+    flow: type === 'TRADE' ? (side === 'BUY' ? -1 : 1) : CASH_OUT.includes(type) ? -1 : NO_CASH.includes(type) ? 0 : 1,
+    market: a.condition_id || a.conditionId || '', shares: num(a.size), price: num(a.price) || null, title: a.title || '', icon: a.icon || '',
+    slug: a.event_slug || a.eventSlug || a.slug || '', outcome: a.outcome || '', tx: a.transaction_hash || a.transactionHash || '',
+    income: INCOME_TYPES.includes(type),
+  };
+}
+
+/**
+ * One page of an account's activity, newest first: { rows, next (cursor for the following page, or null) }.
+ * filter: 'all' (deposits and withdrawals included) | 'trades' | 'income' (rebates and rewards).
+ */
+export async function activity(user, { filter = 'all', cursor, limit = 50 } = {}) {
+  const type = filter === 'trades' ? TRADE_TYPES.join(',') : filter === 'income' ? INCOME_TYPES.join(',') : undefined;
+  const r = await getJson(`${DATA}/v2/activity?${qs({
+    user, type, cursor, limit, start: 1, exclude_deposits_withdrawals: filter === 'all' ? false : undefined,
+  })}`, { label: 'Polymarket' });
+  const p = r?.pagination;
+  return { rows: list(r).map(normActivity), next: p?.has_more && p.next_cursor ? p.next_cursor : null };
+}
+
+// ------------------------------------------------------------ rebate tiers
+// Two separate ladders, each on its own 30-day weighted volume: taker fills count only for the taker tier, maker
+// fills only for the maker tier. Polymarket changes both on 20 Nov 2026 at 23:59 UTC (docs.polymarket.com,
+// fee-and-rebate-changes-november-2026): Bronze and Silver go, new rates, maker tiers replace the daily pools.
+export const TIER_SWITCH = Date.UTC(2026, 10, 20, 23, 59);
+const TIERS = {
+  takerOld: [['None', 0, 0], ['Bronze', 2e3, 3], ['Silver', 2e4, 8], ['Gold', 2e5, 18], ['Platinum', 1e6, 32], ['Diamond', 4e6, 44], ['Obsidian', 1e7, 50]],
+  taker: [['None', 0, 0], ['Gold', 2e5, 10], ['Platinum', 1e6, 25], ['Diamond', 4e6, 40], ['Obsidian', 1e7, 50], ['Onyx', 75e6, 60]],
+  maker: [['None', 0, 0], ['Tier 1', 2e5, 3], ['Tier 2', 1e6, 7], ['Tier 3', 4e6, 10], ['Tier 4', 1e7, 15]],
+};
+/** The ladder in force: kind 'taker' | 'maker' -> [{ name, min (weighted volume), rate (%) }] (no maker ladder before the switch). */
+export function tierTable(kind, now = Date.now()) {
+  const rows = kind === 'maker' ? (now < TIER_SWITCH ? null : TIERS.maker) : now < TIER_SWITCH ? TIERS.takerOld : TIERS.taker;
+  return rows ? rows.map(([name, min, rate]) => ({ name, min, rate })) : null;
+}
+
+/**
+ * Where an account stands on a ladder: { name, none, rate (% or null), volume, next: { name, min, rate } | null }.
+ * The tier is Polymarket's (its name decides, the volume may lag a day); the table only adds the rate and the next
+ * step. A name the table doesn't know (a tier added later) is shown as it is, without a rate.
+ */
+export function placeInTiers(table, { name, volume }) {
+  const rows = table || [];
+  const n = String(name || '').trim().toLowerCase();
+  let i = rows.findIndex((x) => x.name.toLowerCase() === n);
+  if (i < 0 && rows.length && (!n || n === 'none' || n === 'tier 0')) i = 0;
+  const known = i >= 0 ? rows[i] : null;
+  const v = Number(volume) || 0;
+  const next = rows.find((x, j) => (known ? j > i : x.min > v)) || null;
+  return { name: known ? known.name : String(name || ''), none: i === 0, rate: known ? known.rate : null, volume: num(volume), next };
+}
+
+/** Rebate tiers of an address, from its public profile: { taker: { name, volume } | null, maker: … | null } or null. */
+export async function rebateTiers(address) {
+  const p = await getJson(`${GAMMA}/public-profile?${qs({ address })}`, { label: 'Polymarket' });
+  if (!p) return null;
+  const tier = (name, level, volume) => (name == null && level == null ? null : { name: name ?? `Tier ${level}`, volume: num(volume) });
+  return {
+    taker: tier(p.takerTierName, p.takerTier, p.takerWeightedVolume ?? p.weightedVolume),
+    // not published yet: maker tiers start on 20 Nov 2026; read under the names the taker fields suggest
+    maker: tier(p.makerTierName, p.makerTier, p.makerWeightedVolume),
   };
 }

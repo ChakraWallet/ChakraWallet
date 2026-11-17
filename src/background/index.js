@@ -514,7 +514,7 @@ async function ownsDepositWallet(from, wallet) {
 }
 /**
  * A call the user's Deposit Wallet may run: only Polymarket's contracts, no POL sent; approvals only to them;
- * pUSD transfers and pUSD -> USDC conversions only to the user's own address.
+ * pUSD transfers and pUSD -> USDC / USDC.e conversions only to the user's own address.
  */
 function safeWalletCall(c, from) {
   const known = [PM.pusd, PM.offramp, PM.ctf, PM.positionManager, PM.collateralAdapter, PM.negRiskCollateralAdapter, PM.router, PM.negRiskAdapter, PM.exchange, PM.negRiskExchange, PM.exchangeV3].map(lc);

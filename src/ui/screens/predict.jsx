@@ -9,7 +9,7 @@ import { BUILTIN_CHAINS } from '../../shared/chains.js';
 import { ethCall, erc20 } from '../../shared/rpc.js';
 import {
   regionStatus, listEvents, searchEvents, getEvent, priceHistory, watchPrices, positions, accountsOf, mainAccount, userPnl, userStats, suggestions,
-  CATEGORIES, INTERVALS, MARKET_URL,
+  activity, rebateTiers, tierTable, placeInTiers, CATEGORIES, INTERVALS, MARKET_URL,
 } from '../../shared/polymarket.js';
 import { TradeSheet, CashSheet, OpenOrders, RelayerSheet, EmergencySheet, usePolyAccount } from './predictTrade.jsx';
 import { redeem, redeemMany, balances, autoRedeemOn } from '../polyClient.js';
@@ -28,6 +28,7 @@ const tone = (n) => (n > 0.004 ? 'up' : n < -0.004 ? 'down' : '');
 const pct = (p) => (p == null ? '–' : p < 0.005 ? '<1%' : p > 0.995 ? '>99%' : `${Math.round(p * 100)}%`);
 const cents = (p) => (p == null ? '–' : `${(p * 100).toFixed(p < 0.01 || p > 0.99 ? 1 : 0)}¢`);
 const day = (d) => (d ? new Date(d).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: new Date(d).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }) : '');
+const hhmm = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 const outcomeName = (n) => ({ Yes: t('predict.yes'), No: t('predict.no') }[n] || n);
 const priceOf = (o, live) => (o?.token && live[o.token] != null ? live[o.token] : o?.price);
 
@@ -843,12 +844,16 @@ function ChartCard({ market, live, title, image }) {
 // ------------------------------------------------------------ portfolio (read-only)
 // what can be redeemed isn't a tab: it is an action, shown as a banner above the list
 const TABS = [['OPEN', 'predict.pos.positions'], ['ORDERS', 'predict.pos.orders'], ['CLOSED', 'predict.pos.history']];
+// the history: every movement of the account (all / trades / rebates and rewards) or the closed positions
+const HIST = ['all', 'trades', 'income', 'closed'];
 
 function Portfolio({ onBack, onOpen }) {
   const { account } = useApp();
   const [tick, setTick] = useState(0);
   const sum = useSummary(account.address, tick);
   const [tab, setTab] = useState('OPEN');
+  const [hist, setHist] = useState('all');
+  const activityTab = tab === 'CLOSED' && hist !== 'closed';
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
   const [user, setUser] = useState(null);
@@ -899,12 +904,13 @@ function Portfolio({ onBack, onOpen }) {
   }, [acc?.wallet, tick]);
   const redeemBtn = (p) => <button class="pm-act win" disabled={!!busy} onClick={(e) => { e.stopPropagation(); doRedeem(p); }}>{busy === p.token ? <Spinner /> : t('predict.redeem')}</button>;
   useEffect(() => {
-    if (tab === 'ORDERS') return undefined;
+    if (tab === 'ORDERS' || activityTab) return undefined;
     if (tab === 'OPEN') { setErr(''); setRows(openRows ?? null); return undefined; }
     let alive = true; setErr(''); setRows(null);
     positions(account.address, tab).then((r) => alive && setRows(r)).catch((e) => { if (alive) { setErr(e.message); setRows([]); } });
     return () => { alive = false; };
-  }, [tab, account.address, tick, openRows]);
+  }, [tab, activityTab, account.address, tick, openRows]);
+  const showIncome = () => { setTab('CLOSED'); setHist('income'); };
 
   return (
     <>
@@ -950,6 +956,7 @@ function Portfolio({ onBack, onOpen }) {
             <div><small>{t('predict.stats.since')}</small><b>{stats.joined ? new Date(stats.joined).toLocaleDateString(locale(), { month: 'short', year: 'numeric' }) : '–'}</b></div>
           </div>
         )}
+        {user && <RebateCard user={user} income={stats?.income} tick={tick} onShow={showIncome} />}
 
         {wins.length > 0 && (
           <div class="pm-win">
@@ -969,13 +976,20 @@ function Portfolio({ onBack, onOpen }) {
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} class={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t(l)}</button>)}
         </div>
         {tab === 'ORDERS' && <OpenOrders acc={acc} />}
-        {tab !== 'ORDERS' && <>
+        {tab === 'CLOSED' && (
+          <div class="pm-filters" role="tablist">
+            {HIST.map((k) => <button key={k} role="tab" aria-selected={hist === k} class={hist === k ? 'on' : ''} onClick={() => setHist(k)}>{t(`predict.hist.${k}`)}</button>)}
+          </div>
+        )}
+        {activityTab && user && <ActivityList user={user} filter={hist} tick={tick} onOpen={onOpen} />}
+        {tab !== 'ORDERS' && !activityTab && <>
         {err && <div class="pm-err"><Icon name="wifiOff" size={18} /><span>{t('predict.loadError')}</span><button class="link" onClick={() => setTick((x) => x + 1)}>{t('predict.retry')}</button></div>}
         {rows === null && [0, 1].map(() => <div class="pm-pos"><span class="skeleton" style={{ width: '2.625rem', height: '2.625rem', borderRadius: '.625rem' }} /><div class="grow col" style={{ gap: '.5rem' }}><span class="skeleton" style={{ width: '80%' }} /><span class="skeleton" style={{ width: '40%' }} /></div></div>)}
         {shown && !shown.length && !err && <div class="pm-empty"><Icon name="predict" size={28} /><span>{t(`predict.pos.empty.${tab}`)}</span></div>}
-        {shown?.map((p, i) => (
-          <PositionRow p={p} closed={tab === 'CLOSED'} onOpen={onOpen} style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
-            action={canAct && tab === 'OPEN' && p.price != null && p.price > 0 && p.price < 1
+        {tab === 'CLOSED' && shown && <ClosedDays list={shown} onOpen={onOpen} />}
+        {tab === 'OPEN' && shown?.map((p, i) => (
+          <PositionRow p={p} onOpen={onOpen} style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
+            action={canAct && p.price != null && p.price > 0 && p.price < 1
               ? <button class="pm-act" onClick={(e) => { e.stopPropagation(); setSheet({ sell: p }); }}>{t('predict.sell')}</button>
               : null} />
         ))}
@@ -1066,10 +1080,10 @@ function MoneyMap({ acc, inPositions, tick }) {
   );
 }
 
-function PositionRow({ p, closed, onOpen, style, action }) {
-  // history: the whole result of the position; open: the part still held, the same base as the percentage
-  const pnl = closed ? (p.pnl ?? p.realized) : p.unrealized;
-  const shares = (closed ? p.totalSize : p.size) || p.size;
+function PositionRow({ p, onOpen, style, action }) {
+  // the part still held, the same base as the percentage (closed positions are in the history: ClosedDays)
+  const pnl = p.unrealized;
+  const shares = p.size;
   return (
     <button class="pm-pos" onClick={() => p.slug && onOpen(p.slug)} style={style}>
       <Img src={p.icon} size={42} />
@@ -1081,13 +1095,239 @@ function PositionRow({ p, closed, onOpen, style, action }) {
         </span>
       </span>
       <span class="pm-pos-right">
-        {closed ? <b class={tone(pnl)}>{signed(pnl)}</b> : <b>{usd(p.value)}</b>}
-        {closed ? <small class={`pm-badge ${pnl > 0 ? 'won' : 'lost'}`}>{pnl > 0 ? t('predict.pos.won') : t('predict.pos.lost')}</small>
-          : pnl != null && <small class={tone(pnl) || 'muted'}>{signed(pnl)}{p.pnlPct != null ? ` · ${p.pnlPct > 0 ? '+' : ''}${p.pnlPct.toFixed(1)}%` : ''}</small>}
-        {!closed && p.redeemable && p.value > 0.005 && !action && <small class="pm-badge won">{t('predict.pos.won')}</small>}
+        <b>{usd(p.value)}</b>
+        {pnl != null && <small class={tone(pnl) || 'muted'}>{signed(pnl)}{p.pnlPct != null ? ` · ${p.pnlPct > 0 ? '+' : ''}${p.pnlPct.toFixed(1)}%` : ''}</small>}
+        {p.redeemable && p.value > 0.005 && !action && <small class="pm-badge won">{t('predict.pos.won')}</small>}
         {action}
       </span>
     </button>
+  );
+}
+
+// ------------------------------------------------------------ history: every movement of the account
+const ACT_TYPES = ['REDEEM', 'SPLIT', 'MERGE', 'CONVERSION', 'MIGRATION', 'REWARD', 'YIELD', 'MAKER_REBATE', 'TAKER_REBATE', 'REFERRAL_REWARD',
+  'DEPOSIT', 'WITHDRAWAL', 'DIRECTIONAL_SPLIT', 'DIRECTIONAL_MERGE', 'THRESHOLD_COMPOSE', 'THRESHOLD_DECOMPOSE'];
+const ACT_ICON = { MAKER_REBATE: 'coins', TAKER_REBATE: 'coins', REWARD: 'trophy', REFERRAL_REWARD: 'star', YIELD: 'chart', DEPOSIT: 'receive', WITHDRAWAL: 'send' };
+const actLabel = (r) => (r.type === 'TRADE' ? t(r.side === 'SELL' ? 'predict.act.sell' : 'predict.act.buy')
+  : ACT_TYPES.includes(r.type) ? t(`predict.act.type.${r.type}`) : r.type);
+/** The day in full, so it reads at a glance: "Oggi · martedì 17 novembre 2026". */
+function dayLabel(ms) {
+  if (!ms) return t('predict.act.noDate');
+  const d = new Date(ms), now = new Date(), y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const full = d.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const rel = d.toDateString() === now.toDateString() ? t('predict.act.today') : d.toDateString() === y.toDateString() ? t('predict.act.yesterday') : '';
+  return rel ? `${rel} · ${full}` : full;
+}
+
+/**
+ * Items (newest first, `at` in ms) by day, and inside a day by market (keyOf), markets in the order of their
+ * latest item: [{ k, at, groups: [{ key, items }] }]. Pages loaded later join the days already there.
+ */
+function byDay(items, keyOf) {
+  const days = [], index = new Map();
+  for (const x of items) {
+    const k = x.at ? new Date(x.at).toDateString() : '';
+    let d = index.get(k);
+    if (!d) { d = { k, at: x.at, groups: [], by: new Map() }; index.set(k, d); days.push(d); }
+    const gk = keyOf(x);
+    let g = d.by.get(gk);
+    if (!g) { g = { key: gk, items: [] }; d.by.set(gk, g); d.groups.push(g); }
+    g.items.push(x);
+  }
+  return days;
+}
+
+/** One day of the history: the date, then one card with that day's markets and their movements. */
+function DayCard({ at, children }) {
+  return (
+    <section class="pm-dc">
+      <h3 class="pm-dc-day">{dayLabel(at)}</h3>
+      <div class="pm-dc-body">{children}</div>
+    </section>
+  );
+}
+
+/** A market (image and name) or a kind of payment (e.g. maker rebates) in a day, its movements below; net when more than one. */
+function DayGroup({ head, img, icon, net, onOpen, children }) {
+  const H = onOpen ? 'button' : 'div';
+  return (
+    <div class="pm-dg">
+      <H class="pm-dg-h" onClick={onOpen || undefined}>
+        {icon ? <span class={`pm-act-ic ${icon.cls || ''}`}><Icon name={icon.name} size={18} /></span> : <Img src={img} size={40} />}
+        <span class="pm-dg-title">{head}</span>
+        {net != null && <span class="pm-dg-net"><small>{t('predict.act.net')}</small><b class={tone(net)}>{signed(net)}</b></span>}
+      </H>
+      {children}
+    </div>
+  );
+}
+
+/** One movement: time, what happened (and the outcome), details, amount. */
+function Move({ at, kind, kindCls = '', outcome, sub, amount, amountCls = '' }) {
+  return (
+    <div class="pm-mv">
+      <span class="pm-mv-time">{at ? hhmm(at) : '–'}</span>
+      <span class="pm-mv-main">
+        <span class="pm-mv-top">
+          <b class={`pm-mv-kind ${kindCls}`}>{kind}</b>
+          {outcome && <span class={`pm-out ${/^(no|down)$/i.test(outcome) ? 'no' : 'yes'}`}>{outcomeName(outcome)}</span>}
+        </span>
+        {sub && <span class="pm-mv-sub">{sub}</span>}
+      </span>
+      {amount && <b class={`pm-mv-amt ${amountCls}`}>{amount}</b>}
+    </div>
+  );
+}
+
+/** The account's movements, newest first and by day: trades, redemptions, rebates and rewards, deposits / withdrawals. */
+function ActivityList({ user, filter, tick, onOpen }) {
+  const { toast } = useApp();
+  const [rows, setRows] = useState(null);
+  const [next, setNext] = useState(null);
+  const [err, setErr] = useState(false);
+  const [more, setMore] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const gen = useRef(0); // a page that arrives after the filter changed is dropped
+  useEffect(() => {
+    const g = ++gen.current;
+    setRows(null); setNext(null); setErr(false);
+    activity(user, { filter }).then((r) => { if (g === gen.current) { setRows(r.rows); setNext(r.next); } })
+      .catch(() => { if (g === gen.current) { setErr(true); setRows([]); } });
+  }, [user, filter, tick, retry]);
+  const loadMore = async () => {
+    const g = gen.current;
+    setMore(true);
+    try {
+      const r = await activity(user, { filter, cursor: next });
+      if (g === gen.current) { setRows((x) => [...(x || []), ...r.rows]); setNext(r.next); }
+    } catch { toast(t('predict.loadError'), 'warn'); }
+    setMore(false);
+  };
+  // a market's movements together; what has no market (rebates, rewards, deposits…) together by kind
+  const days = useMemo(() => byDay(rows || [], (r) => (r.title ? `m:${r.market || r.title}` : `k:${r.type}`)), [rows]);
+
+  if (rows === null) return [0, 1].map(() => <div class="pm-pos"><span class="skeleton" style={{ width: '2.625rem', height: '2.625rem', borderRadius: '.625rem' }} /><div class="grow col" style={{ gap: '.5rem' }}><span class="skeleton" style={{ width: '80%' }} /><span class="skeleton" style={{ width: '40%' }} /></div></div>);
+  if (err && !rows.length) return <div class="pm-err"><Icon name="wifiOff" size={18} /><span>{t('predict.loadError')}</span><button class="link" onClick={() => setRetry((x) => x + 1)}>{t('predict.retry')}</button></div>;
+  if (!rows.length) return <div class="pm-empty"><Icon name={filter === 'income' ? 'coins' : 'history'} size={28} /><span>{t(`predict.act.empty.${filter}`)}</span></div>;
+  return (
+    <>
+      {days.map((d) => (
+        <DayCard key={d.k} at={d.at}>
+          {d.groups.map((g) => {
+            const r0 = g.items[0], market = !!r0.title; // rebates, rewards, deposits and withdrawals have no market
+            return (
+              <DayGroup key={g.key} head={market ? r0.title : actLabel(r0)} img={r0.icon}
+                icon={market ? null : { name: ACT_ICON[r0.type] || 'history', cls: r0.income ? 'inc' : '' }}
+                net={g.items.length > 1 ? g.items.reduce((s, r) => s + r.flow * r.usd, 0) : null}
+                onOpen={market && r0.slug ? () => onOpen(r0.slug) : null}>
+                {g.items.map((r, i) => <ActivityMove key={`${r.tx}:${i}`} r={r} />)}
+              </DayGroup>
+            );
+          })}
+        </DayCard>
+      ))}
+      {next && <button class="pm-more" disabled={more} onClick={loadMore}>{more ? <Spinner /> : t('predict.act.more')}</button>}
+    </>
+  );
+}
+
+function ActivityMove({ r }) {
+  const trade = r.type === 'TRADE' && r.shares > 0 && r.price > 0;
+  // under a market: what was done; under a kind of payment (its name is the header): what it means for the cash
+  const kind = r.title ? actLabel(r) : r.income ? t('predict.act.paid')
+    : r.type === 'DEPOSIT' ? t('predict.act.in') : r.type === 'WITHDRAWAL' ? t('predict.act.out') : actLabel(r);
+  return (
+    <Move at={r.at} kind={kind} kindCls={r.flow > 0 ? 'in' : ''} outcome={r.title ? r.outcome : ''}
+      sub={trade ? t('predict.act.shares', { n: r.shares.toLocaleString(locale(), { maximumFractionDigits: 2 }), p: cents(r.price) }) : ''}
+      amount={r.usd > 0 ? (r.flow ? signed(r.flow * r.usd) : usd(r.usd)) : ''} amountCls={r.income ? 'up' : ''} />
+  );
+}
+
+/** Closed positions by the day they closed (last trade or redemption), grouped by market. */
+function ClosedDays({ list, onOpen }) {
+  const res = (p) => p.pnl ?? p.realized;
+  const days = useMemo(() => byDay(list.map((p) => ({ ...p, at: p.lastAt ? (p.lastAt < 1e12 ? p.lastAt * 1000 : p.lastAt) : 0 })),
+    (p) => p.conditionId || p.title), [list]);
+  return days.map((d) => (
+    <DayCard key={d.k} at={d.at}>
+      {d.groups.map((g) => {
+        const p0 = g.items[0];
+        return (
+          <DayGroup key={g.key} head={p0.title} img={p0.icon} onOpen={p0.slug ? () => onOpen(p0.slug) : null}
+            net={g.items.length > 1 ? g.items.reduce((s, p) => s + (res(p) || 0), 0) : null}>
+            {g.items.map((p) => {
+              const pnl = res(p);
+              return (
+                <Move key={p.token} at={p.at} kind={pnl > 0 ? t('predict.pos.won') : t('predict.pos.lost')} kindCls={pnl > 0 ? 'in' : 'lost'}
+                  outcome={p.outcome} amount={signed(pnl)} amountCls={tone(pnl)}
+                  sub={t('predict.act.closedSub', { n: ((p.totalSize || p.size) || 0).toLocaleString(locale(), { maximumFractionDigits: 2 }), avg: cents(p.avgPrice) })} />
+              );
+            })}
+          </DayGroup>
+        );
+      })}
+    </DayCard>
+  ));
+}
+
+// ------------------------------------------------------------ rebates
+/**
+ * Rebates: the account's tiers (taker, and maker from 20 Nov 2026: two ladders, each on its own weighted volume) and
+ * what Polymarket has credited so far, maker and taker apart, next to the fees paid.
+ */
+function RebateCard({ user, income, tick, onShow }) {
+  const [tiers, setTiers] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    rebateTiers(user).then((x) => alive && setTiers(x)).catch(() => alive && setTiers(null));
+    return () => { alive = false; };
+  }, [user, tick]);
+  const now = Date.now();
+  const takerTable = tierTable('taker', now), makerTable = tierTable('maker', now);
+  const taker = tiers?.taker ? placeInTiers(takerTable, tiers.taker) : null;
+  const maker = tiers?.maker && makerTable ? placeInTiers(makerTable, tiers.maker) : null;
+  if (!taker && !maker && !income) return null;
+  const inc = income || {};
+  const others = (inc.rewards || 0) + (inc.referral || 0) + (inc.yield || 0);
+  const line = (label, v, cls = '') => <div class="pm-rb-row"><span>{label}</span><b class={cls}>{v}</b></div>;
+  const money = (v) => (v != null ? signed(v) : '–');
+  return (
+    <div class="card pm-rb">
+      <div class="pm-rb-head"><span class="pm-rb-ic"><Icon name="coins" size={17} /></span><b>{t('predict.rb.title')}</b></div>
+      {taker && <TierLine kind="taker" p={taker} />}
+      {maker && <TierLine kind="maker" p={maker} />}
+      {income && (
+        <div class="pm-rb-rows">
+          {line(t('predict.rb.takerPaid'), money(inc.taker), tone(inc.taker))}
+          {line(t('predict.rb.makerPaid'), money(inc.maker), tone(inc.maker))}
+          {others > 0.004 && line(t('predict.rb.rewards'), signed(others), 'up')}
+          {inc.fees != null && line(t('predict.rb.fees'), money(inc.fees))}
+        </div>
+      )}
+      <button class="pm-rb-link" onClick={onShow}>{t('predict.rb.show')}<Icon name="forward" size={14} /></button>
+    </div>
+  );
+}
+
+/** One ladder: tier and its rate, then one short line under the bar: 30-day weighted volume / next threshold, next tier. */
+function TierLine({ kind, p }) {
+  const v = p.volume || 0;
+  const left = p.next ? p.next.min - v : 0;
+  const money = (x) => usd(x, x >= 1e5);
+  return (
+    <div class="pm-tier">
+      <div class="pm-tier-top">
+        <small>{t(`predict.rb.${kind}Tier`)}</small>
+        <b>{p.none ? t('predict.rb.none') : p.name}{!p.none && p.rate != null && <span class="pm-tier-rate">{p.rate}%</span>}</b>
+      </div>
+      <div class="pm-tier-bar"><span style={{ width: `${(p.next ? Math.max(0, Math.min(1, v / p.next.min)) : 1) * 100}%` }} /></div>
+      <div class="pm-tier-sub">
+        <span>{p.next ? t('predict.rb.progress', { v: money(v), min: money(p.next.min) }) : t('predict.rb.volume', { v: money(v) })}</span>
+        <span class="pm-tier-next">{!p.next ? t('predict.rb.top')
+          : left > 0 ? <><Icon name="forward" size={11} stroke={2.5} />{p.next.name} {p.next.rate}%</>
+            : t('predict.rb.soon', { tier: p.next.name })}</span>
+      </div>
+    </div>
   );
 }
 

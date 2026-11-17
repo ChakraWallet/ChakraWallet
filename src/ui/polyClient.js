@@ -306,6 +306,25 @@ export async function openOrders(acc) {
 export const cancelOrder = (acc, id) => l2(acc, 'DELETE', '/order', { json: { orderID: id } });
 
 // ------------------------------------------------------------ cash in / out, redeem
+/** Polymarket's ramp for an asset is paused (true), running (false) or unknown (null: the read failed). */
+const rampPaused = (ramp, asset) => ethCall(POLYGON, ramp, iface.ramp.encodeFunctionData('paused', [asset]))
+  .then((r) => BigInt(r) === 1n).catch(() => null);
+/**
+ * Which assets the ramps convert right now: { deposit: { usdc, usdce }, withdraw: { usdc, usdce } }, true = paused
+ * by Polymarket (null = unknown, try anyway).
+ */
+export async function rampState() {
+  const [onUsdc, onUsdce, offUsdc, offUsdce] = await Promise.all([
+    rampPaused(C.onramp, C.usdc), rampPaused(C.onramp, C.usdce), rampPaused(C.offramp, C.usdc), rampPaused(C.offramp, C.usdce),
+  ]);
+  return { deposit: { usdc: onUsdc, usdce: onUsdce }, withdraw: { usdc: offUsdc, usdce: offUsdce } };
+}
+const symbolOf = (asset) => (lc(asset) === lc(C.usdce) ? 'USDC.e' : 'USDC');
+// checked again right before signing: a paused ramp would only answer "execution reverted"
+async function assertRampOpen(ramp, asset) {
+  if (await rampPaused(ramp, asset)) throw err('predict.cash.pausedErr', { sym: symbolOf(asset) });
+}
+
 /**
  * USDC or USDC.e on the address -> pUSD on the trading wallet; pUSD already on the address is simply moved there.
  * Always sent from the address (it holds the funds): no Safe / relayer call needed.
@@ -315,17 +334,19 @@ export async function deposit(acc, asset, amount, password) {
     if (lc(acc.wallet) === lc(acc.signer)) throw err('predict.cash.alreadyThere');
     return sendCalls({ ...acc, mode: 'eoa' }, [call.transfer(C.pusd, acc.wallet, amount)], password, t('predict.tx.deposit'));
   }
+  await assertRampOpen(C.onramp, asset);
   const calls = [];
   if ((await allowance(asset, acc.signer, C.onramp)) < amount) calls.push(call.approve(asset, C.onramp, amount));
   calls.push(call.wrap(asset, acc.wallet, amount));
   // always from the address itself (it holds the USDC)
   return sendCalls({ ...acc, mode: 'eoa' }, calls, password, t('predict.tx.deposit'));
 }
-/** pUSD on the trading wallet -> USDC on the address. */
-export async function withdraw(acc, amount, password) {
+/** pUSD on the trading wallet -> USDC or USDC.e (asset) on the address. */
+export async function withdraw(acc, amount, password, asset = C.usdc) {
+  await assertRampOpen(C.offramp, asset);
   const calls = [];
   if ((await allowance(C.pusd, acc.wallet, C.offramp)) < amount) calls.push(call.approve(C.pusd, C.offramp, amount));
-  calls.push(call.unwrap(C.usdc, acc.signer, amount));
+  calls.push(call.unwrap(asset, acc.signer, amount));
   return execCalls(acc, calls, password, t('predict.tx.withdraw'));
 }
 /** Redeem a resolved position (pays pUSD into the trading wallet). */

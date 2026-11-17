@@ -7,7 +7,7 @@ import { t, locale } from '../../shared/i18n.js';
 import { feePerShare } from '../../shared/polytrade.js';
 import { C } from '../../shared/polytrade.js';
 import {
-  polyAccount, bookOf, balances, shareBalance, quoteMarket, placeOrder, deposit, withdraw,
+  polyAccount, bookOf, balances, shareBalance, quoteMarket, placeOrder, deposit, withdraw, rampState,
   openOrders, cancelOrder, hasCreds, ensureCreds, SLIPPAGE,
   hasRelayerKey, setRelayerKey, emergencyState, emergencyPause, emergencyUnpause, emergencyWithdraw,
 } from '../polyClient.js';
@@ -261,6 +261,26 @@ export function CashSheet({ kind, acc, onClose, onDone }) {
   const [done, setDone] = useState(false);
   useEffect(() => { balances(acc).then(setBal).catch((e) => setErr(e.message)); }, [acc]);
   const dep = kind === 'deposit';
+  // Polymarket may pause the conversion of one asset (it did for native USDC): that option is turned off
+  const [to, setTo] = useState('usdc'); // withdraw: what arrives on the address
+  const [paused, setPaused] = useState({});
+  useEffect(() => {
+    let alive = true;
+    rampState().then((s) => {
+      if (!alive) return;
+      const p = dep ? s.deposit : s.withdraw;
+      setPaused(p);
+      const open = ['usdc', 'usdce'].find((k) => !p[k]);
+      if (dep) setAsset((k) => (p[k] && open ? open : k));
+      else setTo((k) => (p[k] && open ? open : k));
+    });
+    return () => { alive = false; };
+  }, [dep]);
+  const options = dep
+    ? [['usdc', 'USDC'], ['usdce', 'USDC.e'], ...(bal?.separate || acc.wallet !== acc.signer ? [['pusdOwn', 'pUSD']] : [])]
+    : [['usdc', 'USDC'], ['usdce', 'USDC.e']];
+  const choice = dep ? asset : to;
+  const allPaused = !dep && paused.usdc && paused.usdce;
   // a Deposit Wallet withdraws through Polymarket's relayer: its key must be linked first
   const [relayer, setRelayer] = useState(null);
   const needsRelayer = !dep && acc.mode === 'deposit';
@@ -271,7 +291,7 @@ export function CashSheet({ kind, acc, onClose, onDone }) {
   const go = async () => {
     setErr(''); setBusy(true);
     try {
-      await authorize(async (password) => (dep ? deposit(acc, asset === 'usdc' ? C.usdc : asset === 'usdce' ? C.usdce : C.pusd, raw6(a), password) : withdraw(acc, raw6(a), password)), dep ? t('predict.deposit') : t('predict.withdraw'));
+      await authorize(async (password) => (dep ? deposit(acc, asset === 'usdc' ? C.usdc : asset === 'usdce' ? C.usdce : C.pusd, raw6(a), password) : withdraw(acc, raw6(a), password, to === 'usdce' ? C.usdce : C.usdc)), dep ? t('predict.deposit') : t('predict.withdraw'));
       setDone(true); onDone?.();
     } catch (e) { if (e.key === 'predict.relayer.needKey') setRelayer(false); else if (!e.cancelled) setErr(e.message); }
     setBusy(false);
@@ -298,21 +318,21 @@ export function CashSheet({ kind, acc, onClose, onDone }) {
         {/* where the money goes: your address <-> Polymarket */}
         <div class="cs-route">{dep ? ends[0] : ends[1]}<span class="cs-arrow"><Icon name="forward" size={16} /></span>{dep ? ends[1] : ends[0]}</div>
         <p class="small muted pt-cash-info">{dep ? t(acc.mode === 'safe' || acc.mode === 'deposit' ? 'predict.cash.depositInfoSafe' : 'predict.cash.depositInfo') : t('predict.cash.withdrawInfo')}</p>
-        {dep && (
-          <div class="cs-assets">
-            {[['usdc', 'USDC'], ['usdce', 'USDC.e'], ...(bal?.separate || acc.wallet !== acc.signer ? [['pusdOwn', 'pUSD']] : [])].map(([k, sym]) => {
-              const tk = k === 'pusdOwn' ? { ...PUSD, name: t('predict.cash.onAddress') } : TOK[k];
-              return (
-                <button key={k} class={`cs-asset ${asset === k ? 'on' : ''}`} onClick={() => setAsset(k)}>
-                  <TokenIcon symbol={sym} icon={tk?.icon} />
-                  <span class="cs-name"><b>{sym}</b><small>{tk?.name}</small></span>
-                  <span class="cs-bal">{bal ? usd(Number(bal[k]) / 1e6) : '…'}</span>
-                  <span class="cs-check"><Icon name="check" size={13} stroke={3} /></span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {!dep && <div class="cs-label small muted">{t('predict.cash.receiveAs')}</div>}
+        <div class="cs-assets">
+          {options.map(([k, sym]) => {
+            const tk = k === 'pusdOwn' ? { ...PUSD, name: t('predict.cash.onAddress') } : TOK[k];
+            const off = !!paused[k];
+            return (
+              <button key={k} class={`cs-asset ${choice === k ? 'on' : ''} ${off ? 'off' : ''}`} disabled={off} onClick={() => (dep ? setAsset(k) : setTo(k))}>
+                <TokenIcon symbol={sym} icon={tk?.icon} />
+                <span class="cs-name"><b>{sym}</b><small>{off ? t('predict.cash.paused') : tk?.name}</small></span>
+                {dep && <span class="cs-bal">{bal ? usd(Number(bal[k]) / 1e6) : '…'}</span>}
+                <span class="cs-check"><Icon name="check" size={13} stroke={3} /></span>
+              </button>
+            );
+          })}
+        </div>
         <div class="pt-amount">
           <label>{t('predict.amountUsd')}</label>
           <div class="input-wrap">
@@ -327,8 +347,9 @@ export function CashSheet({ kind, acc, onClose, onDone }) {
           </div>
         </div>
         {lowGas && <div class="cs-gas"><TokenIcon sm symbol="POL" /><span>{t('predict.err.lowGas')}</span></div>}
+        {allPaused && <div class="cs-gas"><Icon name="warn" size={16} /><span>{t('predict.cash.allPaused')}</span></div>}
         {err && <div class="error small">{err}</div>}
-        <Btn disabled={!(a > 0) || avail == null || a > avail + 1e-9 || busy} loading={busy} onClick={go}>{dep ? t('predict.deposit') : t('predict.withdraw')}</Btn>
+        <Btn disabled={!(a > 0) || avail == null || a > avail + 1e-9 || busy || !!paused[choice]} loading={busy} onClick={go}>{dep ? t('predict.deposit') : t('predict.withdraw')}</Btn>
       </div>
     </Sheet>
   );

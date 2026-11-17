@@ -33,7 +33,8 @@ export const SIG = { EOA: 0, PROXY: 1, SAFE: 2, DEPOSIT: 3 };
 export const iface = {
   erc20: new Interface(['function approve(address spender, uint256 amount) returns (bool)', 'function allowance(address owner, address spender) view returns (uint256)', 'function balanceOf(address) view returns (uint256)', 'function transfer(address to, uint256 amount) returns (bool)']),
   erc1155: new Interface(['function setApprovalForAll(address operator, bool approved)', 'function isApprovedForAll(address account, address operator) view returns (bool)', 'function balanceOf(address account, uint256 id) view returns (uint256)']),
-  ramp: new Interface(['function wrap(address _asset, address _to, uint256 _amount)', 'function unwrap(address _asset, address _to, uint256 _amount)']),
+  // Polymarket can pause a ramp for one asset (it did for native USDC): wrap / unwrap then revert with OnlyUnpaused()
+  ramp: new Interface(['function wrap(address _asset, address _to, uint256 _amount)', 'function unwrap(address _asset, address _to, uint256 _amount)', 'function paused(address _asset) view returns (bool)']),
   ctfRedeem: new Interface(['function redeemPositions(address collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] indexSets)']),
   router: new Interface(['function redeem(bytes31 conditionId, uint256 outcomeIndex, uint256 amount)']),
   safe: new Interface([
