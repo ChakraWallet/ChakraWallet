@@ -423,22 +423,53 @@ body.mobile.kb-open .toast { bottom: 1rem; }
 /* QR scanner */
 .scan-open { width: 2.875rem; height: 2.875rem; flex: none; border-radius: .75rem; background: var(--primary-soft); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; transition: transform .12s; }
 .scan-open:active { transform: scale(.92); }
-.scanner { position: fixed; inset: 0; z-index: 60; background: #000; animation: fade .25s; }
-.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
-.scan-frame { position: fixed; left: 50%; top: 45%; width: min(70vw, 16rem); height: min(70vw, 16rem); transform: translate(-50%, -50%); border-radius: 1.5rem;
-  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .55); transition: left .35s var(--spring), top .35s var(--spring), width .35s var(--spring), height .35s var(--spring), border-radius .35s; }
-.scan-frame.locked { transform: none; border-radius: .75rem; }
-.scan-frame .c { position: absolute; width: 2.25rem; height: 2.25rem; border: 4px solid #fff; transition: border-color .25s; animation: scan-breathe 1.6s ease-in-out infinite; }
-.scan-frame .tl { left: -2px; top: -2px; border-right: 0; border-bottom: 0; border-radius: 1.25rem 0 0 0; }
-.scan-frame .tr { right: -2px; top: -2px; border-left: 0; border-bottom: 0; border-radius: 0 1.25rem 0 0; }
-.scan-frame .bl { left: -2px; bottom: -2px; border-right: 0; border-top: 0; border-radius: 0 0 0 1.25rem; }
-.scan-frame .br { right: -2px; bottom: -2px; border-left: 0; border-top: 0; border-radius: 0 0 1.25rem 0; }
-@keyframes scan-breathe { 50% { transform: scale(1.06); } }
-.scan-frame .tl, .scan-frame .tr, .scan-frame .bl, .scan-frame .br { transform-origin: center; }
-.scan-frame.found .c { border-color: #3fcb86; animation: none; }
-.scan-laser { position: absolute; left: 8%; right: 8%; height: 2px; top: 10%; border-radius: 2px; background: linear-gradient(90deg, transparent, #6e95ff, transparent); box-shadow: 0 0 12px 2px rgba(110, 149, 255, .7); animation: scan-sweep 2.2s ease-in-out infinite; }
-@keyframes scan-sweep { 0%, 100% { top: 10%; } 50% { top: 88%; } }
-.scan-ok { position: absolute; inset: 0; margin: auto; width: 3.5rem; height: 3.5rem; border-radius: 50%; background: #3fcb86; color: #fff; display: flex; align-items: center; justify-content: center; animation: pop .35s var(--spring); }
+.scanner { position: fixed; inset: 0; z-index: 60; background: #000; animation: fade .25s; transition: opacity .28s var(--ease-out); }
+.scanner.closing { opacity: 0; pointer-events: none; }
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; opacity: 0; transition: opacity .35s var(--ease-out); }
+.scanner video.live { opacity: 1; }
+/* the viewfinder: the darkened surround with a hole, and four corner marks; when a code is found they move onto it
+   by translations only (scanner.jsx), in the same .45 s. The surround: opaque bands and rounded fillers in a
+   translucent group (overlaps don't add up). */
+.scan-dim { position: fixed; inset: 0; pointer-events: none; opacity: .55; transition: opacity .45s var(--ease-out); }
+.scan-dim.found { opacity: .66; }
+.scan-dim i { position: absolute; background: #000; will-change: transform; transition: transform .45s var(--ease-out); }
+.scan-dim .f { width: calc(var(--r) + 1px); height: calc(var(--r) + 1px); background: none; }
+.scan-dim .f.tl { background: radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .6px), #000 calc(var(--r) + .4px)); }
+.scan-dim .f.tr { background: radial-gradient(circle at 0 100%, transparent calc(var(--r) - .6px), #000 calc(var(--r) + .4px)); }
+.scan-dim .f.bl { background: radial-gradient(circle at 100% 0, transparent calc(var(--r) - .6px), #000 calc(var(--r) + .4px)); }
+.scan-dim .f.br { background: radial-gradient(circle at 0 0, transparent calc(var(--r) - .6px), #000 calc(var(--r) + .4px)); }
+.scan-corners { position: fixed; pointer-events: none; }
+.scan-corners .c { position: absolute; width: 2.25rem; height: 2.25rem; will-change: transform; transition: transform .45s var(--ease-out); }
+.scan-corners .c i { position: absolute; inset: 0; border: 4px solid #fff; transform-origin: center; animation: scan-breathe 1.6s ease-in-out infinite; transition: border-color .45s var(--ease-out); }
+.scan-corners .tl { left: -2px; top: -2px; }
+.scan-corners .tr { right: -2px; top: -2px; }
+.scan-corners .bl { left: -2px; bottom: -2px; }
+.scan-corners .br { right: -2px; bottom: -2px; }
+.scan-corners .tl i { border-right: 0; border-bottom: 0; border-radius: 1.25rem 0 0 0; }
+.scan-corners .tr i { border-left: 0; border-bottom: 0; border-radius: 0 1.25rem 0 0; }
+.scan-corners .bl i { border-right: 0; border-top: 0; border-radius: 0 0 0 1.25rem; }
+.scan-corners .br i { border-left: 0; border-top: 0; border-radius: 0 0 1.25rem 0; }
+@keyframes scan-breathe { 50% { transform: scale(1.04); } }
+.scan-corners.found .c i { border-color: #3fcb86; animation: none; }
+/* the field inside the hole (scanField.js draws it on the canvas), clipped to the hole's curve */
+.scan-area { position: fixed; pointer-events: none; overflow: hidden; border-radius: var(--r); }
+.scan-grid, .scan-field { position: absolute; inset: 0; width: 100%; height: 100%; }
+.scan-grid { transition: opacity .3s var(--ease-out); }
+.scan-area.found .scan-grid { opacity: 0; }
+/* the check, on the code: a green disc opens, the tick is drawn, a ring spreads and fades */
+.scan-check { position: fixed; width: 4.5rem; height: 4.5rem; margin: -2.25rem 0 0 -2.25rem; overflow: visible; pointer-events: none; filter: drop-shadow(0 .5rem 1.25rem rgba(0, 0, 0, .35)); }
+.scan-check .disc { fill: #3fcb86; transform-box: fill-box; transform-origin: center; animation: chk-disc .45s .3s cubic-bezier(.2, .9, .3, 1.12) both; }
+.scan-check .ring { fill: none; stroke: #3fcb86; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: chk-ring .9s .45s var(--ease-out) both; }
+.scan-check .tick { fill: none; stroke: #fff; stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: chk-draw .4s .55s var(--ease-out) forwards; }
+@keyframes chk-disc { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes chk-ring { from { transform: scale(1); opacity: .6; } to { transform: scale(1.8); opacity: 0; } }
+@keyframes chk-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .scanner, .scanner video, .scan-dim, .scan-dim i, .scan-corners .c, .scan-corners .c i { transition: none; }
+  .scan-corners .c i, .scan-check .disc, .scan-check .tick { animation: none; }
+  .scan-check .tick { stroke-dashoffset: 0; }
+  .scan-check .ring { display: none; }
+}
 .scan-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 1rem; color: #fff; }
 .scan-title { font-family: var(--display); font-weight: 600; font-size: 1.0625rem; }
 .scan-btn { width: 2.75rem; height: 2.75rem; border-radius: 50%; background: rgba(0, 0, 0, .45); color: #fff; display: inline-flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
