@@ -287,6 +287,7 @@ export async function activity(user, { filter = 'all', cursor, limit = 50 } = {}
 // fee-and-rebate-changes-november-2026): Bronze and Silver go, new rates, maker tiers replace the daily pools.
 export const TIER_SWITCH = Date.UTC(2026, 10, 20, 23, 59);
 const TIERS = {
+  // [name, 30-day weighted volume, rebate %]
   takerOld: [['None', 0, 0], ['Bronze', 2e3, 3], ['Silver', 2e4, 8], ['Gold', 2e5, 18], ['Platinum', 1e6, 32], ['Diamond', 4e6, 44], ['Obsidian', 1e7, 50]],
   taker: [['None', 0, 0], ['Gold', 2e5, 10], ['Platinum', 1e6, 25], ['Diamond', 4e6, 40], ['Obsidian', 1e7, 50], ['Onyx', 75e6, 60]],
   maker: [['None', 0, 0], ['Tier 1', 2e5, 3], ['Tier 2', 1e6, 7], ['Tier 3', 4e6, 10], ['Tier 4', 1e7, 15]],
@@ -296,6 +297,8 @@ export function tierTable(kind, now = Date.now()) {
   const rows = kind === 'maker' ? (now < TIER_SWITCH ? null : TIERS.maker) : now < TIER_SWITCH ? TIERS.takerOld : TIERS.taker;
   return rows ? rows.map(([name, min, rate]) => ({ name, min, rate })) : null;
 }
+/** Weighted volume = shares × price × (1 − price), times the category weight on the taker ladder until the switch. */
+export const weightedByCategory = (kind, now = Date.now()) => kind === 'taker' && now < TIER_SWITCH;
 
 /**
  * Where an account stands on a ladder: { name, none, rate (% or null), volume, next: { name, min, rate } | null }.

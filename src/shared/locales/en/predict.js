@@ -305,4 +305,18 @@ export default {
   'predict.rb.rewards': "Rewards, referrals and yield",
   'predict.rb.fees': "Fees paid",
   'predict.rb.show': "See the rebates received",
+  // rebate tiers sheet
+  'predict.tiers.title.taker': "Taker rebate tiers",
+  'predict.tiers.title.maker': "Maker rebate tiers",
+  'predict.tiers.intro.taker': "A share of the fees you pay as a taker, paid back to you daily in pUSD.",
+  'predict.tiers.intro.maker': "A share of the fees takers pay on your orders, paid to you daily in pUSD.",
+  'predict.tiers.tier': "Tier",
+  'predict.tiers.volume': "30-day volume",
+  'predict.tiers.rate': "Rebate",
+  'predict.tiers.n': "Tier {n}",
+  'predict.tiers.you': "You are here: {v} weighted volume",
+  'predict.tiers.left': "{v} to go for {tier}",
+  'predict.tiers.top': "You are on the highest tier",
+  'predict.tiers.formula': "Weighted volume = shares × price × (1 − price)",
+  'predict.tiers.weights': " × category weight (crypto 2.3×, geopolitics 0)",
 };

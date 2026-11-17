@@ -1115,7 +1115,8 @@ body.kb-open .pm-totop { display: none; }
 .pm-rb-recv small { font-size: .6875rem; font-weight: 600; color: var(--muted); }
 .pm-rb-recv b { font-size: 1rem; }
 .pm-rb-why { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--muted); }
-.pm-tier { display: flex; flex-direction: column; gap: .375rem; }
+.pm-tier { display: flex; flex-direction: column; gap: .375rem; width: 100%; text-align: left; color: var(--text); transition: transform .12s; }
+.pm-tier:active { transform: scale(.985); }
 .pm-tier-top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
 .pm-tier-top small { font-size: .75rem; color: var(--muted); font-weight: 600; }
 .pm-tier-top b { display: inline-flex; align-items: center; gap: .375rem; font-size: .9375rem; }
@@ -1130,6 +1131,23 @@ body.kb-open .pm-totop { display: none; }
 .pm-rb-row span { color: var(--muted); }
 .pm-rb-row b { font-variant-numeric: tabular-nums; }
 .pm-rb-link { align-self: flex-start; display: inline-flex; align-items: center; gap: .25rem; color: var(--primary); font-size: .8125rem; font-weight: 650; }
+/* rebate tiers sheet: the ladder in force, the account's tier and the next one stand out */
+.pm-tiers-intro { margin: 0; line-height: 1.45; }
+.pm-tiers { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.pm-tiers th { padding: .375rem .5rem; font-size: .6875rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); text-align: right; white-space: nowrap; }
+.pm-tiers td { padding: .5625rem .5rem; text-align: right; white-space: nowrap; border-top: 1px solid var(--border); }
+.pm-tiers th:first-child, .pm-tiers td:first-child { text-align: left; }
+.pm-tiers td:first-child { font-weight: 650; }
+.pm-tiers tr.here td { background: var(--green-soft); border-top-color: transparent; }
+.pm-tiers tr.next td { background: var(--primary-soft); border-top-color: transparent; }
+.pm-tiers tr.here td:first-child, .pm-tiers tr.next td:first-child { border-radius: .5rem 0 0 .5rem; }
+.pm-tiers tr.here td:last-child, .pm-tiers tr.next td:last-child { border-radius: 0 .5rem .5rem 0; }
+.pm-tiers tr.here + tr td, .pm-tiers tr.next + tr td { border-top-color: transparent; }
+.pm-tiers-dot { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; background: var(--green); margin-left: .375rem; vertical-align: middle; flex: none; }
+.pm-tiers-you { display: flex; flex-direction: column; gap: .25rem; padding: .75rem .875rem; border-radius: .875rem; background: var(--card-2); font-size: .8125rem; }
+.pm-tiers-you > span { display: inline-flex; align-items: center; gap: .375rem; color: var(--muted); }
+.pm-tiers-you > span .pm-tiers-dot { margin: 0; }
+.pm-tiers-formula { margin: 0; line-height: 1.45; }
 
 /* trading sheet */
 .pt { display: flex; flex-direction: column; gap: .75rem; min-width: 0; }

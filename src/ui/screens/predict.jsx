@@ -9,7 +9,7 @@ import { BUILTIN_CHAINS } from '../../shared/chains.js';
 import { ethCall, erc20 } from '../../shared/rpc.js';
 import {
   regionStatus, listEvents, searchEvents, getEvent, priceHistory, watchPrices, positions, accountsOf, mainAccount, userPnl, userStats, suggestions,
-  activity, rebateTiers, tierTable, placeInTiers, CATEGORIES, INTERVALS, MARKET_URL,
+  activity, rebateTiers, tierTable, placeInTiers, weightedByCategory, CATEGORIES, INTERVALS, MARKET_URL,
 } from '../../shared/polymarket.js';
 import { TradeSheet, CashSheet, OpenOrders, RelayerSheet, EmergencySheet, usePolyAccount } from './predictTrade.jsx';
 import { redeem, redeemMany, balances, autoRedeemOn } from '../polyClient.js';
@@ -956,7 +956,7 @@ function Portfolio({ onBack, onOpen }) {
             <div><small>{t('predict.stats.since')}</small><b>{stats.joined ? new Date(stats.joined).toLocaleDateString(locale(), { month: 'short', year: 'numeric' }) : '–'}</b></div>
           </div>
         )}
-        {user && <RebateCard user={user} income={stats?.income} tick={tick} onShow={showIncome} />}
+        {user && <RebateCard user={user} income={stats?.income} tick={tick} onShow={showIncome} onTiers={(kind, p) => setSheet({ tiers: { kind, p } })} />}
 
         {wins.length > 0 && (
           <div class="pm-win">
@@ -1017,6 +1017,7 @@ function Portfolio({ onBack, onOpen }) {
           )}
         </Sheet>
       )}
+      {sheet?.tiers && <TierSheet {...sheet.tiers} onClose={() => setSheet(null)} />}
       {sheet?.relayer && <RelayerSheet acc={acc} onClose={() => setSheet(null)} />}
       {sheet?.emergency && <EmergencySheet acc={acc} onClose={() => setSheet(null)} onDone={refreshAll} />}
       {sheet?.cash && <CashSheet kind={sheet.cash} acc={acc} onClose={() => setSheet(null)} onDone={refreshAll} />}
@@ -1276,7 +1277,7 @@ function ClosedDays({ list, onOpen }) {
  * (30-day weighted volume of the orders filled at once); for makers the daily pool until Polymarket moves them to
  * tiers too, then their own ladder. Below: other income and the fees paid.
  */
-function RebateCard({ user, income, tick, onShow }) {
+function RebateCard({ user, income, tick, onShow, onTiers }) {
   const [tiers, setTiers] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -1295,8 +1296,8 @@ function RebateCard({ user, income, tick, onShow }) {
     <div class="card pm-rb">
       <div class="pm-rb-head"><span class="pm-rb-ic"><Icon name="coins" size={17} /></span><b>{t('predict.rb.title')}</b></div>
       {/* no maker ladder yet: makers are paid from the daily pool */}
-      <RebateBlock kind="maker" received={inc.maker} tier={maker} note={makerTable ? null : t('predict.rb.makerPool')} />
-      <RebateBlock kind="taker" received={inc.taker} tier={taker} />
+      <RebateBlock kind="maker" received={inc.maker} tier={maker} note={makerTable ? null : t('predict.rb.makerPool')} onTiers={onTiers} />
+      <RebateBlock kind="taker" received={inc.taker} tier={taker} onTiers={onTiers} />
       {income && (others > 0.004 || inc.fees != null) && (
         <div class="pm-rb-rows">
           {others > 0.004 && line(t('predict.rb.rewards'), signed(others), 'up')}
@@ -1308,38 +1309,82 @@ function RebateCard({ user, income, tick, onShow }) {
   );
 }
 
-/** Maker or taker: what was received, then the tier (or why there is none). */
-function RebateBlock({ kind, received, tier, note }) {
+/** Maker or taker: what was received, then the tier (or why there is none); the tier opens the whole ladder. */
+function RebateBlock({ kind, received, tier, note, onTiers }) {
   return (
     <div class="pm-rb-blk">
       <div class="pm-rb-top">
         <span class="pm-rb-kind">{t(`predict.rb.${kind}`)}</span>
         <span class="pm-rb-recv"><small>{t('predict.rb.received')}</small><b class={tone(received)}>{received != null ? signed(received) : '–'}</b></span>
       </div>
-      {tier ? <TierLine p={tier} /> : note && <p class="pm-rb-why">{note}</p>}
+      {tier ? <TierLine kind={kind} p={tier} onOpen={() => onTiers(kind, tier)} /> : note && <p class="pm-rb-why">{note}</p>}
     </div>
   );
 }
 
+/** Polymarket's maker tiers are numbered ("Tier 2"): shown in the user's language; taker tiers have names. */
+const tierName = (name) => { const m = /^Tier (\d+)$/.exec(name || ''); return m ? t('predict.tiers.n', { n: m[1] }) : name; };
+
 /** One ladder: tier and its rate, then one short line under the bar: 30-day weighted volume / next threshold, next tier. */
-function TierLine({ p }) {
+function TierLine({ p, onOpen }) {
   const v = p.volume || 0;
   const left = p.next ? p.next.min - v : 0;
   const money = (x) => usd(x, x >= 1e5);
   return (
-    <div class="pm-tier">
+    <button class="pm-tier" onClick={onOpen}>
       <div class="pm-tier-top">
         <small>{t('predict.rb.tier')}</small>
-        <b>{p.none ? t('predict.rb.none') : p.name}{!p.none && p.rate != null && <span class="pm-tier-rate">{p.rate}%</span>}</b>
+        <b>{p.none ? t('predict.rb.none') : tierName(p.name)}{!p.none && p.rate != null && <span class="pm-tier-rate">{p.rate}%</span>}</b>
       </div>
       <div class="pm-tier-bar"><span style={{ width: `${(p.next ? Math.max(0, Math.min(1, v / p.next.min)) : 1) * 100}%` }} /></div>
       <div class="pm-tier-sub">
         <span>{p.next ? t('predict.rb.progress', { v: money(v), min: money(p.next.min) }) : t('predict.rb.volume', { v: money(v) })}</span>
         <span class="pm-tier-next">{!p.next ? t('predict.rb.top')
-          : left > 0 ? <><Icon name="forward" size={11} stroke={2.5} />{p.next.name} {p.next.rate}%</>
-            : t('predict.rb.soon', { tier: p.next.name })}</span>
+          : left > 0 ? <><Icon name="forward" size={11} stroke={2.5} />{tierName(p.next.name)} {p.next.rate}%</>
+            : t('predict.rb.soon', { tier: tierName(p.next.name) })}</span>
       </div>
-    </div>
+    </button>
+  );
+}
+
+/**
+ * The whole ladder in force (taker, or maker once Polymarket publishes it): threshold and rate of each tier; the
+ * account's tier and the next one stand out. Rules follow the date by themselves.
+ */
+function TierSheet({ kind, p, onClose }) {
+  const now = Date.now();
+  const rows = tierTable(kind, now) || [];
+  const v = p.volume || 0;
+  const left = p.next ? p.next.min - v : 0;
+  const whole = (n) => n.toLocaleString(locale(), { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', notation: n >= 1e6 ? 'compact' : 'standard', maximumFractionDigits: n >= 1e6 ? 1 : 0 });
+  return (
+    <Sheet title={t(`predict.tiers.title.${kind}`)} onClose={onClose}>
+      <p class="small muted pm-tiers-intro">{t(`predict.tiers.intro.${kind}`)}</p>
+      <table class="pm-tiers">
+        <thead>
+          <tr><th>{t('predict.tiers.tier')}</th><th>{t('predict.tiers.volume')}</th><th>{t('predict.tiers.rate')}</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const here = r.name === p.name, next = r.name === p.next?.name;
+            return (
+              <tr key={r.name} class={here ? 'here' : next ? 'next' : ''}>
+                <td>{i === 0 ? t('predict.rb.none') : tierName(r.name)}{here && <span class="pm-tiers-dot" />}</td>
+                <td>{r.min ? whole(r.min) : '—'}</td>
+                <td>{r.rate}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div class="pm-tiers-you">
+        <span><span class="pm-tiers-dot" />{t('predict.tiers.you', { v: whole(v) })}</span>
+        <b>{!p.next ? t('predict.tiers.top')
+          : left > 0 ? t('predict.tiers.left', { v: whole(Math.ceil(left)), tier: tierName(p.next.name) })
+            : t('predict.rb.soon', { tier: tierName(p.next.name) })}</b>
+      </div>
+      <p class="tiny muted pm-tiers-formula">{t('predict.tiers.formula')}{weightedByCategory(kind, now) ? t('predict.tiers.weights') : ''}</p>
+    </Sheet>
   );
 }
 

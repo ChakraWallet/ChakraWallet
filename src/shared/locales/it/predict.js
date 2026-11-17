@@ -305,4 +305,18 @@ export default {
   'predict.rb.rewards': "Premi, referral e rendimenti",
   'predict.rb.fees': "Commissioni pagate",
   'predict.rb.show': "Vedi i rebate ricevuti",
+  // rebate tiers sheet
+  'predict.tiers.title.taker': "Livelli rebate taker",
+  'predict.tiers.title.maker': "Livelli rebate maker",
+  'predict.tiers.intro.taker': "Ti restituiscono ogni giorno, in pUSD, una parte delle commissioni che paghi da taker.",
+  'predict.tiers.intro.maker': "Ti pagano ogni giorno, in pUSD, una parte delle commissioni che i taker pagano sui tuoi ordini.",
+  'predict.tiers.tier': "Livello",
+  'predict.tiers.volume': "Volume 30 gg",
+  'predict.tiers.rate': "Rebate",
+  'predict.tiers.n': "Livello {n}",
+  'predict.tiers.you': "Sei qui: {v} di volume ponderato",
+  'predict.tiers.left': "Ti mancano {v} per {tier}",
+  'predict.tiers.top': "Sei al livello più alto",
+  'predict.tiers.formula': "Volume ponderato = quote × prezzo × (1 − prezzo)",
+  'predict.tiers.weights': " × peso della categoria (crypto 2,3×, geopolitica 0)",
 };

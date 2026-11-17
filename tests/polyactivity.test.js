@@ -1,7 +1,7 @@
 // Polymarket history and rebates: activity rows (shapes copied from data-api /v2/activity) and the rebate tiers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normActivity, placeInTiers, tierTable, TIER_SWITCH, INCOME_TYPES } from '../src/shared/polymarket.js';
+import { normActivity, placeInTiers, tierTable, weightedByCategory, TIER_SWITCH, INCOME_TYPES } from '../src/shared/polymarket.js';
 
 const BEFORE = TIER_SWITCH - 1, AFTER = TIER_SWITCH + 1;
 const row = (o) => ({ proxy_wallet: '0x5bfd', timestamp: 1794326148, condition_id: '', type: 'TRADE', size: 0, usdc_size: 0, transaction_hash: '0xabc', price: 0, token_id: '', side: '', outcome_index: 999, title: '', slug: '', icon: '', event_slug: '', outcome: '', ...o });
@@ -38,6 +38,8 @@ test('tiers: the ladder in force before and after the 20 Nov 2026 change', () =>
   assert.deepEqual(tierTable('taker', AFTER).map((x) => [x.name, x.rate]), [['None', 0], ['Gold', 10], ['Platinum', 25], ['Diamond', 40], ['Obsidian', 50], ['Onyx', 60]]);
   assert.equal(tierTable('maker', BEFORE), null, 'daily pools, no maker tiers yet');
   assert.deepEqual(tierTable('maker', AFTER).map((x) => x.rate), [0, 3, 7, 10, 15]);
+  // category weights end with the change
+  assert.deepEqual([weightedByCategory('taker', BEFORE), weightedByCategory('taker', AFTER), weightedByCategory('maker', AFTER)], [true, false, false]);
 });
 
 test('tiers: Polymarket\'s name decides, the table adds rate and next step', () => {
