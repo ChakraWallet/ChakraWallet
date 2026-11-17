@@ -4,8 +4,9 @@
 // loaded (an image link is a way to learn who opened it). Values: the floor price of the collection
 // (src/shared/nftPrices.js), on a price tag in the gallery, under the title on the page, and over time in a chart.
 import { useState, useEffect, useMemo } from 'preact/hooks';
-import { Icon, ChainIcon, Avatar, Guilloche, Btn, cardStyle, useApp } from '../components.jsx';
-import { useNftVisibility } from '../hooks.js';
+import { Icon, ChainIcon, Avatar, Guilloche, Btn, Sheet, Spinner, cardStyle, useApp } from '../components.jsx';
+import { useNftVisibility, useChainAddress, saveCustomNft } from '../hooks.js';
+import { customNft } from '../../shared/nft.js';
 import { LineChart } from '../chart.jsx';
 import { driverFor } from '../chains/index.js';
 import { bg } from '../../shared/ext.js';
@@ -35,14 +36,56 @@ function Art({ nft, glow = false, onLoad, onClick }) {
 /** The floor price, short: on the tag (USD when known, else in the collection's currency). */
 const shortPrice = (p) => (p?.usd != null ? fmtUsdShort(p.usd) : p?.native ? `${fmtNum(p.native, 3)} ${p.symbol}` : null);
 
-/** items: the NFTs (useNfts); priceOf(nft): their collection's floor price (useNftPrices). */
-export function NftSection({ items: all0, priceOf }) {
+/** Add an NFT by contract and id (one the indexer doesn't list): read on-chain, added only if this account owns it. */
+export function AddNftSheet({ onClose, onAdded }) {
+  const { chain, toast } = useApp();
+  const addr = useChainAddress();
+  const [contract, setContract] = useState('');
+  const [id, setId] = useState('');
+  const [found, setFound] = useState(null);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const okContract = /^0x[0-9a-fA-F]{40}$/.test(contract.trim()), okId = /^\d+$/.test(id.trim());
+  useEffect(() => { setFound(null); setErr(''); }, [contract, id]);
+  const lookup = async () => {
+    setBusy(true); setErr(''); setFound(null);
+    try {
+      const r = await customNft(chain, addr.raw, contract.trim(), id.trim());
+      if (r.notMine) setErr(t('nft.add.notMine'));
+      else setFound(r);
+    } catch { setErr(t('nft.add.notNft')); }
+    setBusy(false);
+  };
+  const add = async () => {
+    await saveCustomNft(chain.id, found);
+    toast(t('nft.add.added', { name: found.name })); onAdded?.(); onClose();
+  };
+  return (
+    <Sheet title={t('nft.add.title', { network: chain.name })} onClose={onClose}>
+      <div class="field"><label>{t('nft.add.contract')}</label><input class="input mono" placeholder="0x…" value={contract} onInput={(e) => setContract(e.target.value)} autoFocus /></div>
+      <div class="field"><label>{t('nft.add.id')}</label><input class="input mono" inputMode="numeric" placeholder="1234" value={id} onInput={(e) => setId(e.target.value.replace(/[^0-9]/g, ''))} /></div>
+      {busy && <Spinner />}
+      {found && (
+        <div class="card flat row nft-add-preview">
+          <span class="nft-mini"><Art nft={found} /></span>
+          <div class="grow" style={{ minWidth: 0 }}><div class="bold ellipsis">{found.name}</div><div class="small muted ellipsis">{found.collection || shortAddr(found.contract)} · {found.standard}</div></div>
+        </div>
+      )}
+      {err && <div class="error small">{err}</div>}
+      <div class="tiny muted">{t('nft.add.note')}</div>
+      {found ? <Btn onClick={add}>{t('nft.add.add')}</Btn> : <Btn disabled={!okContract || !okId || busy} onClick={lookup}>{t('nft.add.find')}</Btn>}
+    </Sheet>
+  );
+}
+
+/** items: the NFTs (useNfts); priceOf(nft): their collection's floor price (useNftPrices); onAdd: add one by hand. */
+export function NftSection({ items: all0, priceOf, onAdd }) {
   const { nav } = useApp();
   const [all, setAll] = useState(false);
   const [showSpam, setShowSpam] = useState(false);
   const items = all0 || [];
   const good = items.filter((x) => !x.spam), spam = items.filter((x) => x.spam);
-  if (!good.length && !spam.length) return null;
+  if (!good.length && !spam.length) return onAdd ? <button class="nft-more nft-add-empty" onClick={onAdd}><Icon name="image" size={15} /> {t('nft.add.cta')}</button> : null;
   const shown = all ? good : good.slice(0, FIRST);
   const open = (nft) => nav('nft', { nft, price: priceOf?.(nft) ?? null });
   return (
@@ -50,6 +93,7 @@ export function NftSection({ items: all0, priceOf }) {
       <div class="nft-head">
         <span class="section-title">{t('nft.title')}</span>
         <span class="nft-count">{good.length}</span>
+        {onAdd && <button class="iconbtn nft-add" title={t('nft.add.cta')} onClick={onAdd}><Icon name="plus" size={16} /></button>}
       </div>
       {shown.length > 0 && (
         <div class="nft-grid">
@@ -148,6 +192,7 @@ export function NftDetail({ nft: item, price: given }) {
         )}
         {nft.spam && <div class="warn small">{choice === 'hide' ? t('nft.hiddenByYou') : t('nft.spamHint')}</div>}
         {!nft.spam && choice === 'show' && auto && <div class="info small">{t('nft.shownByYou')}</div>}
+        {item.custom && <div class="tiny muted">{t('nft.add.byYou')}</div>}
         {nft.description && !nft.spam && (
           <div class="nftd-desc">
             <p class={longDesc && !more ? 'clamp' : ''}>{nft.description}</p>
@@ -195,6 +240,9 @@ export function NftDetail({ nft: item, price: given }) {
             <Icon name={hidden ? 'eye' : 'eyeOff'} size={16} /> {t(hidden ? 'nft.show' : 'nft.hide')}
           </button>
           {choice && <button class="link small nftd-collink" onClick={() => visibility.set(item, null)}>{t('nft.autoChoice')}</button>}
+          {item.custom && (
+            <button class="link small nftd-collink" onClick={async () => { await saveCustomNft(chain.id, item, false); toast(t('nft.add.removed')); back(); }}>{t('nft.add.remove')}</button>
+          )}
           {collectionUrl && <a class="link small nftd-collink" href={collectionUrl} target="_blank" rel="noopener">{t('nft.collectionLink', { name: nft.collection })}</a>}
         </div>
       </div>

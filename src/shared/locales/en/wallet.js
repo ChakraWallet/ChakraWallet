@@ -254,4 +254,19 @@ export default {
   'home.hiddenTokensShow.one': "{n} token hidden by you",
   'home.hiddenTokensShow.other': "{n} tokens hidden by you",
   'home.hiddenTokensHide': "Close the hidden tokens",
+
+  // NFTs added by hand (like custom tokens)
+  'nft.add.cta': 'Add an NFT',
+  'nft.add.title': 'Add an NFT on {network}',
+  'nft.add.contract': 'Contract address',
+  'nft.add.id': 'Token ID',
+  'nft.add.find': 'Find',
+  'nft.add.add': 'Add',
+  'nft.add.added': '{name} added',
+  'nft.add.notMine': 'This NFT exists, but this account doesn’t own it.',
+  'nft.add.notNft': 'No NFT (ERC-721 or ERC-1155) with this contract and ID on this network.',
+  'nft.add.note': 'For NFTs that don’t show up by themselves: the app reads them from the blockchain and shows them while this account owns them.',
+  'nft.add.byYou': 'Added by you.',
+  'nft.add.remove': 'Remove from the list',
+  'nft.add.removed': 'NFT removed from the list',
 };

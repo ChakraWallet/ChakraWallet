@@ -4,6 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { bg, local } from '../../shared/ext.js';
 import { useApp } from '../components.jsx';
 import { TON_CHAINS } from '../../shared/ton/api.js';
+import { isChainEnabled } from '../../shared/chains.js';
 import { loadTonPortfolio } from './driver.js';
 
 let accountsCache = { sig: '', map: null, promise: null };
@@ -49,7 +50,8 @@ const loadSummary = (chain, raw) => loadTonPortfolio(chain, raw);
  */
 export function useTonSummaries() {
   const { state } = useApp();
-  const map = useTonAccounts();
+  const all = useTonAccounts();
+  const map = isChainEnabled(-239, state.settings) ? all : null; // TON switched off in Settings: not in the summary
   const chain = TON_CHAINS[-239];
   const [, setTick] = useState(0);
   const [pending, setPending] = useState({});

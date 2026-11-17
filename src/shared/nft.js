@@ -15,6 +15,11 @@ const getJson = (url, timeout = 20000) => httpJson(url, { timeout, label: 'NFT H
 const META_ON_CHAIN = 24; // Etherscan-compatible networks: metadata read for the first N items
 const MAX_ITEMS = 200;
 const nftIface = new Interface(['function tokenURI(uint256) view returns (string)', 'function uri(uint256) view returns (string)']);
+const ownIface = new Interface([
+  'function ownerOf(uint256) view returns (address)', // ERC-721
+  'function balanceOf(address,uint256) view returns (uint256)', // ERC-1155
+  'function name() view returns (string)', 'function symbol() view returns (string)',
+]);
 
 export { mediaUrl, spamNft, fakeBrand, hasDomain, traitsOf } from './nftMeta.js';
 
@@ -112,4 +117,43 @@ export async function loadEvmNfts(chain, address, { etherscanKey = '' } = {}) {
     };
   });
   return { items, unsupported: false };
+}
+
+// ---------------------------------------------------------------- NFTs added by hand (like custom tokens)
+// The indexer may not list an NFT (a network without one, or without its key; a contract it doesn't know): the user
+// adds it by contract and id. It shows only while this account owns it (checked on-chain at every load).
+const call = (chain, to, fn, args) => rpc(chain, 'eth_call', [{ to, data: ownIface.encodeFunctionData(fn, args) }, 'latest'])
+  .then((out) => ownIface.decodeFunctionResult(fn, out)[0]);
+
+/**
+ * One NFT read on-chain for an owner: the item (custom: true), or { notMine: true, standard } when someone else owns
+ * it. Throws when the contract answers neither as ERC-721 nor as ERC-1155.
+ */
+export async function customNft(chain, owner, contract, tokenId) {
+  const c = String(contract).toLowerCase(), id = BigInt(tokenId).toString(), me = String(owner).toLowerCase();
+  let standard = null, amount = '0';
+  const holder = await call(chain, c, 'ownerOf', [BigInt(id)]).catch(() => null);
+  if (holder) { standard = 'ERC-721'; amount = String(holder).toLowerCase() === me ? '1' : '0'; }
+  else {
+    const bal = await call(chain, c, 'balanceOf', [me, BigInt(id)]).catch(() => null);
+    if (bal == null) throw new Error('not an NFT');
+    standard = 'ERC-1155'; amount = bal.toString();
+  }
+  if (amount === '0') return { notMine: true, standard };
+  const [collection, meta] = await Promise.all([
+    call(chain, c, 'name', []).catch(() => call(chain, c, 'symbol', []).catch(() => '')),
+    onChainMeta(chain, { contract: c, tokenId: id, standard }),
+  ]);
+  const m = meta || {};
+  return {
+    key: `${c}:${id}`, contract: c, tokenId: id, name: m.name || `${collection || 'NFT'} #${id}`, collection: collection || '',
+    image: m.image || null, description: m.description || '', traits: m.traits || [], standard, amount,
+    spam: false, custom: true, // added by the user: never taken for spam
+  };
+}
+
+/** The NFTs added by hand that this owner still holds (the others are skipped, not removed). */
+export async function loadCustomNfts(chain, owner, refs = []) {
+  const out = await Promise.all(refs.map((r) => customNft(chain, owner, r.contract, r.tokenId).catch(() => null)));
+  return out.filter((x) => x && !x.notMine);
 }

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'preact/hooks';
 import { ext, bg } from '../shared/ext.js';
 import { getChain, BUILTIN_CHAINS } from '../shared/chains.js';
-import { AppCtx, Spinner } from './components.jsx';
+import { AppCtx, Spinner, MASK } from './components.jsx';
 import { Onboarding } from './screens/onboarding.jsx';
 import { TermsGate, needsTerms } from './terms.jsx';
 import { Predict } from './screens/predict.jsx';
@@ -54,6 +54,18 @@ export function App() {
   const [stack, setStack] = useState(scanStart ? [{ name: 'home', params: {} }, { name: 'send', params: { scan: true } }] : [{ name: 'home', params: {} }]);
   const [toastMsg, setToastMsg] = useState(null);
   const [portfolioCache, setPortfolioCache] = useState({});
+  // privacy mode: balances hidden until the eye is tapped. With the setting on, hidden again at every unlock and
+  // whenever the app goes to the background (so it opens hidden); without it, the eye still hides them for a while
+  const [hidden, setHidden] = useState(false);
+  const privacyOn = !!state?.settings?.privacyMode;
+  useEffect(() => { if (state?.unlocked) setHidden(privacyOn); }, [state?.unlocked]);
+  useEffect(() => {
+    if (!privacyOn) return undefined;
+    const away = () => { if (document.visibilityState === 'hidden') setHidden(true); };
+    document.addEventListener('visibilitychange', away);
+    return () => document.removeEventListener('visibilitychange', away);
+  }, [privacyOn]);
+  const privacy = useMemo(() => ({ hidden, toggle: () => setHidden((h) => !h), m: (x) => (hidden ? MASK : x) }), [hidden]);
   // mobile only
   const [tab, setTab] = useState('wallet');
   const [predictDeep, setPredictDeep] = useState(false); // a market or the portfolio is open over the predictions list
@@ -234,7 +246,7 @@ export function App() {
     if (id != null) bg('setChain', { chainId: id }).catch(() => {});
   }, [account?.address, chain.id]);
 
-  const ctx = { state, refresh, chain, account, nav, back, reset, toast, mode: approvalOpen ? 'approve' : mode, portfolioCache, setPortfolioCache, authorize,
+  const ctx = { state, refresh, chain, account, nav, back, reset, toast, mode: approvalOpen ? 'approve' : mode, portfolioCache, setPortfolioCache, authorize, privacy,
     openPredict: mode === 'mobile' ? openPredict : null }; // Predictions exists only in the app
 
   let body;

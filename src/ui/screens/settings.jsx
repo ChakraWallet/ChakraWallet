@@ -309,6 +309,8 @@ export function Settings({ section }) {
               right={<Switch on={bio.enabled} onChange={async (v) => (v ? bio.available && setSheet('bio') : (await globalThis.__CK_BIO__.disable(), loadBio(), toast(t('settings.bio.disabled'))))} />}
               onClick={async () => (bio.enabled ? (await globalThis.__CK_BIO__.disable(), loadBio(), toast(t('settings.bio.disabled'))) : bio.available && setSheet('bio'))} />
           )}
+          <Row icon="eyeOff" title={t('settings.privacy')} sub={t('settings.privacy.sub')} right={<Switch on={!!s.privacyMode} onChange={(v) => save({ privacyMode: v })} />} onClick={() => save({ privacyMode: !s.privacyMode })} />
+          <Row icon="approve" title={t('settings.mev')} sub={t('settings.mev.sub')} right={<Switch on={s.mevProtect !== false} onChange={(v) => save({ mevProtect: v })} />} onClick={() => save({ mevProtect: s.mevProtect === false })} />
           <Row icon="lock" title={t('settings.pw.title')} onClick={() => setSheet('pw')} />
           <Row icon="fileUp" title={t('settings.export.title')} sub={t('settings.export.sub')} onClick={() => setSheet('exportBackup')} />
           <Row icon="fileDown" title={t('settings.import.title')} sub={t('settings.import.sub')} onClick={() => setSheet('importBackup')} />

@@ -263,4 +263,12 @@ export default {
   'settings.openseaAuto.sub': "Chakra ottiene una chiave OpenSea gratuita (valida 7 giorni) e la rinnova da sola. Non viene inviato nulla di personale.",
   'settings.getgems': "Chiave Getgems",
   'settings.getgems.hint': "(facoltativa, gratuita da Getgems: prezzi e vendite degli NFT su TON)",
+
+  // modalità privacy e protezione MEV (Impostazioni > Sicurezza)
+  'privacy.show': 'Mostra i saldi',
+  'privacy.hide': 'Nascondi i saldi',
+  'settings.privacy': 'Modalità privacy',
+  'settings.privacy.sub': "I saldi restano nascosti (••••) ogni volta che apri l'app: tocca l'occhio sulla carta per vederli.",
+  'settings.mev': 'Protezione MEV',
+  'settings.mev.sub': "Su Ethereum le transazioni passano da Flashbots Protect, non dalla mempool pubblica: i bot non possono vederle e fare front-running o sandwich sui tuoi swap.",
 };

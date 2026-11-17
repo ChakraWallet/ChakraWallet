@@ -19,6 +19,9 @@ const DEFAULTS = {
   opensea: 'https://api.opensea.io', // NFT floor prices and sales (with a key)
   coingecko: 'https://api.coingecko.com', // NFT floor prices of the larger collections (no key)
   getgems: 'https://api.getgems.io/public-api', // TON NFT floor prices and sales (with a key)
+  // MEV protection (Ethereum): signed transactions go to Flashbots Protect, a private channel to the block builders,
+  // instead of the public mempool where bots can see a swap and trade around it ("sandwich")
+  mevEth: 'https://rpc.flashbots.net/fast',
 };
 
 export const ENDPOINTS = { ...DEFAULTS, ...(globalThis.__CK_ENDPOINTS__ || {}) };

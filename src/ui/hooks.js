@@ -8,6 +8,7 @@ import { t, getLang } from '../shared/i18n.js';
 import { driverFor, familyOf, isEvmAccount, useAccountAddresses } from './chains/index.js';
 import { POPULAR_TOKENS } from '../shared/tokens.js';
 import { nftFloor, nftValueKey } from '../shared/nftPrices.js';
+import { loadCustomNfts } from '../shared/nft.js';
 
 // ---- failed balance / history scans
 // One toast (at most every 20 s) naming the networks that could not be updated; "you're offline" when that's
@@ -239,6 +240,16 @@ export function useAsync(fn, deps) {
 
 // ---- NFTs of the account on the current network (home screen, under the tokens)
 const nftMem = new Map(); // key -> { items, unsupported, updated }
+/** The NFTs of a network change (one added or removed by hand): every account's list is read again. */
+export function forgetNfts(chainId) {
+  for (const k of [...nftMem.keys()]) if (k.startsWith(`${chainId}:`)) nftMem.delete(k);
+}
+/** NFTs added by hand on a network: [{ contract, tokenId }] (storage 'customNfts', per network). */
+export async function saveCustomNft(chainId, ref, add = true) {
+  const same = (x) => x.contract === ref.contract && x.tokenId === ref.tokenId;
+  await local.update('customNfts', {}, (all) => ({ ...all, [chainId]: [...(all[chainId] || []).filter((x) => !same(x)), ...(add ? [{ contract: ref.contract, tokenId: ref.tokenId }] : [])] }));
+  forgetNfts(chainId);
+}
 /** { data: { items, unsupported, updated } | null, loading, error, reload }. Kept on the device; refreshed after 5 min. */
 export function useNfts(enabled = true) {
   const { chain, account, state } = useApp();
@@ -251,11 +262,24 @@ export function useNfts(enabled = true) {
   const load = useCallback(async () => {
     if (!drv.loadNfts || !addr.raw) return;
     setLoading(true); setError('');
-    try {
-      const r = { ...(await drv.loadNfts(chain, addr.raw, { etherscanKey: state.settings.etherscanKey })), updated: Date.now() };
+    let r = null;
+    try { r = await drv.loadNfts(chain, addr.raw, { etherscanKey: state.settings.etherscanKey }); } catch (e) { setError(e.message || 'NFT'); }
+    // NFTs added by hand (EVM): shown while the account owns them, also where the indexer lists nothing
+    const refs = drv.features?.customTokens ? (await local.get('customNfts', {}))[chain.id] || [] : [];
+    if (refs.length) {
+      const extra = await loadCustomNfts(chain, addr.raw, refs).catch(() => []);
+      const items = [...(r?.items || [])];
+      for (const x of extra) {
+        const i = items.findIndex((y) => y.key === x.key);
+        if (i >= 0) items[i] = { ...items[i], custom: true, spam: false }; else items.unshift(x);
+      }
+      r = { ...(r || { unsupported: false }), items };
+    }
+    if (r) {
+      r = { ...r, updated: Date.now() };
       nftMem.set(key, r); setData(r);
       local.set(`nfts:${key}`, r).catch(() => {});
-    } catch (e) { setError(e.message || 'NFT'); }
+    }
     setLoading(false);
   }, [key, addr.raw]);
   useEffect(() => {

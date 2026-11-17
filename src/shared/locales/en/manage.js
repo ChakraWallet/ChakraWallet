@@ -263,4 +263,12 @@ export default {
   'settings.openseaAuto.sub': "Chakra gets a free OpenSea key (valid 7 days) and renews it on its own. Nothing personal is sent.",
   'settings.getgems': "Getgems key",
   'settings.getgems.hint': "(optional, free from Getgems: prices and sales of TON NFTs)",
+
+  // privacy mode and MEV protection (Settings > Security)
+  'privacy.show': 'Show balances',
+  'privacy.hide': 'Hide balances',
+  'settings.privacy': 'Privacy mode',
+  'settings.privacy.sub': 'Balances stay hidden (••••) every time you open the app: tap the eye on the card to see them.',
+  'settings.mev': 'MEV protection',
+  'settings.mev.sub': 'On Ethereum, transactions go through Flashbots Protect instead of the public mempool: bots can’t see them to front-run or sandwich your swaps.',
 };

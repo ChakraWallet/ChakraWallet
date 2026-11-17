@@ -14,7 +14,7 @@ const VERSION_NAME = { v5r1: 'W5', v4r2: 'v4R2', v3r2: 'v3R2' };
 
 /** The import form, inside the "Add account" sheet. onDone(account) after the import. */
 export function ImportTon({ onBack, onDone }) {
-  const { refresh } = useApp();
+  const { refresh, state } = useApp();
   const [text, setText] = useState('');
   const [name, setName] = useState('');
   const [found, setFound] = useState(null); // [{ version, address, balance, status }]
@@ -48,6 +48,9 @@ export function ImportTon({ onBack, onDone }) {
     try {
       const acc = await bg('tonImport', { ...input(), version, name: name.trim() || undefined });
       await bg('selectAccount', { address: acc.address });
+      // TON switched off in Settings: an account imported from a TON app turns it back on
+      const off = state.settings.disabledChains || [];
+      if (off.includes(-239)) await bg('saveSettings', { settings: { disabledChains: off.filter((x) => x !== -239) } });
       await bg('setChain', { chainId: -239 });
       await refresh();
       onDone(acc);

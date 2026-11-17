@@ -1700,3 +1700,12 @@ button.dn-row:active { background: var(--card-2); }
 .mmc-btns { gap: .5rem; }
 .mmc-btns .btn { white-space: nowrap; flex: 1 1 0; min-width: 0; font-size: .8125rem; }
 .actions a.action, .list a.item { color: inherit; text-decoration: none; } /* links shaped as actions / rows (MetaMask's site) */
+/* privacy mode: the eye next to the refresh button of a balance card */
+.hero-tools { display: inline-flex; align-items: center; gap: .125rem; }
+.hero-tools .hero-btn + .hero-btn { margin-left: 0; }
+.sm-eye { width: 1.5rem; height: 1.5rem; color: var(--muted); }
+
+/* NFTs added by hand: "+" in the gallery's head, a link when there is none yet */
+.nft-head .nft-add { margin-left: auto; width: 1.875rem; height: 1.875rem; color: var(--primary); }
+.nft-add-empty { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; width: 100%; }
+.nft-add-preview { gap: .75rem; }

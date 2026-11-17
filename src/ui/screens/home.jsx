@@ -2,13 +2,13 @@ import { useState, useMemo, useEffect } from 'preact/hooks';
 import { bg, ext, local } from '../../shared/ext.js';
 import { allChains, NATIVE, isChainEnabled } from '../../shared/chains.js';
 import { fmtUsd, fmtNum, shortAddr, fmtTime } from '../../shared/format.js';
-import { Icon, Avatar, TokenIcon, ChainIcon, ExpandBtn, Sheet, Btn, Spinner, useApp, Empty, Guilloche, useCountUp, cardStyle, richText } from '../components.jsx';
+import { Icon, Avatar, TokenIcon, ChainIcon, ExpandBtn, Sheet, Btn, Spinner, useApp, Empty, Guilloche, useCountUp, cardStyle, richText, usePrivacy, PrivacyBtn } from '../components.jsx';
 import { usePortfolio, useChainAddress, useNfts, useNftPrices, useNftVisibility } from '../hooks.js';
 import { driverFor, accountFamily, familyOf, isEvmAccount } from '../chains/index.js';
 import { usePolyFunds, POLY_CHAIN } from '../polyBalance.js';
 import { HistoryList } from './history.jsx';
 import { t, tn } from '../../shared/i18n.js';
-import { NftSection } from './nfts.jsx';
+import { NftSection, AddNftSheet } from './nfts.jsx';
 import { useMmCard, MmCardFace, HeroStack, CardActions, CardOps } from './mmcard.jsx';
 
 // the card in front on the home (the balance card or the MetaMask Card): kept while moving between screens
@@ -86,6 +86,7 @@ function AddTokenSheet({ onClose, onAdded }) {
 
 /** Polymarket in the token list (Polygon): cash on the Polymarket account + open positions; opens the portfolio. */
 function PolyRow({ funds, onOpen }) {
+  const { m } = usePrivacy();
   const Tag = onOpen ? 'button' : 'div';
   return (
     <Tag class="item" onClick={onOpen || undefined}>
@@ -95,8 +96,8 @@ function PolyRow({ funds, onOpen }) {
         <div class="small muted ellipsis">{t('home.poly.sub')}</div>
       </div>
       <div class="right">
-        <div class="bold">{fmtUsd(funds.total)}</div>
-        <div class="small muted">{funds.positions >= 0.01 ? t('home.poly.inPositions', { v: fmtUsd(funds.positions) }) : t('home.poly.cash')}</div>
+        <div class="bold">{m(fmtUsd(funds.total))}</div>
+        <div class="small muted">{funds.positions >= 0.01 ? t('home.poly.inPositions', { v: m(fmtUsd(funds.positions)) }) : t('home.poly.cash')}</div>
       </div>
     </Tag>
   );
@@ -104,6 +105,7 @@ function PolyRow({ funds, onOpen }) {
 
 export function Home() {
   const { state, chain, account, nav, refresh, toast, mode, openPredict } = useApp();
+  const { m } = usePrivacy();
   const { data, loading, error, reload } = usePortfolio();
   const addr = useChainAddress(); // the account's address on this network (TON: its TON wallet)
   const drv = driverFor(chain);
@@ -148,8 +150,8 @@ export function Home() {
         <div class="small muted ellipsis">{t.price != null ? fmtUsd(t.price) : t.name}</div>
       </div>
       <div class="right">
-        <div class="bold">{t.usd != null ? fmtUsd(t.usd) : '—'}</div>
-        <div class="small muted">{fmtNum(t.amount ?? 0)} {t.symbol}</div>
+        <div class="bold">{t.usd != null ? m(fmtUsd(t.usd)) : '—'}</div>
+        <div class="small muted">{m(fmtNum(t.amount ?? 0))} {t.symbol}</div>
       </div>
     </button>
   );
@@ -194,16 +196,17 @@ export function Home() {
             <Guilloche seed={account.address} draw key={account.address} />
             <div class="row between">
               <span class="label">{t('home.totalBalance', { network: chain.name })}</span>
+              <span class="hero-tools"><PrivacyBtn />
               <button class="iconbtn hero-btn" title={t('home.refresh')} onClick={reloadAll}>
                 {loading ? <Spinner /> : <Icon name="refresh" size={15} />}
-              </button>
+              </button></span>
             </div>
-            <div class="total">{data ? (chain.testnet ? `${fmtNum(shown)} ${chain.native.symbol}` : fmtUsd(shown)) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
+            <div class="total">{data ? m(chain.testnet ? `${fmtNum(shown)} ${chain.native.symbol}` : fmtUsd(shown)) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
             <div class="row between hero-foot">
               <button class="addr" onClick={async () => { if (!addr.address) return; await navigator.clipboard.writeText(addr.address); toast(t('home.addressCopied')); }}>
                 {addr.address ? shortAddr(addr.address, 6) : '…'} <Icon name="copy" size={13} />
               </button>
-              {data && <span class="small num" style={{ opacity: .85 }}>{fmtNum(data.native.amount)} {chain.native.symbol}</span>}
+              {data && <span class="small num" style={{ opacity: .85 }}>{m(fmtNum(data.native.amount))} {chain.native.symbol}</span>}
             </div>
             {linked && <span class="hs-peek"><Icon name="wallet" size={12} /> {t('mmcard.peekWallet')}</span>}
           </div>
@@ -283,7 +286,7 @@ export function Home() {
             {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}
-        {tab === 'tokens' && data && <NftSection items={nftItems} priceOf={nftValue.priceOf} />}
+        {tab === 'tokens' && data && <NftSection items={nftItems} priceOf={nftValue.priceOf} onAdd={drv.features.customTokens ? () => setSheet('nft') : null} />}
 
         {tab === 'activity' && (
           <div class="card" style={{ padding: '0.375rem' }}>
@@ -299,6 +302,7 @@ export function Home() {
 
       {sheet === 'network' && <NetworkSheet onClose={() => setSheet(null)} />}
       {sheet === 'token' && <AddTokenSheet onClose={() => setSheet(null)} onAdded={reload} />}
+      {sheet === 'nft' && <AddNftSheet onClose={() => setSheet(null)} onAdded={nfts.reload} />}
     </div>
   );
 }

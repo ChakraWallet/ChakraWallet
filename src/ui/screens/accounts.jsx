@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
 import { shortAddr, fmtNum, fmtUsd } from '../../shared/format.js';
-import { TopBar, Avatar, Icon, Btn, Sheet, QR, CopyBtn, useApp, explorerAddr, TokenIcon, Spinner, SecureScreen, ChainIcon } from '../components.jsx';
+import { TopBar, Avatar, Icon, Btn, Sheet, QR, CopyBtn, useApp, explorerAddr, TokenIcon, Spinner, SecureScreen, ChainIcon, usePrivacy, PrivacyBtn } from '../components.jsx';
 import { useMultichainPortfolios, summarize } from '../hooks.js';
 import { allDrivers, driverOf, accountFamily, isEvmAccount } from '../chains/index.js';
 import { t, tn } from '../../shared/i18n.js';
@@ -86,9 +86,10 @@ function HoldingIcon({ h, sm }) {
   );
 }
 
-const valueOf = (x) => (x.usd != null ? fmtUsd(x.usd) : '');
+const valueOf = (x, m = (v) => v) => (x.usd != null ? m(fmtUsd(x.usd)) : '');
 
 function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, onPoly, onDetails }) {
+  const { m } = usePrivacy();
   const [open, setOpen] = useState(false);
   const top = sum.holdings.slice(0, 3);
   const rest = sum.holdings.slice(3);
@@ -102,7 +103,7 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
           <div class="tiny muted">{shortAddr(shownAddress(a))} · {t(typeShort(a))}</div>
         </div>
         <div class="right">
-          <div class="acc-total">{sum.loaded ? fmtUsd(sum.usd + (poly?.total || 0)) : <span class="skeleton" style={{ display: 'inline-block', width: '4rem' }} />}</div>
+          <div class="acc-total">{sum.loaded ? m(fmtUsd(sum.usd + (poly?.total || 0))) : <span class="skeleton" style={{ display: 'inline-block', width: '4rem' }} />}</div>
           {loading && <div class="tiny muted row" style={{ justifyContent: 'flex-end', gap: '0.25rem' }}><Spinner />{t('accounts.mc.checking', { done: sum.total - sum.pending, total: sum.total })}</div>}
         </div>
       </button>
@@ -112,16 +113,16 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
           {sum.nets.map((n) => (
             <button class="chain-chip" onClick={() => onChain(n.chain)} title={t('accounts.mc.openOn', { chain: n.chain.name })}>
               <ChainIcon chain={n.chain} size={16} />
-              <span>{n.usd >= 0.01 ? fmtUsd(n.usd) : `${fmtNum(n.native.amount)} ${n.native.symbol}`}</span>
+              <span>{m(n.usd >= 0.01 ? fmtUsd(n.usd) : `${fmtNum(n.native.amount)} ${n.native.symbol}`)}</span>
             </button>
           ))}
           {/* funds on Polymarket: here on any network, so an account's forgotten Polymarket balance shows up */}
           {poly && (onPoly ? (
             <button class="chain-chip" onClick={onPoly} title={t('accounts.mc.polymarket')}>
-              <span class="poly-ic sm"><Icon name="predict" size={11} /></span><span>{fmtUsd(poly.total)}</span>
+              <span class="poly-ic sm"><Icon name="predict" size={11} /></span><span>{m(fmtUsd(poly.total))}</span>
             </button>
           ) : ( // browser extension: no Predictions to open
-            <span class="chain-chip" title="Polymarket"><span class="poly-ic sm"><Icon name="predict" size={11} /></span><span>{fmtUsd(poly.total)}</span></span>
+            <span class="chain-chip" title="Polymarket"><span class="poly-ic sm"><Icon name="predict" size={11} /></span><span>{m(fmtUsd(poly.total))}</span></span>
           ))}
         </div>
       )}
@@ -132,9 +133,9 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
           {top.map((h) => (
             <div class="acc-line">
               <HoldingIcon h={h} sm />
-              <span class="bold ellipsis">{fmtNum(h.amount)} {h.symbol}</span>
+              <span class="bold ellipsis">{m(fmtNum(h.amount))} {h.symbol}</span>
               <span class="spacer" />
-              <span class="muted">{valueOf(h)}</span>
+              <span class="muted">{valueOf(h, m)}</span>
             </div>
           ))}
           {(rest.length > 0 || (showUnpriced && sum.unpriced > 0)) && (
@@ -164,15 +165,15 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
               <button class="net-head" onClick={() => onChain(n.chain)}>
                 <ChainIcon chain={n.chain} size={18} />
                 <span class="bold grow ellipsis">{n.chain.name}</span>
-                <span class="bold">{n.usd >= 0.01 ? fmtUsd(n.usd) : ''}</span>
+                <span class="bold">{n.usd >= 0.01 ? m(fmtUsd(n.usd)) : ''}</span>
                 <Icon name="forward" size={14} />
               </button>
               {[...(n.native.amount > 0 ? [n.native] : []), ...n.priced, ...(showUnpriced ? n.noPrice : [])].map((h) => (
                 <div class={`acc-line ${h.unpriced ? 'muted' : ''}`}>
                   <TokenIcon sm symbol={h.symbol} icon={h.icon} color={h.native ? n.chain.color : undefined} />
-                  <span class="ellipsis">{fmtNum(h.amount)} {h.symbol}</span>
+                  <span class="ellipsis">{m(fmtNum(h.amount))} {h.symbol}</span>
                   <span class="spacer" />
-                  <span class="muted">{h.unpriced ? t('accounts.mc.noPrice') : valueOf(h)}</span>
+                  <span class="muted">{h.unpriced ? t('accounts.mc.noPrice') : valueOf(h, m)}</span>
                 </div>
               ))}
               {n.chain.indexer?.needsKey && <div class="tiny muted">{t('accounts.mc.needsKey')}</div>}
@@ -187,6 +188,7 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
 
 export function Accounts() {
   const { state, nav, back, refresh, reset, openPredict } = useApp();
+  const { m } = usePrivacy();
   const [add, setAdd] = useState(false);
   const { chains, get, busy, reload } = useMultichainPortfolios();
   const [polyTick, setPolyTick] = useState(0);
@@ -236,8 +238,8 @@ export function Accounts() {
         <div class="card mc-summary">
           <div class="row between">
             <div>
-              <div class="small muted">{t('accounts.mc.total')}</div>
-              <div class="mc-total">{anyLoaded ? fmtUsd(total) : <span class="skeleton" style={{ display: 'inline-block', width: '7rem', height: '1.75rem' }} />}</div>
+              <div class="small muted row" style={{ gap: '.25rem' }}>{t('accounts.mc.total')}<PrivacyBtn class="iconbtn sm-eye" /></div>
+              <div class="mc-total">{anyLoaded ? m(fmtUsd(total)) : <span class="skeleton" style={{ display: 'inline-block', width: '7rem', height: '1.75rem' }} />}</div>
             </div>
             <div class="right small muted">
               {tn('accounts.count', state.accounts.length)}

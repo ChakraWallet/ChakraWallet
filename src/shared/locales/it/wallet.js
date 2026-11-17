@@ -254,4 +254,19 @@ export default {
   'home.hiddenTokensShow.one': "{n} token nascosto da te",
   'home.hiddenTokensShow.other': "{n} token nascosti da te",
   'home.hiddenTokensHide': "Chiudi i token nascosti",
+
+  // NFT aggiunti a mano (come i token personalizzati)
+  'nft.add.cta': 'Aggiungi un NFT',
+  'nft.add.title': 'Aggiungi un NFT su {network}',
+  'nft.add.contract': 'Indirizzo del contratto',
+  'nft.add.id': 'ID del token',
+  'nft.add.find': 'Cerca',
+  'nft.add.add': 'Aggiungi',
+  'nft.add.added': '{name} aggiunto',
+  'nft.add.notMine': 'Questo NFT esiste, ma non appartiene a questo account.',
+  'nft.add.notNft': 'Non trovo un NFT (ERC-721 o ERC-1155) con questo contratto e questo ID su questa rete.',
+  'nft.add.note': "Per gli NFT che non compaiono da soli: l'app li legge dalla blockchain e li mostra finché sono di questo account.",
+  'nft.add.byYou': 'Aggiunto da te.',
+  'nft.add.remove': 'Rimuovi dalla lista',
+  'nft.add.removed': 'NFT rimosso dalla lista',
 };

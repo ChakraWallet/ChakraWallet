@@ -3,6 +3,7 @@ import { Transaction, getAddress, TypedDataEncoder } from 'ethers';
 import { ext, local, session, DEFAULT_SETTINGS } from '../shared/ext.js';
 import { getChain, chainFromEip3085, toHex, BUILTIN_CHAINS, isChainEnabled } from '../shared/chains.js';
 import { rpc } from '../shared/rpc.js';
+import { sendRaw } from '../shared/mev.js';
 import * as vault from './vault.js';
 import { setLang, i18nError, tEn } from '../shared/i18n.js';
 import { C as PM, CHAIN_ID as PM_CHAIN, ORDER_DOMAIN_NAME, AUTH_DOMAIN_NAME, DW_DOMAIN_NAME, iface as PMI } from '../shared/polytrade.js';
@@ -282,11 +283,18 @@ async function setChain(chainId) {
 }
 
 // ============================================================ signing & sending
+// A transaction sent through the private channel (MEV protection) is not in the public nodes' pending count: the
+// next one, sent before it is mined, would reuse its nonce. The last nonce sent privately is remembered for a while.
+const privateNonces = new Map(); // `${chainId}:${from}` -> { n, t }
+const PRIVATE_NONCE_MS = 5 * 60e3;
+
 async function signAndSend(from, txIn, meta = {}) {
   const signer = await vault.getSigner(from);
   const chain = getChain(txIn.chainId, await customChains());
   if (!chain) throw E.unknownChain();
-  const nonce = Number(BigInt(await rpc(chain, 'eth_getTransactionCount', [from, 'pending'])));
+  const nk = `${chain.id}:${lc(from)}`, last = privateNonces.get(nk);
+  let nonce = Number(BigInt(await rpc(chain, 'eth_getTransactionCount', [from, 'pending'])));
+  if (last && Date.now() - last.t < PRIVATE_NONCE_MS && last.n >= nonce) nonce = last.n + 1;
   const tx = Transaction.from({
     type: txIn.type,
     chainId: chain.id,
@@ -300,7 +308,9 @@ async function signAndSend(from, txIn, meta = {}) {
       : { gasPrice: BigInt(txIn.gasPrice) }),
   });
   const signed = await signer.signTransaction(tx);
-  const hash = await rpc(chain, 'eth_sendRawTransaction', [signed]);
+  const sent = await sendRaw(chain, signed, { protect: (await settings()).mevProtect !== false }); // MEV protection (Ethereum)
+  const { hash } = sent;
+  if (sent.protected) privateNonces.set(nk, { n: tx.nonce, t: Date.now() });
   await local.update('txlog', {}, (log) => {
     const key = `${chain.id}:${lc(from)}`;
     const entry = {

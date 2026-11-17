@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
 import { AppIcon, Btn, Icon, Switch, ChainIcon, useApp, SecureScreen, rich, richText, CopyPhrase, mandalaRings } from '../components.jsx';
-import { isChainEnabled, builtinNetworks, ALWAYS_ON } from '../../shared/chains.js';
+import { isChainEnabled, builtinNetworks, ALWAYS_ON, DEFAULT_ON } from '../../shared/chains.js';
 import { bioStatus } from '../auth.jsx';
 import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
@@ -91,7 +91,7 @@ export function Onboarding({ onActive }) {
     if (step !== 'networks' || netsDefault.current || state?.initialized) return;
     netsDefault.current = true;
     if ((s.disabledChains || []).length) return;
-    const off = builtinNetworks().filter((c) => !c.testnet && !ALWAYS_ON.has(c.id)).map((c) => c.id);
+    const off = builtinNetworks().filter((c) => !c.testnet && !DEFAULT_ON.has(c.id)).map((c) => c.id);
     if (off.length) save({ disabledChains: off });
   }, [step]);
   useEffect(() => { if (step !== 'password') return; const id = setTimeout(() => pwInput.current?.focus({ preventScroll: true }), 520); return () => clearTimeout(id); }, [step]);
@@ -182,8 +182,8 @@ export function Onboarding({ onActive }) {
       </Step>
     );
   } else if (step === 'networks') {
-    // built-in mainnets only (custom networks are added later, from Settings or by a site). The always-on ones
-    // (Ethereum, and TON in the app) stand apart; the others start switched off and the user adds the ones they use.
+    // built-in mainnets only (custom networks are added later, from Settings or by a site). The always-on one
+    // (Ethereum) stands apart; TON (in the app) starts on, the others off, and the user adds the ones they use.
     const mainnets = builtinNetworks().filter((c) => !c.testnet);
     const fixed = mainnets.filter((c) => ALWAYS_ON.has(c.id)), optional = mainnets.filter((c) => !ALWAYS_ON.has(c.id));
     const disabled = s.disabledChains || [];

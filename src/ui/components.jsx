@@ -11,6 +11,17 @@ import { ChainLogo, hasChainLogo, symbolLogoId } from './logos.jsx';
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
 
+// ---- privacy mode: balances hidden ("••••") until the eye is tapped; hidden again at every opening when the
+// setting is on (src/ui/app.jsx). m(text) masks an amount the user holds (prices and quotes are not masked).
+export const MASK = '••••';
+const noPrivacy = { hidden: false, toggle: () => {}, m: (x) => x };
+export const usePrivacy = () => useContext(AppCtx)?.privacy || noPrivacy;
+/** The eye on a balance card: shows / hides the amounts. */
+export function PrivacyBtn({ class: cls = 'iconbtn hero-btn' }) {
+  const { hidden, toggle } = usePrivacy();
+  return <button class={cls} title={t(hidden ? 'privacy.show' : 'privacy.hide')} aria-pressed={hidden} onClick={(e) => { e.stopPropagation(); toggle(); }}><Icon name={hidden ? 'eyeOff' : 'eye'} size={15} /></button>;
+}
+
 // ------------------------------------------------------------ icons (stroke style)
 const P = {
   send: 'M5 12h14M13 6l6 6-6 6',

@@ -3,7 +3,7 @@ import { local } from '../../shared/ext.js';
 import { reportScanError, useChainAddress } from '../hooks.js';
 import { driverFor } from '../chains/index.js';
 import { fmtAmount, fmtUsd, toFloat, fmtDateGroup, fmtTime, fmtDateTime, shortAddr } from '../../shared/format.js';
-import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx, useApp, Avatar, ChainIcon, TokenIcon } from '../components.jsx';
+import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx, useApp, Avatar, ChainIcon, TokenIcon, usePrivacy, MASK } from '../components.jsx';
 import { BUILTIN_CHAINS, getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { lookupBridge } from '../../shared/bridge.js';
@@ -27,7 +27,8 @@ export const KIND = {
 const BADGE = { card: 'mmc-pay', cardRefund: 'mmc-refund' };
 const FILTERS = [['all', 'history.filter.all'], ['send', 'history.filter.send'], ['receive', 'history.filter.receive'], ['swap', 'history.filter.swap'], ['other', 'history.filter.other']]; // i18n keys
 
-const amt = (t) => `${fmtAmount(t.amount, t.decimals, 6)} ${t.symbol}`;
+const amtOf = (t) => `${fmtAmount(t.amount, t.decimals, 6)} ${t.symbol}`;
+const amt = amtOf;
 
 // bridges sent from the app, by source tx hash (to show them as "Bridge A → B" with their status)
 const BRIDGE_CHAIN = (id) => BUILTIN_CHAINS.find((c) => c.id === id) || getChain(id); // also TON (Android app)
@@ -84,6 +85,8 @@ function Glyph({ it, k, bridge, chain }) {
 
 function HistoryItem({ it, onOpen, bridge }) {
   const { chain } = useApp();
+  const { hidden } = usePrivacy();
+  const amt = (x) => (hidden ? `${MASK} ${x.symbol}` : amtOf(x)); // privacy mode: the token, not how much
   const k = KIND[it.kind];
   const outs = it.transfers.filter((x) => x.dir === 'out'), ins = it.transfers.filter((x) => x.dir === 'in');
   // transactions made in the app have its name as origin, the ones of sites their URL

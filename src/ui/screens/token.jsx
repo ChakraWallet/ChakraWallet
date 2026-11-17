@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { local } from '../../shared/ext.js';
 import { fmtUsd, fmtNum, shortAddr } from '../../shared/format.js';
 import { priceChart, CHART_RANGES } from '../../shared/prices.js';
-import { TopBar, TokenIcon, ChainIcon, Icon, useApp } from '../components.jsx';
+import { TopBar, TokenIcon, ChainIcon, Icon, useApp, usePrivacy } from '../components.jsx';
 import { LineChart } from '../chart.jsx';
 import { driverFor } from '../chains/index.js';
 import { t } from '../../shared/i18n.js';
@@ -41,6 +41,7 @@ function PriceChart({ priceKey, price }) {
 
 export function TokenDetails({ token: tk }) {
   const { chain, nav, back, toast, setPortfolioCache } = useApp();
+  const { m } = usePrivacy();
   const drv = driverFor(chain);
   const hide = async () => {
     await local.update('hiddenTokens', {}, (all) => ({ ...all, [chain.id]: [...new Set([...(all[chain.id] || []), tk.address])] }));
@@ -68,8 +69,8 @@ export function TokenDetails({ token: tk }) {
             <TokenIcon symbol={tk.symbol} icon={tk.icon} color={tk.native ? chain.color : undefined} />
             {!tk.native && <span class="tk-chain"><ChainIcon chain={chain} size={22} /></span>}
           </span>
-          <div class="tk-amount">{fmtNum(tk.amount ?? 0, 8)}<small>{tk.symbol}</small></div>
-          <div class="tk-usd">{tk.usd != null ? fmtUsd(tk.usd) : t('token.noPrice')}</div>
+          <div class="tk-amount">{m(fmtNum(tk.amount ?? 0, 8))}<small>{tk.symbol}</small></div>
+          <div class="tk-usd">{tk.usd != null ? m(fmtUsd(tk.usd)) : t('token.noPrice')}</div>
         </div>
 
         <div class="actions" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>

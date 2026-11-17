@@ -9,7 +9,7 @@ import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { getPrices, tokenPriceKey } from '../../shared/prices.js';
 import { waitForReceipt } from '../../shared/rpc.js';
 import { fmtUsd, fmtNum, fmtAmount, toFloat, parseAmount, rawToInput, shortAddr } from '../../shared/format.js';
-import { TopBar, Btn, Sheet, Icon, TokenIcon, ChainIcon, Spinner, Guilloche, CopyBtn, FeeView, useApp, richText } from '../components.jsx';
+import { TopBar, Btn, Sheet, Icon, TokenIcon, ChainIcon, Spinner, Guilloche, CopyBtn, FeeView, useApp, richText, usePrivacy, PrivacyBtn } from '../components.jsx';
 import { useChainAddress, useNativePrice } from '../hooks.js';
 import { useOperationAuth, runStep } from '../steps.js';
 import { txStep } from '../chains/evm.js';
@@ -65,21 +65,23 @@ export function useMmCard() {
 /** The card on the home (and, small, on the management screen): what the card can spend now. */
 export function MmCardFace({ card, onRefresh, peek }) {
   const { chain } = useApp();
+  const { m } = usePrivacy();
   const shown = card.active.slice(0, 4);
   return (
     <div class="hero mmc-face">
       <Guilloche seed="metamask-card-compat" />
       <div class="row between">
         <span class="label mmc-label"><Icon name="card" size={14} /> MetaMask Card<span class="mmc-compat">{t('mmcard.compat')}</span></span>
+        <span class="hero-tools"><PrivacyBtn />
         {onRefresh && (
           <button class="iconbtn hero-btn" title={t('home.refresh')} onClick={(e) => { e.stopPropagation(); onRefresh(); }}>
             {card.loading ? <Spinner /> : <Icon name="refresh" size={15} />}
           </button>
-        )}
+        )}</span>
       </div>
       <div>
         <div class="mmc-sub">{t('mmcard.spendable')}</div>
-        <div class="total">{card.data ? fmtUsd(card.total) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
+        <div class="total">{card.data ? m(fmtUsd(card.total)) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
       </div>
       <div class="row between hero-foot">
         <span class="mmc-toks">
@@ -136,6 +138,7 @@ export function CardActions({ card }) {
 /** The "Operations" tab: what the card can spend, token by token, and what can be done from here. */
 export function CardOps({ card }) {
   const { nav } = useApp();
+  const { m } = usePrivacy();
   const tk = firstActive(card);
   const Op = ({ icon, title, sub, onClick, href, danger }) => {
     const body = <><span class={`mmc-op-ic ${danger ? 'danger' : ''}`}><Icon name={icon} size={18} /></span><div class="grow" style={{ minWidth: 0 }}><div class="bold">{title}</div><div class="small muted">{sub}</div></div><Icon name={href ? 'external' : 'forward'} size={14} /></>;
@@ -153,7 +156,7 @@ export function CardOps({ card }) {
                 <div class="small muted ellipsis">{isUnlimited(x.allowance, x.decimals) ? t('mmcard.limitNone') : t('mmcard.limitOf', { amount: fmtAmount(x.allowance, x.decimals, 4), symbol: x.symbol })}</div>
               </div>
               <div class="right">
-                <div class="bold">{card.usd(x, x.spendable) != null ? fmtUsd(card.usd(x, x.spendable)) : `${fmtNum(toFloat(x.spendable, x.decimals))} ${x.symbol}`}</div>
+                <div class="bold">{m(card.usd(x, x.spendable) != null ? fmtUsd(card.usd(x, x.spendable)) : `${fmtNum(toFloat(x.spendable, x.decimals))} ${x.symbol}`)}</div>
                 <div class="small muted">{t('mmcard.spendableShort')}</div>
               </div>
             </button>
@@ -261,6 +264,7 @@ function LimitSheet({ token, spender, onPick, onClose }) {
 // ---------------------------------------------------------------- the management screen
 export function MmCard({ revokeAll }) {
   const { chain, nav } = useApp();
+  const { m } = usePrivacy();
   const card = useMmCard();
   const [limitOf, setLimitOf] = useState(null); // the token whose limit is being changed
   const [txs, setTxs] = useState(null); // the approvals to review and send
@@ -290,10 +294,10 @@ export function MmCard({ revokeAll }) {
                   <TokenIcon symbol={x.symbol} icon={x.icon} />
                   <div class="grow" style={{ minWidth: 0 }}>
                     <div class="bold">{x.symbol}</div>
-                    <div class="small muted">{t('mmcard.balance', { amount: fmtAmount(x.balance, x.decimals, 6), symbol: x.symbol })}</div>
+                    <div class="small muted">{t('mmcard.balance', { amount: m(fmtAmount(x.balance, x.decimals, 6)), symbol: x.symbol })}</div>
                   </div>
                   <div class="right">
-                    <div class="bold">{card.usd(x, x.spendable) != null ? fmtUsd(card.usd(x, x.spendable)) : fmtNum(toFloat(x.spendable, x.decimals))}</div>
+                    <div class="bold">{m(card.usd(x, x.spendable) != null ? fmtUsd(card.usd(x, x.spendable)) : fmtNum(toFloat(x.spendable, x.decimals)))}</div>
                     <div class="small muted">{t('mmcard.spendableShort')}</div>
                   </div>
                 </div>
@@ -319,7 +323,7 @@ export function MmCard({ revokeAll }) {
                     <TokenIcon symbol={x.symbol} icon={x.icon} />
                     <div class="grow" style={{ minWidth: 0 }}>
                       <div class="bold">{x.symbol}</div>
-                      <div class="small muted">{t('mmcard.balance', { amount: fmtAmount(x.balance, x.decimals, 6), symbol: x.symbol })}</div>
+                      <div class="small muted">{t('mmcard.balance', { amount: m(fmtAmount(x.balance, x.decimals, 6)), symbol: x.symbol })}</div>
                     </div>
                     {d.linked && <button class="link small" onClick={() => setLimitOf(x)}>{t('mmcard.authorize')}</button>}
                   </div>
