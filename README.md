@@ -23,7 +23,7 @@ The interface is in English, with Italian available (Settings → General → La
 - **Built-in networks**: Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis, Sepolia, plus custom networks.
 
 ## Build
-Requirements: Node.js 18+.
+Requirements: Node.js 22+.
 ```
 npm install
 npm run build

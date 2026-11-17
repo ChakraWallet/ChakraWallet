@@ -231,8 +231,7 @@ public class DappBrowserPlugin extends Plugin {
         WebView web = new WebView(getActivity());
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-        s.setDatabaseEnabled(true);
+        s.setDomStorageEnabled(true); // (WebSQL, setDatabaseEnabled, is gone from current WebViews: not set)
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
@@ -648,7 +647,7 @@ public class DappBrowserPlugin extends Plugin {
     // ------------------------------------------------------------------ bounds / thumbnails
     /** CSS px of the app WebView -> device px, relative to android.R.id.content */
     private void readBounds(PluginCall call) {
-        if (!call.hasOption("width")) return;
+        if (!call.getData().has("width")) return;
         float d = getActivity().getResources().getDisplayMetrics().density;
         View appWeb = getBridge().getWebView();
         ViewGroup root = getActivity().findViewById(android.R.id.content);

@@ -6,13 +6,15 @@
     "androidScheme": "https"
   },
   "android": {
-    "adjustMarginsForEdgeToEdge": "disable",
     "allowMixedContent": false,
     "webContentsDebuggingEnabled": false
   },
   "plugins": {
     "CapacitorHttp": {
       "enabled": true
+    },
+    "SystemBars": {
+      "insetsHandling": "disable"
     }
   }
 }

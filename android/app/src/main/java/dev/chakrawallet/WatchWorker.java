@@ -245,7 +245,7 @@ public class WatchWorker extends Worker {
 
     private static Context localized(Context c, String lang) {
         Configuration conf = new Configuration(c.getResources().getConfiguration());
-        conf.setLocale(new Locale("it".equals(lang) ? "it" : "en"));
+        conf.setLocale(Locale.forLanguageTag("it".equals(lang) ? "it" : "en"));
         return c.createConfigurationContext(conf);
     }
 
