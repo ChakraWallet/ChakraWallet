@@ -19,6 +19,8 @@ const DEFAULTS = {
   opensea: 'https://api.opensea.io', // NFT floor prices and sales (with a key)
   coingecko: 'https://api.coingecko.com', // NFT floor prices of the larger collections (no key)
   getgems: 'https://api.getgems.io/public-api', // TON NFT floor prices and sales (with a key)
+  // TON Connect bridge (dapps outside the app, QR and links): TonAPI's public one, which every dapp listens to
+  tonconnectBridge: 'https://bridge.tonapi.io/bridge',
   // MEV protection (Ethereum): signed transactions go to Flashbots Protect, a private channel to the block builders,
   // instead of the public mempool where bots can see a swap and trade around it ("sandwich")
   mevEth: 'https://rpc.flashbots.net/fast',

@@ -10,8 +10,9 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
- * What the system does better than the app: the share sheet (apps and recent contacts) and links opened outside the
- * app, in the system browser (where the user is signed in, e.g. to GitHub), instead of the integrated dapp browser.
+ * What the system does better than the app: the share sheet (apps and recent contacts), links opened outside the
+ * app, in the system browser (where the user is signed in, e.g. to GitHub), instead of the integrated dapp browser,
+ * and going back to the app that opened Chakra with a TON Connect link (moveToBack, openLink).
  */
 @CapacitorPlugin(name = "Os")
 public class OsPlugin extends Plugin {
@@ -47,6 +48,37 @@ public class OsPlugin extends Plugin {
             call.resolve();
         } catch (ActivityNotFoundException e) {
             call.reject("no browser");
+        }
+    }
+
+    /** Puts Chakra behind the app that opened it (TON Connect: ret=back), as the Back button would, keeping its state. */
+    @PluginMethod
+    public void moveToBack(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            getActivity().moveTaskToBack(true);
+            call.resolve();
+        });
+    }
+
+    /**
+     * Opens a link of another app, given by a dapp to go back to it (TON Connect: ret=<url>, e.g. tg://...): { url }.
+     * Only what a browser could open (BROWSABLE); never intents, files or local content.
+     */
+    @PluginMethod
+    public void openLink(PluginCall call) {
+        String url = call.getString("url", "");
+        Uri uri = Uri.parse(url);
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+        if (scheme.isEmpty() || scheme.equals("intent") || scheme.equals("file") || scheme.equals("content") || scheme.equals("javascript")
+                || scheme.equals("data") || scheme.equals("tc") || scheme.equals("chakra-tc")) { call.reject("link not allowed"); return; }
+        Intent view = new Intent(Intent.ACTION_VIEW, uri);
+        view.addCategory(Intent.CATEGORY_BROWSABLE);
+        view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            getActivity().startActivity(view);
+            call.resolve();
+        } catch (ActivityNotFoundException e) {
+            call.reject("no app for this link");
         }
     }
 }

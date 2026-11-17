@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { startEvm } from './env/evm.mjs';
 import { startServices } from './env/services.mjs';
+import { startTcBridge } from './env/tcbridge.mjs';
 import { buildApp, OUT } from './app/build.mjs';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -20,7 +21,8 @@ try {
   const ton = await import('./env/ton.mjs').then((m) => m.startTon()).catch((e) => { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e; return null; });
   if (ton) stops.push(ton.stop);
   const svc = await startServices(evm, { extra: ton?.services || {} }); stops.push(svc.close);
-  const state = { services: svc.url, omniston: ton?.omniston || null, evm: evm.networks.map(({ abi, ...n }) => n), ton: ton?.state || null };
+  const tcb = await startTcBridge(); stops.push(tcb.close); // TON Connect bridge
+  const state = { services: svc.url, omniston: ton?.omniston || null, tcbridge: tcb.url, evm: evm.networks.map(({ abi, ...n }) => n), ton: ton?.state || null };
   await buildApp(state);
   fs.writeFileSync(path.join(OUT, 'state.json'), JSON.stringify({ ...state, abi: evm.networks[0].abi }));
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.json': 'application/json' };

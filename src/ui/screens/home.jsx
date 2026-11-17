@@ -10,6 +10,7 @@ import { HistoryList } from './history.jsx';
 import { t, tn } from '../../shared/i18n.js';
 import { NftSection, AddNftSheet } from './nfts.jsx';
 import { useMmCard, MmCardFace, HeroStack, CardActions, CardOps } from './mmcard.jsx';
+import { ConnectQrButton } from '../connectQr.jsx';
 
 // the card in front on the home (the balance card or the MetaMask Card): kept while moving between screens
 let lastFace = 'wallet';
@@ -196,7 +197,7 @@ export function Home() {
             <Guilloche seed={account.address} draw key={account.address} />
             <div class="row between">
               <span class="label">{t('home.totalBalance', { network: chain.name })}</span>
-              <span class="hero-tools"><PrivacyBtn />
+              <span class="hero-tools"><ConnectQrButton /><PrivacyBtn />
               <button class="iconbtn hero-btn" title={t('home.refresh')} onClick={reloadAll}>
                 {loading ? <Spinner /> : <Icon name="refresh" size={15} />}
               </button></span>

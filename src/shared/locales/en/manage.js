@@ -109,6 +109,10 @@ export default {
   'settings.sites.count.one': '{n} site',
   'settings.sites.count.other': '{n} sites',
   'settings.sites.none': 'No connected sites',
+  'settings.sites.viaLink': 'via QR or link',
+  'connect.qr.title': 'Connect with QR',
+  'connect.qr.hint': 'Frame the QR code the site shows to connect a wallet',
+  'connect.qr.unknown': "This QR code isn't a connection code (TON Connect).",
   'settings.sites.since': 'since {date}',
   'settings.sites.disconnect': 'Disconnect',
 

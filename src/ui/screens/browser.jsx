@@ -563,9 +563,10 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
   const saveBookmarks = async (next) => { await local.set('bookmarks', next); setBookmarks(next); };
   const toggleBookmark = () => saveBookmarks(isBookmarked ? bookmarks.filter((b) => b.url !== tab.url) : [{ url: tab.url, title: tab.title || hostOf(tab.url), favicon: tab.favicon || '' }, ...bookmarks]);
   const clearHistory = async () => { await local.set('browserHistory', []); setRecent([]); toast(t('browser.historyCleared')); };
-  const connected = opened && state.permissions?.[originOf(tab.url)];
+  const connected = opened && (state.permissions?.[originOf(tab.url)] || state.tonSites?.[originOf(tab.url)]);
   const secure = opened && tab.url.startsWith('https://') && !tab.flagged;
-  const connectedOrigins = useMemo(() => new Set(Object.keys(state.permissions || {})), [state.permissions]);
+  // sites connected to Ethereum accounts and to TON (TON Connect)
+  const connectedOrigins = useMemo(() => new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {})]), [state.permissions, state.tonSites]);
 
   const suggestions = useMemo(() => {
     const q = input.trim().toLowerCase();
@@ -789,6 +790,8 @@ function CertSheet({ tab, onClose }) {
   useEffect(() => { native()?.getCertificate({ tabId: tab.id }).then(setCert).catch(() => setCert({ secure: false })); }, [tab.id, tab.url]);
   const origin = originOf(tab.url);
   const perm = state.permissions?.[origin];
+  const ton = state.tonSites?.[origin]; // TON Connect session
+  const tonAcc = ton && state.accounts.find((x) => x.address === ton.account);
   const now = Date.now();
   const expired = cert?.validTo && cert.validTo < now;
   const name = (x) => [x?.cn, x?.o].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || '—';
@@ -831,13 +834,15 @@ function CertSheet({ tab, onClose }) {
         </>
       )}
       <div class="section-title">{t('browser.wallet')}</div>
-      {perm ? (
+      {perm || ton ? (
         <div class="card col" style={{ gap: '0.5rem' }}>
-          <div class="small">{tn('browser.seesAccounts', perm.accounts.length)}</div>
-          {perm.accounts.map((a) => {
+          {perm && <div class="small">{tn('browser.seesAccounts', perm.accounts.length)}</div>}
+          {perm?.accounts.map((a) => {
             const acc = state.accounts.find((x) => x.address.toLowerCase() === a.toLowerCase());
             return <div class="row"><Avatar address={a} /><span class="bold ellipsis grow">{acc?.name || shortAddr(a)}</span><span class="tiny muted">{shortAddr(a)}</span></div>;
           })}
+          {ton && <div class="small">{t('tonconnect.site.sees')}</div>}
+          {ton && <div class="row"><Avatar address={ton.account} /><span class="bold ellipsis grow">{tonAcc?.name || shortAddr(ton.display, 6)}</span><span class="tiny muted">{shortAddr(ton.display, 6)}</span></div>}
           <Btn kind="secondary" onClick={disconnect}>{t('browser.disconnect')}</Btn>
         </div>
       ) : <div class="small muted">{t('browser.notConnectedInfo')}</div>}

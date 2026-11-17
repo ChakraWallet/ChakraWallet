@@ -181,6 +181,8 @@ globalThis.__CK_tabClosed = (tabId) => { dropPage(tabId); navs.delete(tabId); };
 const APPROVAL_WIN = 777;
 let approvalOpen = false;
 const setApproval = (open) => { approvalOpen = open; window.dispatchEvent(new CustomEvent('ck-approval', { detail: { open } })); };
+/** read by the UI when it starts: an approval may have been asked before it was there to hear the event */
+globalThis.__CK_approvalOpen = () => approvalOpen;
 /** called by the UI when the user dismisses the approval overlay (back button) */
 globalThis.__CK_closeApproval = () => { if (approvalOpen) { setApproval(false); L.winRemoved.forEach((f) => f(APPROVAL_WIN)); } };
 // The approval screen calls window.close() when there is nothing left to approve.

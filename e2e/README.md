@@ -17,6 +17,7 @@ are attached to the run (`e2e/.artifacts/`).
 | --- | --- |
 | `env/evm.mjs` | two Anvil nodes, **Local A** (31337) and **Local B** (31338), the test accounts funded at genesis; contracts compiled from `env/contracts/` (solc + OpenZeppelin): a USDC-like token on each, a DEX on A, a bridge deposit contract on each |
 | `env/ton.mjs` | **TON Local**: `@ton/sandbox` (real wallet v5r1 and jetton contracts, signatures and seqno checked) behind a TON Center v3-compatible API; a USD₮-like jetton; the TON side of swaps (Omniston over WebSocket) and bridges |
+| `env/tcbridge.mjs` | a **TON Connect bridge** in the real one's format (SSE + POST), for dapps outside the app |
 | `env/services.mjs` | the public services, simulated in their real formats: prices (DefiLlama), a swap aggregator (KyberSwap) for the local DEX, a bridge (Relay) with a relayer that pays on the other network, an Etherscan-compatible indexer built from the local nodes |
 | `app/` | the Android app's code built for a browser (as the landing screenshots): `setup.js` points the services at the local ones (`src/shared/endpoints.js`), `networks.js` adds the local networks like any other |
 | `tests/*.test.mjs` | Playwright (Chromium) drives the app like a person, then checks the balances on the networks |
@@ -30,11 +31,16 @@ steps of an operation, transactions and TON messages built and signed correctly 
 reject anything wrong), fees, the first TON send deploying the wallet, jetton transfers, waiting for confirmation,
 balances, history, bridge tracking until arrival. Bridges with TON: GRAM both ways, any EVM token to TON, GRAM to an
 EVM token for another address with gas on arrival, a jetton in two steps (swap to GRAM, then the bridge), the warning
-about the memo when the recipient is outside the wallet. (The local USD₮ has another address than the real one: for
+about the memo when the recipient is outside the wallet. TON Connect: a dapp page of the in-app browser (played by the
+test through the stand-in of the native plugin, `app/stubs/capacitor-core.js`) signs in (`ton_proof`), sends GRAM and
+asks a text signature through the real approval screens, then Chakra disconnects it. TON Connect through the bridge: a
+`tc://` link opens the app, and a dapp played by the test (with tweetnacl, as the SDK) connects and sends GRAM only
+through the local bridge, sealed end to end. (The local USD₮ has another address than the real one: for
 the app it is "another jetton", which is what the two-step test uses.)
 
 Not covered here: the real contracts of STON.fi, Uniswap and the bridges, the routes real aggregators choose, changes
-in their APIs (the simulated services always answer the same way), Polymarket, the Android native side.
+in their APIs (the simulated services always answer the same way), Polymarket, the Android native side (including how a
+real page reaches the app: `window.chakra.tonconnect`, `window.ethereum`), TonAPI's emulation of TON messages.
 
 ## Adding a test
 

@@ -26,6 +26,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- TON Connect: the universal link, opened straight in Chakra once Android has verified the domain
+                 (https://chakrawallet.dev/.well-known/assetlinks.json: this package and its signing certificate) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="chakrawallet.dev" android:pathPrefix="/ton-connect" />
+            </intent-filter>
+            <!-- TON Connect: tc:// (any TON wallet: Android may ask which one) and chakra-tc:// (Chakra only) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tc" />
+                <data android:scheme="chakra-tc" />
+            </intent-filter>
+
         </activity>
 
         <provider

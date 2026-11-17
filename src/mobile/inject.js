@@ -2,6 +2,7 @@
 // It plays the role of content.js: bridges the page provider (inpage.js) and the native app.
 // The native side identifies the page origin itself (it is never taken from page data).
 import '../inpage.js';
+import './tonconnectInpage.js'; // window.chakra.tonconnect (TON Connect), through the same channel
 
 (() => {
   if (window.__chakraBridgeReady) return;

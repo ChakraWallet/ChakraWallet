@@ -1,0 +1,18 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.chakrawallet",
+      "sha256_cert_fingerprints": ["44:92:CD:1C:07:01:DD:CE:AB:B9:A5:09:09:88:AB:66:D7:FF:12:11:E4:3F:10:33:E8:26:44:9D:88:FA:FF:E9"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.chakrawallet.dev",
+      "sha256_cert_fingerprints": ["4E:42:41:AE:2B:69:30:ED:29:05:B2:42:FF:45:52:2E:AF:AF:6A:CA:C4:B6:A8:84:AB:9A:52:BD:AE:40:78:DB"]
+    }
+  }
+]

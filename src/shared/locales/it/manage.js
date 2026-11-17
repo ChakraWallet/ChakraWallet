@@ -109,6 +109,10 @@ export default {
   'settings.sites.count.one': '{n} sito',
   'settings.sites.count.other': '{n} siti',
   'settings.sites.none': 'Nessun sito connesso',
+  'settings.sites.viaLink': 'via QR o link',
+  'connect.qr.title': 'Connetti con QR',
+  'connect.qr.hint': 'Inquadra il QR che il sito mostra per connettere un wallet',
+  'connect.qr.unknown': 'Questo QR non è un codice di connessione (TON Connect).',
   'settings.sites.since': 'dal {date}',
   'settings.sites.disconnect': 'Disconnetti',
 

@@ -86,7 +86,8 @@ ext.runtime.onConnect.addListener((port) => {
     }
     if (msg?.type !== 'request') return;
     try {
-      const result = await handleDappRequest(origin, msg.method, msg.params, port._tab);
+      const family = dappFamilies.find((f) => String(msg.method).startsWith(f.prefix));
+      const result = family ? await family.handle(origin, msg.method, msg.params, port._tab) : await handleDappRequest(origin, msg.method, msg.params, port._tab);
       safePost(port, { type: 'response', id: msg.id, result });
     } catch (e) {
       // localised errors (vault, RPC) reach the site in English
@@ -97,6 +98,14 @@ ext.runtime.onConnect.addListener((port) => {
 });
 
 function safePost(port, msg) { try { port.postMessage(msg); } catch { /* port closed */ } }
+
+// Dapp protocols of other families, added by platform modules (TON Connect in the Android app:
+// src/background/tonconnect.js). Each one: { prefix (of its request methods), handle(origin, method, params, tab),
+// approvals: { kind: { auth(p) -> needs the password, complete(p, data) } }, state(view) -> extra getState fields,
+// disconnect(origin) (the user disconnects the site) }.
+const dappFamilies = [];
+export function registerDappFamily(f) { dappFamilies.push(f); }
+const familyApproval = (kind) => dappFamilies.find((f) => f.approvals?.[kind])?.approvals[kind];
 
 async function permittedAccounts(origin) {
   if (!(await vault.isUnlocked())) return [];
@@ -126,7 +135,7 @@ async function broadcastChain() {
   const c = await currentChain();
   await sendToTabs(async () => ({ type: 'event', event: 'chainChanged', data: toHex(c.id) }));
 }
-async function emitToOrigin(origin, event, data) {
+export async function emitToOrigin(origin, event, data) {
   await sendToTabs(async (o) => (o === origin ? { type: 'event', event, data } : null));
 }
 
@@ -134,7 +143,7 @@ async function emitToOrigin(origin, event, data) {
 const pending = new Map(); // id -> {id, origin, kind, params, resolve, reject, created}
 let approvalWindowId = null;
 
-async function requestApproval(origin, kind, params, tab) {
+export async function requestApproval(origin, kind, params, tab) {
   const id = crypto.randomUUID();
   const p = new Promise((resolve, reject) => {
     pending.set(id, { id, origin, kind, params, resolve, reject, created: Date.now(), favicon: tab?.favIconUrl || '', title: tab?.title || '' });
@@ -181,7 +190,7 @@ async function resolveApproval(id, approved, data = {}) {
   const p = pending.get(id);
   if (!p) throw i18nError('errors.requestExpired');
   // checked before consuming the request, so a wrong password can be retried
-  if (approved && AUTH_KINDS.has(p.kind)) await vault.verifyPassword(data.password);
+  if (approved && (AUTH_KINDS.has(p.kind) || familyApproval(p.kind)?.auth(p))) await vault.verifyPassword(data.password);
   pending.delete(id);
   let failed = false;
   try {
@@ -260,7 +269,11 @@ async function completeApproval(p, data) {
       });
       return true;
     }
-    default: throw new Error('Unknown request type');
+    default: {
+      const f = familyApproval(p.kind);
+      if (f) return f.complete(p, data);
+      throw new Error('Unknown request type');
+    }
   }
 }
 
@@ -335,7 +348,7 @@ const READ_METHODS = new Set([
   'web3_sha3',
 ]);
 
-async function ensureUnlocked(origin, tab) {
+export async function ensureUnlocked(origin, tab) {
   if (await vault.isUnlocked()) return;
   await requestApproval(origin, 'unlock', {}, tab);
 }
@@ -528,7 +541,8 @@ const uiHandlers = {
     const permissions = Object.fromEntries(Object.entries(perms)
       .map(([o, p]) => [o, { ...p, accounts: (p.accounts || []).filter((a) => mine.has(lc(a))) }])
       .filter(([, p]) => p.accounts.length));
-    return { initialized, unlocked, ...v, chainId, customChains: custom, settings: s, permissions, pending: pending.size };
+    const extra = await Promise.all(dappFamilies.filter((f) => f.state).map((f) => f.state(v)));
+    return { initialized, unlocked, ...v, chainId, customChains: custom, settings: s, permissions, ...Object.assign({}, ...extra), pending: pending.size };
   },
   generateMnemonic: () => vault.generateMnemonic(),
   async createVault({ password, mnemonic, name }) { const a = await vault.createVault(password, mnemonic, name); await touchAutoLock(); return a; },
@@ -598,6 +612,7 @@ const uiHandlers = {
       return n;
     });
     await emitToOrigin(origin, 'accountsChanged', []);
+    for (const f of dappFamilies) await f.disconnect?.(origin);
     return true;
   },
   // Polymarket (Predictions tab): only its own EIP-712 payloads are signed here — never arbitrary typed data:

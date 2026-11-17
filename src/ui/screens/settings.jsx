@@ -11,6 +11,7 @@ import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
 import { TermsSheet } from '../terms.jsx';
 import { ApiKeys, keysCount } from './apikeys.jsx';
+import { ConnectQrButton } from '../connectQr.jsx';
 
 function Row({ icon, title, sub, onClick, right }) {
   return (
@@ -214,23 +215,36 @@ function Networks() {
   );
 }
 
+/** Sites connected to Ethereum accounts and / or to a TON account (TON Connect, Android app). */
+const connectedSites = (state) => [...new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {})])];
+
 function Sites() {
   const { state, refresh } = useApp();
-  const entries = Object.entries(state.permissions || {});
+  const origins = connectedSites(state);
   return (
-    <div class="card" style={{ padding: '0.375rem' }}>
-      {!entries.length && <Empty>{t('settings.sites.none')}</Empty>}
-      {entries.map(([origin, p]) => (
-        <div class="item">
-          <div class="tx-icon" style={{ background: 'var(--card-2)' }}><Icon name="globe" /></div>
-          <div class="grow" style={{ minWidth: 0 }}>
-            <div class="bold ellipsis">{origin.replace(/^https?:\/\//, '')}</div>
-            <div class="tiny muted">{p.accounts.map((a) => shortAddr(a)).join(', ')} · {t('settings.sites.since', { date: fmtDateTime(p.since) })}</div>
-          </div>
-          <button class="btn sm secondary" onClick={async () => { await bg('disconnectSite', { origin }); refresh(); }}>{t('settings.sites.disconnect')}</button>
-        </div>
-      ))}
-    </div>
+    <>
+      {/* a dapp on another screen (e.g. a computer) shows a QR code: connect it (TON Connect) */}
+      <ConnectQrButton class="btn secondary" size={18}> {t('connect.qr.title')}</ConnectQrButton>
+      <div class="card" style={{ padding: '0.375rem' }}>
+        {!origins.length && <Empty>{t('settings.sites.none')}</Empty>}
+        {origins.map((origin) => {
+          const p = state.permissions?.[origin], ton = state.tonSites?.[origin];
+          const who = [...(p?.accounts || []).map((a) => shortAddr(a)), ...(ton ? [`TON ${shortAddr(ton.display, 6)}`] : [])].join(', ');
+          // through the bridge (QR code or link) the site is what the dapp declares: its name and address
+          const title = ton?.remote ? ton.host || ton.name : origin.replace(/^https?:\/\//, '');
+          return (
+            <div class="item">
+              <div class="tx-icon" style={{ background: 'var(--card-2)' }}><Icon name={ton?.remote ? 'qr' : 'globe'} /></div>
+              <div class="grow" style={{ minWidth: 0 }}>
+                <div class="bold ellipsis">{title}</div>
+                <div class="tiny muted">{ton?.remote ? `${t('settings.sites.viaLink')} · ` : ''}{who} · {t('settings.sites.since', { date: fmtDateTime(p?.since || ton.since) })}</div>
+              </div>
+              <button class="btn sm secondary" onClick={async () => { await bg('disconnectSite', { origin }); refresh(); }}>{t('settings.sites.disconnect')}</button>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -299,7 +313,7 @@ export function Settings({ section, focus }) {
           <Row icon="eye" title={t('settings.showUnpriced')} sub={t('settings.showUnpriced.sub')} right={<Switch on={s.showUnpriced} onChange={(v) => save({ showUnpriced: v })} />} onClick={() => save({ showUnpriced: !s.showUnpriced })} />
           <Row icon="globe" title={t('settings.networks.title')} sub={tn('settings.networks.count', [...builtinNetworks(), ...state.customChains].filter((c) => isChainEnabled(c.id, s)).length)} onClick={() => openView('networks')} right={<span class="muted"><Icon name="forward" /></span>} />
           <Row icon="wallet" title={t('settings.wallets')} sub={tn('settings.wallets.sub', state.wallets.length, { name: state.wallets.find((w) => w.id === state.activeWallet)?.name })} onClick={() => nav('wallets')} right={<span class="muted"><Icon name="forward" /></span>} />
-          <Row icon="contract" title={t('settings.sites.title')} sub={tn('settings.sites.count', Object.keys(state.permissions || {}).length)} onClick={() => openView('sites')} right={<span class="muted"><Icon name="forward" /></span>} />
+          <Row icon="contract" title={t('settings.sites.title')} sub={tn('settings.sites.count', connectedSites(state).length)} onClick={() => openView('sites')} right={<span class="muted"><Icon name="forward" /></span>} />
         </div>
 
         <div class="section-title">{t('settings.security')}</div>

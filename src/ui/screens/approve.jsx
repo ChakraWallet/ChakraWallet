@@ -15,6 +15,12 @@ import { t, tn } from '../../shared/i18n.js';
 // must match AUTH_KINDS in the background: these need fingerprint or password
 const AUTH_TITLES = { sign: 'approve.auth.sign', ethSign: 'approve.auth.sign', typed: 'approve.auth.sign', tx: 'approve.auth.tx' }; // i18n keys
 
+// Requests of other families (TON Connect in the Android app: src/ui/ton/approvals.jsx), registered by their module:
+// kind -> { View, authTitle(req) -> i18n key when it needs fingerprint or password (as the background's auth), sentToast }
+const EXTRA = {};
+export function registerApprovalViews(views) { Object.assign(EXTRA, views); }
+const authTitle = (req) => AUTH_TITLES[req.kind] || EXTRA[req.kind]?.authTitle?.(req) || null;
+
 const KNOWN = new Interface([
   'function approve(address spender, uint256 amount)',
   'function transfer(address to, uint256 amount)',
@@ -23,7 +29,7 @@ const KNOWN = new Interface([
   'function increaseAllowance(address spender, uint256 addedValue)',
 ]);
 
-function Site({ req }) {
+export function Site({ req }) {
   const host = req.origin.replace(/^https?:\/\//, '');
   const hd = useSiteIcon(req.origin); // HD icon from the site's metadata (in-app browser only)
   const icon = hd || req.favicon;
@@ -351,7 +357,13 @@ export function Approvals({ standalone }) {
     for (const r of l.filter((x) => x.kind === 'unlock')) await bg('resolveApproval', { id: r.id, approved: true }).catch(() => {});
     const rest = l.filter((x) => x.kind !== 'unlock');
     setList(rest);
-    if (!rest.length && standalone && !keepOpen) setTimeout(() => window.close(), 300);
+    // closes only if nothing arrived meanwhile (a site may ask again right after an answer)
+    if (!rest.length && standalone && !keepOpen) {
+      setTimeout(async () => {
+        const now = await bg('listPending').catch(() => []);
+        if (!now.some((x) => x.kind !== 'unlock')) window.close();
+      }, 300);
+    }
   };
   useEffect(() => { load(); }, [state.pending]);
   useEffect(() => {
@@ -368,9 +380,10 @@ export function Approvals({ standalone }) {
     let failed = false;
     try {
       const call = (extra) => bg('resolveApproval', { id: req.id, approved, data: { ...data, ...extra } });
-      if (approved && AUTH_TITLES[req.kind]) await authorize((password) => call({ password }), t(AUTH_TITLES[req.kind]));
+      const title = approved && authTitle(req);
+      if (title) await authorize((password) => call({ password }), t(title));
       else await call();
-      if (approved && req.kind === 'tx') toast(t('approve.txSent'));
+      if (approved && (req.kind === 'tx' || EXTRA[req.kind]?.sentToast)) toast(t('approve.txSent'));
     } catch (e) {
       if (e.cancelled) return;
       setErr(e.message); failed = true;
@@ -379,7 +392,7 @@ export function Approvals({ standalone }) {
     if (!standalone && list.length <= 1) back();
   };
 
-  const V = req ? VIEWS[req.kind] : null;
+  const V = req ? VIEWS[req.kind] || EXTRA[req.kind]?.View : null;
   return (
     <div class="screen">
       <TopBar title={list.length > 1 ? t('approve.requestOf', { total: list.length }) : t('approve.request')} onBack={standalone ? false : undefined}

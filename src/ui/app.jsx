@@ -27,9 +27,10 @@ import { setDisplayCurrency } from '../shared/fx.js';
 import { accountFamily, familyOf, driverOf, isEvmAccount } from './chains/index.js';
 import { NftDetail } from './screens/nfts.jsx';
 import { MmCard } from './screens/mmcard.jsx';
+import { ConnectQrHost } from './connectQr.jsx';
 
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
-const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions']);
+const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions', 'tonConnect']);
 
 const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail, mmcard: MmCard };
 
@@ -203,6 +204,8 @@ export function App() {
     if (mode !== 'mobile') return;
     const onApproval = (e) => { setApprovalOpen(e.detail.open); refresh(); };
     const onOpen = (e) => { goTab('browser'); setOpenUrl({ url: e.detail, t: Date.now() }); };
+    // a request that came before the app was drawn (e.g. a link that started the app): show it now
+    if (globalThis.__CK_approvalOpen?.()) setApprovalOpen(true);
     window.addEventListener('ck-approval', onApproval);
     window.addEventListener('ck-open-url', onOpen);
     return () => { window.removeEventListener('ck-approval', onApproval); window.removeEventListener('ck-open-url', onOpen); };
@@ -288,6 +291,7 @@ export function App() {
             <Donate />
           </div>
         )}
+        <ConnectQrHost />
         <TabPill tab={tab} onPick={goTab} hidden={approvalOpen || (tab === 'browser' && siteOpen) // only on the main page of each tab
           || (tab === 'wallet' && (stack.length > 1 || top.name !== 'home')) || (tab === 'predict' && predictDeep) || (tab === 'contracts' && contractsDeep)} />
       </>

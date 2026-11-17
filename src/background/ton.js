@@ -11,7 +11,7 @@ import { i18nError } from '../shared/i18n.js';
 const hex = (b) => Buffer.from(b).toString('hex');
 
 /** Key pair and wallet version of an account of the active wallet, or null (e.g. an imported Ethereum key). */
-async function keyOf(address) {
+export async function keyOf(address) {
   const src = await vault.familyKeySource('ton', address);
   if (!src) return null;
   if (src.phrase) return { ...hdKeyPair(src.phrase, src.index), version: DEFAULT_VERSION };
@@ -27,6 +27,34 @@ const addresses = (publicKey, version) => {
 async function keyFromInput({ phrase, secret }) {
   if (phrase) { const k = await tonKeyFromPhrase(phrase); if (!k) throw i18nError('errors.invalidPhrase'); return k; }
   try { return tonKeyFromSecret(secret); } catch { throw i18nError('errors.invalidPrivateKey'); }
+}
+
+/**
+ * Signs and broadcasts messages from an account of the active wallet (the caller has checked the password).
+ * messages: [{ to (any address format), value (nanoGRAM, string), bounce, body? (base64 BoC), init? (base64 StateInit) }];
+ * sendAll: whole balance; mode: send mode asked by the service that built the messages; validUntil: unix seconds after
+ * which the wallet refuses the message (at most 5 minutes from now).
+ * -> { hash (base64, of the message as indexed), seqno (before), wallet (raw), boc (base64, the external message) }
+ */
+export async function signAndBroadcast({ from, chainId, messages, sendAll, mode, validUntil }) {
+  const chain = TON_CHAINS[chainId];
+  if (!chain) throw i18nError('ton.err.network');
+  const k = await keyOf(from);
+  if (!k) throw i18nError('errors.accountUnavailable');
+  const wallet = walletContract(k.publicKey, { version: k.version, testnet: isTestnetId(chainId) });
+  const acc = await tonAccount(chain, wallet.address.toString());
+  const deployed = acc.status === 'active';
+  const max = Math.floor(Date.now() / 1000) + 300;
+  const signed = signTransfer({
+    wallet, secretKey: k.secretKey, seqno: deployed ? acc.seqno : 0, deployed, sendAll: !!sendAll, mode: Number.isInteger(mode) ? mode : undefined,
+    timeout: Number.isFinite(validUntil) ? Math.min(Math.floor(validUntil), max) : max,
+    messages: messages.map((m) => ({
+      to: Address.parse(m.to), value: BigInt(m.value), bounce: !!m.bounce, body: m.body ? Cell.fromBase64(m.body) : undefined,
+      init: m.init ? loadStateInit(Cell.fromBase64(m.init).beginParse()) : undefined,
+    })),
+  });
+  const r = await tonSendBoc(chain, signed.boc);
+  return { hash: r.hash || Buffer.from(signed.hash, 'hex').toString('base64'), seqno: deployed ? acc.seqno : 0, wallet: wallet.address.toRawString(), boc: signed.boc };
 }
 
 export const tonHandlers = {
@@ -48,23 +76,8 @@ export const tonHandlers = {
    */
   async tonSend({ from, chainId, messages, sendAll, mode, password }) {
     await vault.verifyPassword(password);
-    const chain = TON_CHAINS[chainId];
-    if (!chain) throw i18nError('ton.err.network');
-    const k = await keyOf(from);
-    if (!k) throw i18nError('errors.accountUnavailable');
-    const wallet = walletContract(k.publicKey, { version: k.version, testnet: isTestnetId(chainId) });
-    const acc = await tonAccount(chain, wallet.address.toString());
-    const deployed = acc.status === 'active';
-    const signed = signTransfer({
-      wallet, secretKey: k.secretKey, seqno: deployed ? acc.seqno : 0, deployed, sendAll: !!sendAll, mode: Number.isInteger(mode) ? mode : undefined,
-      timeout: Math.floor(Date.now() / 1000) + 300,
-      messages: messages.map((m) => ({
-        to: Address.parse(m.to), value: BigInt(m.value), bounce: !!m.bounce, body: m.body ? Cell.fromBase64(m.body) : undefined,
-        init: m.init ? loadStateInit(Cell.fromBase64(m.init).beginParse()) : undefined,
-      })),
-    });
-    const r = await tonSendBoc(chain, signed.boc);
-    return { hash: r.hash || Buffer.from(signed.hash, 'hex').toString('base64'), seqno: deployed ? acc.seqno : 0, wallet: wallet.address.toRawString() };
+    const { boc: _, ...sent } = await signAndBroadcast({ from, chainId, messages, sendAll, mode });
+    return sent;
   },
 
   /** Wallet addresses (mainnet) of a key from another TON app, per contract version: to find the one in use. */
