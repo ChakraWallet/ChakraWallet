@@ -7,6 +7,7 @@ import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx,
 import { BUILTIN_CHAINS, getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { lookupBridge } from '../../shared/bridge.js';
+import { cardConfig } from '../../shared/mmcard.js';
 import { useNativePrice } from '../hooks.js';
 import { t, tn } from '../../shared/i18n.js';
 
@@ -18,7 +19,12 @@ export const KIND = {
   approve: { label: 'history.kind.approve', icon: 'approve', color: 'var(--amber)', bg: 'var(--amber-soft)' },
   contract: { label: 'history.kind.contract', icon: 'contract', color: 'var(--muted)', bg: 'var(--card-2)' },
   self: { label: 'history.kind.self', icon: 'refresh', color: 'var(--muted)', bg: 'var(--card-2)' },
+  // MetaMask Card (Linea): a payment, sent by the card's relayer; money the card sent back
+  card: { label: 'history.kind.card', icon: 'card', color: 'var(--mm-orange)', bg: 'var(--mm-soft)' },
+  cardRefund: { label: 'history.kind.cardRefund', icon: 'card', color: 'var(--green)', bg: 'var(--green-soft)' },
 };
+// badge classes of the card's kinds (not "card": that is the app's panel style)
+const BADGE = { card: 'mmc-pay', cardRefund: 'mmc-refund' };
 const FILTERS = [['all', 'history.filter.all'], ['send', 'history.filter.send'], ['receive', 'history.filter.receive'], ['swap', 'history.filter.swap'], ['other', 'history.filter.other']]; // i18n keys
 
 const amt = (t) => `${fmtAmount(t.amount, t.decimals, 6)} ${t.symbol}`;
@@ -41,6 +47,8 @@ function title(it, bridge, short = false) {
   if (it.label) return it.label; // e.g. a TON action with a name of its own (contract deploy, NFT transfer...)
   if (it.kind === 'swap' && short) return t('history.titleSwapShort');
   if (it.kind === 'swap') return t('history.titleSwap', { from: outs[0].symbol, to: ins[0].symbol });
+  if (it.kind === 'card') return t('history.titleCard');
+  if (it.kind === 'cardRefund') return t('history.titleCardRefund');
   if (it.kind === 'send') return t('history.titleSent', { symbol: outs[0].symbol });
   if (it.kind === 'receive') return t('history.titleReceived', { symbol: ins[0].symbol });
   if (it.kind === 'approve') {
@@ -61,6 +69,9 @@ function Glyph({ it, k, bridge, chain }) {
     return <div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="route" /></div>;
   }
   if (it.kind === 'swap' && outs[0] && ins[0]) return <span class="glyph pair">{tok(outs[0])}{tok(ins[0])}</span>;
+  if ((it.kind === 'card' || it.kind === 'cardRefund') && (outs[0] || ins[0])) {
+    return <span class="glyph">{tok(outs[0] || ins[0])}<span class={`dir-badge ${BADGE[it.kind]}`}><Icon name="card" size={10} stroke={2.4} /></span></span>;
+  }
   if ((it.kind === 'send' || it.kind === 'receive') && (outs[0] || ins[0])) {
     return <span class="glyph">{tok(outs[0] || ins[0])}<span class={`dir-badge ${it.kind}`}><Icon name={it.kind === 'send' ? 'send' : 'receive'} size={10} stroke={3} /></span></span>;
   }
@@ -81,6 +92,7 @@ function HistoryItem({ it, onOpen, bridge }) {
   if (bridge && bridge.status !== 'unknown') sub = <><span class={`badge ${{ pending: 'amber', done: 'green', refunded: 'primary', failed: 'red' }[bridge.status]}`}>{t(`bridge.badge.${bridge.status}`)}</span>{bridge.provider ? ` ${bridge.provider}` : ''}</>;
   else if (bridge) sub = via || it.toName || null;
   else if (it.kind === 'swap') sub = via;
+  else if (it.kind === 'card' || it.kind === 'cardRefund') sub = null; // the title says it
   else if (it.counterparty && (it.kind === 'send' || it.kind === 'receive')) sub = <>{t(it.kind === 'receive' ? 'history.from' : 'history.to')} <AddressLabel address={it.counterparty} /></>;
   else if (via) sub = via;
   return (
@@ -124,9 +136,10 @@ function TxHead({ it, k, bridge, chain, status }) {
         <div class="head-node">{tok(ins[0])}<span class="green">+{amt(ins[0])}</span></div>
       </div>
     );
-  } else if ((it.kind === 'send' || it.kind === 'receive') && (outs[0] || ins[0])) {
+  } else if (['send', 'receive', 'card', 'cardRefund'].includes(it.kind) && (outs[0] || ins[0])) {
     const x = outs[0] || ins[0];
-    visual = <span class="head-tok">{tok(x)}<span class={`dir-badge ${it.kind}`}><Icon name={it.kind === 'send' ? 'send' : 'receive'} size={13} stroke={3} /></span></span>;
+    const ic = it.kind === 'card' || it.kind === 'cardRefund' ? 'card' : it.kind === 'send' ? 'send' : 'receive';
+    visual = <span class="head-tok">{tok(x)}<span class={`dir-badge ${BADGE[it.kind] || it.kind}`}><Icon name={ic} size={13} stroke={ic === 'card' ? 2.4 : 3} /></span></span>;
     amounts = it.transfers.map((y) => <div class={`tx-hero-amt ${y.dir === 'in' ? 'green' : ''}`}>{y.dir === 'in' ? '+' : '−'}{amt(y)}</div>);
   } else if (it.kind === 'approve') {
     const p = (POPULAR_TOKENS[chain.id] || []).find((q) => q.address === String(it.to).toLowerCase());
@@ -197,7 +210,7 @@ function Detail({ it, onClose, nativePrice, bridge }) {
   );
 }
 
-export function HistoryList({ limit, filter = 'all' }) {
+export function HistoryList({ limit, filter = 'all', emptyText }) {
   const { chain, account, state } = useApp();
   const addr = useChainAddress();
   const nativePrice = useNativePrice(chain);
@@ -250,6 +263,7 @@ export function HistoryList({ limit, filter = 'all' }) {
   const filtered = useMemo(() => {
     let l = (items || []).filter((x) => showSpam || !x.spam);
     if (filter === 'other') l = l.filter((x) => !['send', 'receive', 'swap'].includes(x.kind));
+    else if (filter === 'card') l = l.filter((x) => x.kind === 'card' || x.kind === 'cardRefund'); // MetaMask Card
     else if (filter !== 'all') l = l.filter((x) => x.kind === filter);
     return limit ? l.slice(0, limit) : l;
   }, [items, filter, limit, showSpam]);
@@ -270,7 +284,7 @@ export function HistoryList({ limit, filter = 'all' }) {
       {unsupported && <div class="info small" style={{ margin: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'history.unsupported' : 'history.unsupportedNoIndexer', { network: chain.name })}</div>}
       {err && <div class="stale-note" title={err}><Icon name="wifiOff" size={14} /><span class="grow">{t('history.loadFailed')}</span></div>}
       {!items && <div class="empty"><Spinner /></div>}
-      {items && !filtered.length && <Empty>{t('history.empty')}</Empty>}
+      {items && !filtered.length && <Empty>{emptyText || t('history.empty')}</Empty>}
       {groups.map((g) => (
         <>
           <div class="group-title">{g.label}</div>
@@ -292,19 +306,21 @@ export function HistoryList({ limit, filter = 'all' }) {
   );
 }
 
-export function History() {
+export function History({ filter: initial = 'all' }) {
   const { chain, account } = useApp();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(initial);
+  // MetaMask Card payments (Linea): a filter of their own
+  const filters = cardConfig(chain) ? [...FILTERS.slice(0, 4), ['card', 'history.filter.card'], FILTERS[4]] : FILTERS;
   return (
     <div class="screen">
       <TopBar title={t('history.title')} />
       <div class="content">
         <div class="small muted">{account.name} · {chain.name}</div>
         <div class="pills">
-          {FILTERS.map(([k, l]) => <button class={`pill ${filter === k ? 'active' : ''}`} onClick={() => setFilter(k)}>{t(l)}</button>)}
+          {filters.map(([k, l]) => <button class={`pill ${filter === k ? 'active' : ''}`} onClick={() => setFilter(k)}>{t(l)}</button>)}
         </div>
         <div class="card" style={{ padding: '0.375rem' }}>
-          <HistoryList filter={filter} />
+          <HistoryList filter={filter} emptyText={filter === 'card' ? t('mmcard.noPayments') : undefined} />
         </div>
       </div>
     </div>

@@ -165,7 +165,7 @@ function Hero() {
 }
 
 const STATS = [
-  { v: '9', l: 'networks built in, plus your own' },
+  { v: '10', l: 'networks built in, plus your own' },
   { v: '8', l: 'swap & bridge providers compared' },
   { v: '0', l: 'extra fees, ever' },
   { v: '600k', l: 'PBKDF2 rounds on your password' },
@@ -198,6 +198,12 @@ const FEATURES = [
     text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. Bridges compare LI.FI, Relay, Across and deBridge the same way.',
     points: ['Approvals for the exact amount — never unlimited', 'Fees shown in dollars before you sign', 'Bridge transfers tracked until they arrive'],
     img: 'swap',
+  },
+  {
+    id: 'mmcard', kicker: 'MetaMask Card', title: 'Your card, right behind your balance.',
+    text: 'Have a MetaMask Card? On Linea, Chakra finds it from the blockchain and puts it behind your balance card: what you can spend now, the payments you made, and a top-up from any network in a few taps. No sign-in, nothing shared.',
+    points: ['Spending limits per token: change or revoke them', 'Card payments recognised in your history', 'Top up through the best bridge to Linea'],
+    img: 'mmcard',
   },
   {
     id: 'predict', kicker: 'Predictions', title: 'Markets on what happens next.',
@@ -355,8 +361,8 @@ function Features() {
 }
 
 const GALLERY = [
-  ['home', false, 'Home'], ['nfts-dark', true, 'NFTs · dark'], ['predict-dark', true, 'Predictions · dark'], ['receive', false, 'Receive'], ['swap-dark', true, 'Swap · dark'],
-  ['send', false, 'Send'], ['activity', false, 'Activity'], ['accounts', false, 'Accounts'], ['contracts', false, 'Contracts'], ['donate-dark', true, 'Support · dark'],
+  ['home', false, 'Home'], ['mmcard-dark', true, 'MetaMask Card · dark'], ['nfts-dark', true, 'NFTs · dark'], ['predict-dark', true, 'Predictions · dark'], ['receive', false, 'Receive'], ['swap-dark', true, 'Swap · dark'],
+  ['send', false, 'Send'], ['mmcardManage', false, 'Card limits'], ['activity', false, 'Activity'], ['accounts', false, 'Accounts'], ['contracts', false, 'Contracts'], ['donate-dark', true, 'Support · dark'],
 ];
 /**
  * Light & dark: the screens move from right to left as the page scrolls down. The section stays pinned (sticky)
@@ -465,7 +471,7 @@ function Security() {
 
 const NETWORKS = [
   ['Ethereum', '#627EEA'], ['Base', '#0052FF'], ['Arbitrum', '#28A0F0'], ['Optimism', '#FF0420'], ['Polygon', '#8247E5'],
-  ['BNB Chain', '#F0B90B'], ['Avalanche', '#E84142'], ['Gnosis', '#3E6957'], ['TON', '#0098EA'], ['+ custom networks', null],
+  ['BNB Chain', '#F0B90B'], ['Avalanche', '#E84142'], ['Gnosis', '#3E6957'], ['Linea', '#61DFFF'], ['TON', '#0098EA'], ['+ custom networks', null],
 ];
 function Networks() {
   return (
@@ -553,7 +559,7 @@ function Footer() {
     <footer className="footer">
       <div className="wrap footer-in">
         <a className="brand" href="#top"><img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width="28" height="28" />Chakra</a>
-        <p>Free and open source. Self-custodial: you are responsible for your recovery phrase. Screenshots show demo data.</p>
+        <p>Free and open source. Self-custodial: you are responsible for your recovery phrase. Screenshots show demo data. MetaMask and MetaMask Card are trademarks of their respective owners: Chakra is not affiliated with, endorsed or sponsored by MetaMask, Consensys, Baanx or Mastercard, and shows the card only as a compatibility.</p>
         <a className="foot-gh" href={LINKS.github}><Icon name="github" size={18} stroke={false} />GitHub</a>
         <span>© {new Date().getFullYear()} Chakra</span>
       </div>

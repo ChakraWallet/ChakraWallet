@@ -30,10 +30,27 @@ function records(me) {
   ];
 }
 
+// Linea: MetaMask Card payments (sent by the card's relayer, recognised as shared/mmcard.js does) and a top-up
+const LUSDC = { token: '0x176211869ca2b568f2a7d4ee941e073a821ee1ff', symbol: 'USDC', decimals: 6, name: 'USD Coin', icon: USDC.icon };
+const MUSD = { token: '0xaca92e438df0b2401ff60da7e4337b687a2435da', symbol: 'mUSD', decimals: 6, name: 'MetaMask USD', icon: 'https://assets.coingecko.com/coins/images/68451/small/MetaMask-mUSD-Icon-200x200.png' };
+const SETTLE = '0x8dfe562cbb4e93d5029f39da26bb6b501a8d1d3e';
+function cardRecords(me) {
+  const d = new Date(); d.setDate(d.getDate() - 2); d.setHours(20, 10, 0, 0);
+  const now = d.getTime();
+  const pay = (time, tk, amount) => ({ hash: hash(), time, from: '0x88db0d1d188b0ab2ee30a7ebe2a6e64ba0152059', to: '0x9dd23a4a0845f10d65d293776b792af1131c7b30',
+    value: '0', fee: null, status: 'ok', card: 'spend', transfers: [{ ...tk, from: me, to: SETTLE, amount: units(amount, 6) }] });
+  return [
+    pay(now - 0.4 * H, LUSDC, 4.8), pay(now - 3.1 * H, LUSDC, 38.65), pay(now - 1 * D - 1 * H, MUSD, 12.4),
+    pay(now - 1 * D - 9 * H, LUSDC, 64.2), pay(now - 2 * D - 4 * H, LUSDC, 2.95), pay(now - 4 * D, MUSD, 119),
+    { hash: hash(), time: now - 5 * D, from: PEERS.relay, to: me, value: '0', fee: null, status: 'ok', isTx: true,
+      transfers: [{ ...LUSDC, from: PEERS.relay, to: me, amount: units(1500, 6) }], method: 'transfer' },
+  ];
+}
+
 export async function loadHistory(chain, address, cursor) {
   await new Promise((r) => setTimeout(r, 120));
   if (cursor) return { items: [], next: null, error: null, unsupported: false };
   const me = address.toLowerCase();
-  const items = records(me).map((r) => classify(r, me, chain)).sort((a, b) => b.time - a.time);
+  const items = (chain.id === 59144 ? cardRecords(me) : records(me)).map((r) => classify(r, me, chain)).sort((a, b) => b.time - a.time);
   return { items, next: null, error: null, unsupported: false };
 }

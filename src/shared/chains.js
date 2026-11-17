@@ -71,6 +71,16 @@ export const BUILTIN_CHAINS = [
     llama: 'xdai', swap: true,
   },
   {
+    // Linea (Consensys): the network of the MetaMask Card. No free keyless indexer: Etherscan V2 (its free key
+    // covers Linea) for the history and token discovery; without a key, the balances of the well-known tokens
+    id: 59144, name: 'Linea', short: 'LINEA', color: '#61DFFF',
+    native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
+    rpc: ['https://rpc.linea.build', 'https://linea-rpc.publicnode.com'],
+    explorer: 'https://lineascan.build',
+    indexer: { type: 'etherscan', url: 'https://api.etherscan.io/v2/api', needsKey: true },
+    llama: 'linea', swap: true,
+  },
+  {
     id: 11155111, name: 'Sepolia (test)', short: 'SEP', color: '#9CA3AF', testnet: true,
     native: { symbol: 'ETH', name: 'Sepolia Ether', decimals: 18, priceId: null },
     rpc: ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc.sepolia.org'],

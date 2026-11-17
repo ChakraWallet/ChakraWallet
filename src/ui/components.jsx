@@ -73,6 +73,7 @@ const P = {
   coins: 'M13.744 17.736a6 6 0 1 1-7.48-7.48M15 6h1v4M6.134 14.768l.866-.5 2 3.464M10 8a6 6 0 1 0 12 0a6 6 0 1 0 -12 0', // Lucide coins
   bookmark: 'M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z', // Lucide bookmark
   arrowUp: 'm5 12 7-7 7 7M12 19V5', // Lucide arrow-up
+  card: 'M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM2 10h20M6 15h4', // Lucide credit-card
 };
 // sizes are design px at 16px/rem: they scale with the root font size (larger in the app)
 export const rem = (px) => `${px / 16}rem`;

@@ -12,7 +12,8 @@ import { t, tn } from '../../shared/i18n.js';
 
 const SLIPPAGES = [10, 50, 100, 300]; // bps
 
-export function Swap({ fromAddress }) {
+/** fromAddress / toAddress: the tokens to start with (e.g. converting into a token the MetaMask Card spends). */
+export function Swap({ fromAddress, toAddress }) {
   const { chain, account, reset, setPortfolioCache } = useApp();
   const drv = driverFor(chain);
   const wallet = useChainAddress();
@@ -50,7 +51,8 @@ export function Swap({ fromAddress }) {
   useEffect(() => {
     if (!data) return;
     if (!from) setFrom(allTokens.find((x) => x.address === (fromAddress || NATIVE)) || allTokens[0]);
-    if (!to) setTo(allTokens.find((x) => ['USDC', 'USD₮', 'USDT'].includes(x.symbol) && x.address !== (fromAddress || NATIVE)) || allTokens[1]);
+    if (!to) setTo((toAddress && allTokens.find((x) => x.address === toAddress.toLowerCase() && x.address !== (fromAddress || NATIVE)))
+      || allTokens.find((x) => ['USDC', 'USD₮', 'USDT'].includes(x.symbol) && x.address !== (fromAddress || NATIVE)) || allTokens[1]);
   }, [data, extra.length]);
 
   const raw = from ? parseAmount(amount, from.decimals) : null;

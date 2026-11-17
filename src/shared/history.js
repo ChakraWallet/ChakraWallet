@@ -2,6 +2,7 @@
 import { etherscanUrl, isSpamToken } from './portfolio.js';
 import { rpc, getTokenInfo } from './rpc.js';
 import { POPULAR_TOKENS } from './tokens.js';
+import { markCardRecords } from './mmcard.js';
 
 const lc = (a) => String(a || '').toLowerCase();
 
@@ -148,7 +149,8 @@ export function classify(r, address, chain) {
     if (t.from === me) {
       // "outgoing" token transfers in a tx someone else sent are fake events emitted by spam contracts
       // (records known only from the token-transfer list may be ours on another page: drop only spam tokens there)
-      if (r.isTx ? !sentByMeTx : (r.notMine || isSpamToken(t, chain.id))) { r._spoof = true; continue; }
+      // (a MetaMask Card payment is sent by the card's relayer: a real one, recognised by shared/mmcard.js)
+      if (!r.card && (r.isTx ? !sentByMeTx : (r.notMine || isSpamToken(t, chain.id)))) { r._spoof = true; continue; }
       dir = 'out';
     } else if (t.to === me) dir = 'in';
     else continue;
@@ -163,16 +165,18 @@ export function classify(r, address, chain) {
   // tokens leave on this network and nothing comes back here, through a bridge method or a known bridge contract
   const bridgeLike = sentByMe && outs.length > 0 && ins.length === 0 && (BRIDGE_METHOD.test(m) || BRIDGE_CONTRACT.test(r.toName || ''));
   let kind;
-  if (outs.length && ins.length) kind = 'swap';
+  if (r.card === 'spend' && outs.length) kind = 'card';
+  else if (r.card === 'refund' && ins.length) kind = 'cardRefund';
+  else if (outs.length && ins.length) kind = 'swap';
   else if (m === 'approve' || m === '0x095ea7b3' || r.selector === '0x095ea7b3' || m === 'setapprovalforall' || m === 'permit') kind = 'approve';
   else if (outs.length) kind = 'send';
   else if (ins.length) kind = 'receive';
   else if (sentByMe && r.to === me) kind = 'self';
   else kind = 'contract';
-  const spam = !sentByMe && (r._spoof || (items.length > 0 && items.every((i) => !i.native && isSpamToken(i, chain.id))) || (items.length === 0 && r.transfers.length > 0));
+  const spam = !sentByMe && !r.card && (r._spoof || (items.length > 0 && items.every((i) => !i.native && isSpamToken(i, chain.id))) || (items.length === 0 && r.transfers.length > 0));
   return {
     ...r, kind, transfers: items, sentByMe, spam, bridgeLike,
-    counterparty: kind === 'send' ? outs[0]?.counterparty : kind === 'receive' ? ins[0]?.counterparty : r.to,
+    counterparty: kind === 'send' || kind === 'card' ? outs[0]?.counterparty : kind === 'receive' || kind === 'cardRefund' ? ins[0]?.counterparty : r.to,
     fee: sentByMe ? r.fee : null,
   };
 }
@@ -229,6 +233,7 @@ export async function loadHistory(chain, address, cursor, { etherscanKey = '', l
     }));
     records = [...records, ...localRecs];
   }
+  await markCardRecords(chain, address, records).catch(() => {}); // MetaMask Card payments (Linea)
   const items = records.map((r) => classify(r, address, chain)).sort((a, b) => b.time - a.time);
   return { items, next: page.next, error, unsupported };
 }

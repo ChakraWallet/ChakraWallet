@@ -67,15 +67,25 @@ const SCENES = {
   async browser(page) { await tab(page, 'browser'); await sleep(1500); },
   async contracts(page) { await tab(page, 'contracts'); await sleep(1500); },
   async donate(page) { await tab(page, 'donate'); await sleep(2200); },
+  // MetaMask Card (Linea): the card brought in front of the balance card, its operations, its payments, its limits
+  async mmcard(page) { await page.waitForSelector('.hs-slot.back', { timeout: 20000 }); await page.click('.hs-dots button:nth-child(2)'); await sleep(1500); },
+  async mmcardOps(page) { // the operations tab, scrolled to the top of the screen
+    await SCENES.mmcard(page);
+    await page.evaluate(() => { const c = document.querySelector('.tabs'); const s = c.closest('.content') || document.scrollingElement; s.scrollTop += c.getBoundingClientRect().top - 120; });
+    await sleep(900);
+  },
+  async mmcardPayments(page) { await SCENES.mmcard(page); await page.click('.tabs .tab:nth-of-type(2)'); await sleep(1200); },
+  async mmcardManage(page) { await SCENES.mmcard(page); await action(page, 3); await sleep(1800); },
 };
+const CHAIN = { mmcard: 59144, mmcardOps: 59144, mmcardPayments: 59144, mmcardManage: 59144 }; // scenes on another network than Ethereum
 
 const only = process.argv.slice(2);
 const { server, url } = await serve();
 const b = await browser();
 const runs = [];
 for (const lang of ['en']) { // the landing page is in English only
-  for (const name of Object.keys(SCENES)) runs.push({ name, lang, dark: false });
-  if (!process.env.NO_DARK) for (const name of ['home', 'predict', 'swap', 'nfts', 'donate']) runs.push({ name, lang, dark: true });
+  for (const name of Object.keys(SCENES)) runs.push({ name, lang, dark: false, chainId: CHAIN[name] });
+  if (!process.env.NO_DARK) for (const name of ['home', 'predict', 'swap', 'nfts', 'donate', 'mmcard']) runs.push({ name, lang, dark: true, chainId: CHAIN[name] });
 }
 for (const r of runs.filter((x) => !only.length || only.includes(x.name))) {
   const file = `${r.name}${r.dark ? '-dark' : ''}.jpg`;

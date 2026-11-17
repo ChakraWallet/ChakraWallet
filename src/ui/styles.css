@@ -30,6 +30,7 @@
   --red-soft: #fbe4e1;
   --amber: #9a6100;
   --amber-soft: #fcefd6;
+  --mm-orange: #d8620f; --mm-soft: #fde7d4; /* MetaMask Card (compatibility): an orange close to the card's */
   --scrim: rgba(16, 20, 28, .42);
   --lift: 0 1px 0 rgba(16, 20, 28, .04);
   --float: 0 -8px 32px rgba(16, 20, 28, .14);
@@ -45,7 +46,7 @@
   --primary: #6e95ff; --primary-press: #8dacff; --primary-soft: #18264a; --on-primary: #0b0f17;
   --pill-bg: #222c3d; --pill-ink: #8d97aa; --pill-act: #e8ecf4; --pill-act-ink: #0b0f17; --pill-edge: #303b50;
   --note: #17306f; --note-ink: #eef2ff;
-  --green: #3fcb86; --green-soft: #10291d; --red: #ff7a6e; --red-soft: #33161a; --amber: #f2b84b; --amber-soft: #33270f;
+  --green: #3fcb86; --green-soft: #10291d; --red: #ff7a6e; --red-soft: #33161a; --amber: #f2b84b; --amber-soft: #33270f; --mm-orange: #ff9a4a; --mm-soft: #33200f;
   --scrim: rgba(0, 0, 0, .55); --lift: 0 1px 0 rgba(0, 0, 0, .2); --float: 0 -8px 32px rgba(0, 0, 0, .45);
   color-scheme: dark;
 }
@@ -55,7 +56,7 @@
     --primary: #6e95ff; --primary-press: #8dacff; --primary-soft: #18264a; --on-primary: #0b0f17;
     --pill-bg: #222c3d; --pill-ink: #8d97aa; --pill-act: #e8ecf4; --pill-act-ink: #0b0f17; --pill-edge: #303b50;
     --note: #17306f; --note-ink: #eef2ff;
-    --green: #3fcb86; --green-soft: #10291d; --red: #ff7a6e; --red-soft: #33161a; --amber: #f2b84b; --amber-soft: #33270f;
+    --green: #3fcb86; --green-soft: #10291d; --red: #ff7a6e; --red-soft: #33161a; --amber: #f2b84b; --amber-soft: #33270f; --mm-orange: #ff9a4a; --mm-soft: #33200f;
     --scrim: rgba(0, 0, 0, .55); --lift: 0 1px 0 rgba(0, 0, 0, .2); --float: 0 -8px 32px rgba(0, 0, 0, .45);
     color-scheme: dark;
   }
@@ -1632,3 +1633,70 @@ button.dn-row:active { background: var(--card-2); }
 /* support card: a fainter guilloche, so the white text over it reads well */
 .dn-hero .guilloche path { opacity: .09; }
 .dn-hero .guilloche path.band { opacity: .05; }
+
+/* ---------- MetaMask Card (compatibility, Linea): its card behind the balance card, the two swapped by a tap or a swipe */
+.hstack { position: relative; display: grid; padding-bottom: 2rem; touch-action: pan-y; }
+.hs-slot { grid-area: 1 / 1; transform-origin: 50% 100%; transition: transform .45s var(--ease-out), filter .45s var(--ease-out); }
+.hs-slot > .hero { height: 100%; }
+.hs-slot.front { z-index: 2; }
+.hs-slot.back { z-index: 1; transform: translateY(1.25rem) scale(.92); filter: brightness(.72) saturate(.9); cursor: pointer; }
+.hs-slot.back > * { pointer-events: none; }
+.hs-slot.back:hover { filter: brightness(.82) saturate(.95); }
+/* the swap: the card behind drops out below, then comes over the other one; the front one lifts and settles behind */
+.hstack.moved .hs-slot.front { animation: hs-front .62s var(--ease-out); }
+.hstack.moved .hs-slot.back { animation: hs-back .62s var(--ease-out); }
+@keyframes hs-front {
+  0% { transform: translateY(1.25rem) scale(.92); z-index: 1; filter: brightness(.72); }
+  42% { transform: translateY(58%) scale(.95) rotate(-1.5deg); z-index: 1; }
+  43% { z-index: 3; }
+  100% { transform: none; z-index: 3; filter: none; }
+}
+@keyframes hs-back {
+  0% { transform: none; z-index: 2; }
+  42% { transform: translateY(-7%) scale(.97) rotate(1deg); z-index: 2; }
+  43% { z-index: 1; }
+  100% { transform: translateY(1.25rem) scale(.92); z-index: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .hstack.moved .hs-slot { animation: none; } .hs-slot { transition: none; } }
+/* the edge of the card behind says what it is */
+.hs-peek { position: absolute; left: 50%; bottom: .3rem; transform: translateX(-50%); display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .6875rem; font-weight: 650; letter-spacing: .02em; color: #fff; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+.hs-slot.back .hs-peek { opacity: .95; }
+.hs-dots { position: absolute; left: 0; right: 0; bottom: .125rem; display: flex; justify-content: center; gap: .375rem; z-index: 4; }
+.hs-dots button { width: .375rem; height: .375rem; border-radius: 999px; background: var(--border); padding: 0; transition: width .3s var(--ease-out), background .3s; }
+.hs-dots button.on { width: 1.125rem; background: var(--primary); }
+.hs-dots button.mmc.on { background: var(--mm-orange); }
+
+.mmc-face { background: radial-gradient(130% 150% at 100% 0%, #f6851b 0%, #e2761b 24%, #9a3d0c 58%, #24130b 100%); box-shadow: 0 1px 0 rgba(255, 255, 255, .18) inset, 0 .75rem 1.75rem -1rem rgba(120, 45, 5, .75); }
+:root[data-theme="dark"] .mmc-face { background: radial-gradient(130% 150% at 100% 0%, #e2761b 0%, #c4600f 24%, #7a2f08 58%, #170c07 100%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mmc-face { background: radial-gradient(130% 150% at 100% 0%, #e2761b 0%, #c4600f 24%, #7a2f08 58%, #170c07 100%); } }
+.mmc-face .guilloche path { opacity: .14; }
+.mmc-face .guilloche path.band { opacity: .07; }
+.mmc-label { display: inline-flex; align-items: center; gap: .375rem; opacity: .95 !important; font-weight: 650 !important; }
+.mmc-compat { font-size: .625rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; padding: .125rem .375rem; border-radius: 999px; background: rgba(255, 255, 255, .18); }
+.mmc-sub { font-size: .75rem; opacity: .78; margin-bottom: .125rem; }
+.mmc-toks { display: inline-flex; align-items: center; gap: .25rem; min-width: 0; }
+.mmc-toks .token-icon { box-shadow: 0 0 0 2px rgba(0, 0, 0, .25); }
+.mmc-toks .token-icon + .token-icon { margin-left: -.5rem; }
+.mmc-toks .small { margin-left: .25rem; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mmc-net { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; font-weight: 600; background: rgba(0, 0, 0, .22); padding: .25rem .5rem .25rem .3rem; border-radius: 999px; }
+.actions.mmc .action:first-child .ic { background: var(--mm-orange); border-color: var(--mm-orange); color: #fff; }
+.actions.mmc .ic { color: var(--mm-orange); }
+.mmc-op-ic { width: 2.25rem; height: 2.25rem; border-radius: 999px; display: grid; place-items: center; flex: none; background: var(--mm-soft); color: var(--mm-orange); }
+.mmc-op-ic.danger { background: var(--red-soft); color: var(--red); }
+.mmc-legal { line-height: 1.45; padding: 0 .25rem; }
+.mmc-tok { gap: .625rem; }
+.mmc-bar { height: .375rem; border-radius: 999px; background: var(--card-2); overflow: hidden; }
+.mmc-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f6851b, #e2761b); transition: width .6s var(--ease-out); }
+.mmc-danger { color: var(--red) !important; }
+.mmc-danger-fill { background: var(--red) !important; border-color: var(--red) !important; color: #fff !important; }
+.dir-badge.mmc-pay { background: var(--mm-orange); }
+.dir-badge.mmc-refund { background: var(--green); }
+/* behind, only the label shows on the card's edge (not half of its footer) */
+.hs-slot .hero-foot { transition: opacity .3s; }
+.hs-slot.back .hero-foot { opacity: 0; }
+.mmc-limrow { gap: .75rem; }
+.mmc-limrow .nowrap { white-space: nowrap; flex: none; }
+.mmc-btns { gap: .5rem; }
+.mmc-btns .btn { white-space: nowrap; flex: 1 1 0; min-width: 0; font-size: .8125rem; }
+.actions a.action, .list a.item { color: inherit; text-decoration: none; } /* links shaped as actions / rows (MetaMask's site) */

@@ -8,6 +8,10 @@ export const PRICES = {
   'coingecko:avalanche-2': 31.86,
   'coingecko:xdai': 1,
   'coingecko:the-open-network': 3.12,
+  // Linea: the MetaMask Card's tokens
+  'linea:0x176211869ca2b568f2a7d4ee941e073a821ee1ff': 1.0001,
+  'linea:0xaca92e438df0b2401ff60da7e4337b687a2435da': 0.9996,
+  'linea:0x3ff47c5bf409c86533fe1f4907524d304062428d': 1.0854,
 };
 const USDC = 1.0001, USDT = 0.9998, DAI = 0.9999, WBTC = 97240.15, LINK = 18.42, UNI = 11.37;
 
@@ -28,6 +32,11 @@ export const HOLDINGS = [
     42161: { native: 0.3517, tokens: [tok('0xaf88d065e77c8cC2239327C5EDb3A432268e5831', 'USDC', 'USD Coin', 6, 410, USDC)] },
     10: { native: 0.0941, tokens: [] },
     137: { native: 820.4, tokens: [tok('0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', 'USDC', 'USD Coin', 6, 312.6, USDC)] },
+    59144: { native: 0.0421, tokens: [ // Linea: the MetaMask Card spends from here (CARD below)
+      tok('0x176211869cA2b568f2A7D4EE941E073a821EE1ff', 'USDC', 'USD Coin', 6, 1845.2, USDC),
+      tok('0xacA92E438df0B2401fF60dA7E4337B687a2435DA', 'mUSD', 'MetaMask USD', 6, 420, 0.9996),
+      tok('0x3ff47c5Bf409C86533FE1f4907524d304062428D', 'EURe', 'Monerium EUR emoney', 18, 300, 1.0854),
+    ] },
   },
   { // Savings
     1: { native: 5.2, tokens: [
@@ -42,6 +51,12 @@ export const HOLDINGS = [
     10: { native: 0.21, tokens: [] },
   },
 ];
+
+/** MetaMask Card limits (allowances to its contract on Linea) of the first account: USDC with no limit, mUSD 250. */
+export const CARD = {
+  '0x176211869ca2b568f2a7d4ee941e073a821ee1ff': 2199023255551n * 10n ** 6n,
+  '0xaca92e438df0b2401ff60da7e4337b687a2435da': 250n * 10n ** 6n,
+};
 
 export async function accountIndex(address) {
   const accs = (await globalThis.chrome.storage.local.get('accounts')).accounts || [];

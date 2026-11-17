@@ -26,11 +26,12 @@ import { t, setLang } from '../shared/i18n.js';
 import { setDisplayCurrency } from '../shared/fx.js';
 import { accountFamily, familyOf, driverOf, isEvmAccount } from './chains/index.js';
 import { NftDetail } from './screens/nfts.jsx';
+import { MmCard } from './screens/mmcard.jsx';
 
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
 const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions']);
 
-const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail };
+const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail, mmcard: MmCard };
 
 const scanStart = location.hash === '#full-scan'; // extension: QR scanning continues in a tab (camera)
 const mode = globalThis.__CK_MOBILE__ ? 'mobile' : scanStart ? 'full' : location.hash.replace('#', '') || 'popup';
@@ -152,7 +153,7 @@ export function App() {
   useLayoutEffect(() => {
     const went = stack.length < prevDepth.current;
     prevDepth.current = stack.length;
-    const want = went && stack[stack.length - 1].scroll;
+    const want = went ? stack[stack.length - 1].scroll : null;
     if (!want?.some((y) => y > 0)) return undefined;
     // the lists may still be growing (data from cache, async rows): retry briefly until each one reaches its place
     const apply = () => {

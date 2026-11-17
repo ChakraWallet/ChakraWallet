@@ -10,5 +10,6 @@ import contracts from './contracts.js';
 import ton from './ton.js';
 import toncontracts from './toncontracts.js';
 import legal from './legal.js';
+import mmcard from './mmcard.js';
 
-export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...legal };
+export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...legal, ...mmcard };

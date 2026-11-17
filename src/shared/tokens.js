@@ -6,6 +6,10 @@ const ICONS = {
   USDC: `${CG}6319/small/usdc.png`, USDT: `${CG}325/small/Tether.png`, DAI: `${CG}9956/small/Badge_Dai.png`,
   WBTC: `${CG}7598/small/wrapped_bitcoin_wbtc.png`, cbBTC: `${CG}40143/small/cbbtc.webp`,
   LINK: `${CG}877/small/chainlink-new-logo.png`, UNI: `${CG}12504/small/uniswap-logo.png`,
+  WETH: `${CG}2518/small/weth.png`, wstETH: `${CG}18834/small/wstETH.png`, weETH: `${CG}33033/small/weETH.png`,
+  // Linea and the MetaMask Card's tokens
+  mUSD: `${CG}68451/small/MetaMask-mUSD-Icon-200x200.png`, EURe: `${CG}54303/small/eure.jpg`, GBPe: `${CG}39004/small/gbp.png`,
+  LINEA: `${CG}68507/small/linea-logo.jpeg`,
 };
 const t = (address, symbol, name, decimals, icon = ICONS[symbol]) => ({ address: address.toLowerCase(), symbol, name, decimals, ...(icon ? { icon } : {}) });
 
@@ -68,6 +72,19 @@ export const POPULAR_TOKENS = {
     t('0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', 'USDC', 'USD Coin', 6),
     t('0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7', 'USDT', 'Tether USD', 6),
     t('0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7', 'WAVAX', 'Wrapped AVAX', 18),
+  ],
+  59144: [ // the first six are the ones the MetaMask Card spends (shared/mmcard.js)
+    t('0x176211869cA2b568f2A7D4EE941E073a821EE1ff', 'USDC', 'USD Coin', 6),
+    t('0xA219439258ca9da29E9Cc4cE5596924745e12B93', 'USDT', 'Tether USD', 6),
+    t('0xacA92E438df0B2401fF60dA7E4337B687a2435DA', 'mUSD', 'MetaMask USD', 6),
+    t('0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f', 'WETH', 'Wrapped Ether', 18),
+    t('0x3ff47c5Bf409C86533FE1f4907524d304062428D', 'EURe', 'Monerium EUR emoney', 18),
+    t('0x3Bce82cf1A2bc357F956dd494713Fe11DC54780f', 'GBPe', 'Monerium GBP emoney', 18),
+    t('0x3aAB2285ddcDdaD8edf438C1bAB47e1a9D05a9b4', 'WBTC', 'Wrapped BTC', 8),
+    t('0x4AF15ec2A0BD43Db75dd04E62FAA3B8EF36b00d5', 'DAI', 'Dai Stablecoin', 18),
+    t('0xB5beDd42000b71FddE22D3eE8a79Bd49A568fC8F', 'wstETH', 'Wrapped liquid staked Ether', 18),
+    t('0x1Bf74C010E6320bab11e2e5A532b5AC15e0b8aA6', 'weETH', 'Wrapped eETH', 18),
+    t('0x1789e0043623282D5DCc7F213d703C6D8BAfBB04', 'LINEA', 'Linea', 18),
   ],
   100: [
     t('0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', 'USDC', 'USD Coin', 6),

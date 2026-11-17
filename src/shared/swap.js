@@ -8,10 +8,10 @@ const ZERO = '0x0000000000000000000000000000000000000000';
 const isNative = (a) => a.toLowerCase() === NATIVE;
 
 // networks of each aggregator (exported: a test build adds its local networks)
-export const KYBER_CHAINS = { 1: 'ethereum', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avalanche', 8453: 'base' };
+export const KYBER_CHAINS = { 1: 'ethereum', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avalanche', 8453: 'base', 59144: 'linea' };
 export const PARASWAP_CHAINS = new Set([1, 10, 56, 137, 8453, 42161, 43114, 100]);
-export const OPENOCEAN_CHAINS = { 1: 'eth', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avax', 8453: 'base', 100: 'xdai' };
-export const LIFI_CHAINS = new Set([1, 10, 56, 100, 137, 8453, 42161, 43114]);
+export const OPENOCEAN_CHAINS = { 1: 'eth', 56: 'bsc', 137: 'polygon', 42161: 'arbitrum', 10: 'optimism', 43114: 'avax', 8453: 'base', 100: 'xdai', 59144: 'linea' };
+export const LIFI_CHAINS = new Set([1, 10, 56, 100, 137, 8453, 42161, 43114, 59144]);
 
 async function fetchJson(url, init = {}, timeout = 12000) {
   const ctrl = new AbortController();

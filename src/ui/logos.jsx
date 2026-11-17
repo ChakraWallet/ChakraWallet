@@ -70,6 +70,14 @@ const LOGOS = {
       <path fill="none" stroke={W} stroke-width="1.8" stroke-linecap="round" d="M8.2 10.4l2.4 1.2M23.8 10.4l-2.4 1.2" />
     </>
   ),
+  // Linea: the "L" with its corner, on the brand's dark ground
+  59144: (
+    <>
+      <circle cx="16" cy="16" r="16" fill="#121212" />
+      <path fill={W} d="M9.5 8.6h2.6v12.7h10.4v2.6H9.5z" />
+      <path fill="#61DFFF" d="M18.3 8.6h4.2v4.2h-4.2z" />
+    </>
+  ),
   // Sepolia (grey ethereum)
   // TON (coin: GRAM)
   [-239]: (
@@ -96,7 +104,7 @@ const LOGOS = {
 };
 
 // Native coins / common tokens -> logo of the chain they belong to
-const SYMBOL_LOGO = { GRAM: -239, TON: -239, ETH: 1, WETH: 1, POL: 137, MATIC: 137, WPOL: 137, BNB: 56, WBNB: 56, AVAX: 43114, WAVAX: 43114, XDAI: 100, WXDAI: 100, OP: 10, ARB: 42161 };
+const SYMBOL_LOGO = { GRAM: -239, TON: -239, ETH: 1, WETH: 1, POL: 137, MATIC: 137, WPOL: 137, BNB: 56, WBNB: 56, AVAX: 43114, WAVAX: 43114, XDAI: 100, WXDAI: 100, OP: 10, ARB: 42161, LINEA: 59144 };
 
 export function hasChainLogo(id) { return !!LOGOS[id]; }
 export function symbolLogoId(symbol = '') { return SYMBOL_LOGO[symbol.toUpperCase()]; }

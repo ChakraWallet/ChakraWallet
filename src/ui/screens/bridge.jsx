@@ -30,12 +30,16 @@ function sameOn(tk, c, other) {
 const cap = (v, ...a) => (typeof v === 'function' ? v(...a) : !!v);
 const minutes = (s) => (s == null ? '' : s < 60 ? t('bridge.time.sec', { n: Math.max(1, Math.round(s)) }) : t('bridge.time.min', { n: Math.round(s / 60) }));
 
-export function Bridge() {
+/** toChainId / toAddress: open towards a network and a token (e.g. topping up the MetaMask Card on Linea). */
+export function Bridge({ toChainId, toAddress }) {
   const { chain, account, state, portfolioCache, setPortfolioCache } = useApp();
   const auth = useOperationAuth(t('bridge.confirmTitle'));
   const usable = bridgeNetworks().filter((c) => isChainEnabled(c.id, state.settings)); // networks switched off in Settings are not offered
-  const [fromId, setFromId] = useState(usable.some((c) => c.id === chain.id) ? chain.id : 1);
-  const [toId, setToId] = useState(() => [8453, 42161, ...usable.map((c) => c.id)].find((id) => id !== fromId && usable.some((c) => c.id === id)) ?? fromId);
+  const want = toChainId && usable.some((c) => c.id === toChainId) ? toChainId : null;
+  // towards a given network: from another one (Base and Arbitrum first, cheap), else from the current network
+  const [fromId, setFromId] = useState(() => (want ? [8453, 42161, 1, ...usable.map((c) => c.id)].find((id) => id !== want && usable.some((c) => c.id === id)) ?? 1
+    : usable.some((c) => c.id === chain.id) ? chain.id : 1));
+  const [toId, setToId] = useState(() => want ?? [8453, 42161, ...usable.map((c) => c.id)].find((id) => id !== fromId && usable.some((c) => c.id === id)) ?? fromId);
   const fromChain = chainOf(fromId), toChain = chainOf(toId);
   const route = bridgeFor(fromChain, toChain); // the driver bridge that connects them (null: none)
   // the account's address on both sides; an account of one family only uses the wallet's first account that has one
@@ -47,8 +51,8 @@ export function Bridge() {
     return a ? { ...map[a.address], owner: a.address } : null;
   };
   const fromAddr = own(fromMap), selfTo = own(toMap);
-  const [fromToken, setFromToken] = useState(() => nativeToken(fromChain));
-  const [toToken, setToToken] = useState(() => nativeToken(toChain));
+  const [toToken, setToToken] = useState(() => (toAddress && tokensOn(toChain, fromChain).find((x) => x.address.toLowerCase() === toAddress.toLowerCase())) || nativeToken(toChain));
+  const [fromToken, setFromToken] = useState(() => (toAddress ? sameOn(toToken, fromChain, toChain) : nativeToken(fromChain))); // the same asset
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState(''); // routes with freeRecipient: another address ('' = this account)
   const [refuel, setRefuel] = useState(false);

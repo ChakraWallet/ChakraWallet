@@ -11,9 +11,9 @@ const ZERO = '0x0000000000000000000000000000000000000000';
 const isNative = (a) => String(a).toLowerCase() === NATIVE;
 const tok = (a) => (isNative(a) ? ZERO : a);
 
-/** Networks supported by the bridge screen (all three providers support them, except deBridge on Gnosis). */
-export const BRIDGE_CHAINS = [1, 8453, 42161, 10, 137, 56, 43114, 100];
-const DEBRIDGE_IDS = { 1: 1, 8453: 8453, 42161: 42161, 10: 10, 137: 137, 56: 56, 43114: 43114, 100: 100000002 };
+/** Networks supported by the bridge screen (all the providers support them, except deBridge on Gnosis). */
+export const BRIDGE_CHAINS = [1, 8453, 42161, 10, 137, 56, 43114, 100, 59144];
+const DEBRIDGE_IDS = { 1: 1, 8453: 8453, 42161: 42161, 10: 10, 137: 137, 56: 56, 43114: 43114, 100: 100000002, 59144: 59144 };
 
 async function fetchJson(url, init = {}, timeout = 20000) {
   const ctrl = new AbortController();

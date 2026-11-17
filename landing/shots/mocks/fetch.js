@@ -1,13 +1,35 @@
 // Demo network: every fetch() of the app is answered here with invented data (JSON-RPC, prices, Polymarket);
 // anything else fails like an offline request. Loaded before the app.
-import { PRICES, HOLDINGS, accountIndex } from './data.js';
+import { Interface } from 'ethers';
+import { PRICES, HOLDINGS, CARD, accountIndex } from './data.js';
+import { MULTICALL3 } from '../../../src/shared/rpc.js';
+
+// Linea: balances and the MetaMask Card's limits (shared/mmcard.js reads them in one multicall)
+const mc = new Interface(['function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[] returnData)']);
+const erc = new Interface(['function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)']);
+const word = (n) => '0x' + BigInt(n).toString(16).padStart(64, '0');
+async function lineaCall(data) {
+  const [calls] = mc.decodeFunctionData('aggregate3', data);
+  const out = await Promise.all(calls.map(async (c) => {
+    const f = erc.parseTransaction({ data: c.callData }), tok = String(c.target).toLowerCase();
+    const idx = await accountIndex(f.args[0]);
+    if (f.name === 'balanceOf') {
+      const x = HOLDINGS[idx]?.[59144]?.tokens.find((y) => y.address === tok);
+      return [true, word(x ? BigInt(Math.round(x.amount * 1e6)) * 10n ** BigInt(x.decimals - 6) : 0n)];
+    }
+    const global = String(f.args[1]).toLowerCase() === '0x9dd23a4a0845f10d65d293776b792af1131c7b30';
+    return [true, word(idx === 0 && global ? CARD[tok] || 0n : 0n)];
+  }));
+  return mc.encodeFunctionResult('aggregate3', [out]);
+}
 
 const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
 const hex = (n) => '0x' + BigInt(n).toString(16);
 const GWEI = 1_000_000_000n;
 
 // ---------------------------------------------------------------- JSON-RPC
-async function rpcAnswer({ method, params = [] }) {
+async function rpcAnswer({ method, params = [] }, host = '') {
+  if (method === 'eth_call' && host.includes('linea') && String(params[0]?.to).toLowerCase() === MULTICALL3.toLowerCase()) return lineaCall(params[0].data);
   switch (method) {
     case 'eth_chainId': return '0x1';
     case 'eth_blockNumber': return hex(21_874_512);
@@ -244,9 +266,9 @@ globalThis.fetch = async (input, init = {}) => {
   const u = new URL(url, location.href);
   if (u.origin === location.origin) return realFetch(input, init);
   await new Promise((r) => setTimeout(r, 40));
-  if (init.method === 'POST' && init.body && /rpc|publicnode|base\.org|arbitrum|optimism|llamarpc|cloudflare-eth|avax|gnosis|bnbchain|sepolia/.test(u.host + u.pathname)) {
+  if (init.method === 'POST' && init.body && /rpc|publicnode|base\.org|arbitrum|optimism|llamarpc|cloudflare-eth|avax|gnosis|bnbchain|sepolia|linea/.test(u.host + u.pathname)) {
     const body = JSON.parse(init.body);
-    const one = async (r) => { try { return { jsonrpc: '2.0', id: r.id, result: await rpcAnswer(r) }; } catch (e) { return { jsonrpc: '2.0', id: r.id, error: { code: e.code || -32000, message: e.message } }; } };
+    const one = async (r) => { try { return { jsonrpc: '2.0', id: r.id, result: await rpcAnswer(r, u.host) }; } catch (e) { return { jsonrpc: '2.0', id: r.id, error: { code: e.code || -32000, message: e.message } }; } };
     return json(Array.isArray(body) ? await Promise.all(body.map(one)) : await one(body));
   }
   if (u.host === 'coins.llama.fi' && u.pathname.startsWith('/chart/')) return json(llamaChart(u));

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'preact/hooks';
+import { useState, useMemo, useEffect } from 'preact/hooks';
 import { bg, ext, local } from '../../shared/ext.js';
 import { allChains, NATIVE, isChainEnabled } from '../../shared/chains.js';
 import { fmtUsd, fmtNum, shortAddr, fmtTime } from '../../shared/format.js';
@@ -9,6 +9,10 @@ import { usePolyFunds, POLY_CHAIN } from '../polyBalance.js';
 import { HistoryList } from './history.jsx';
 import { t, tn } from '../../shared/i18n.js';
 import { NftSection } from './nfts.jsx';
+import { useMmCard, MmCardFace, HeroStack, CardActions, CardOps } from './mmcard.jsx';
+
+// the card in front on the home (the balance card or the MetaMask Card): kept while moving between screens
+let lastFace = 'wallet';
 
 /**
  * Network list. Without onPick it switches the wallet's network; with onPick (current, onPick) it only picks one.
@@ -112,6 +116,14 @@ export function Home() {
   const [sheet, setSheet] = useState(null);
   const [showUnpriced, setShowUnpriced] = useState(state.settings.showUnpriced);
   const [showHidden, setShowHidden] = useState(false);
+  // MetaMask Card (Linea): when the account is linked to one, its card sits behind the balance card
+  const card = useMmCard();
+  const linked = !!card.data?.linked;
+  const [face, setFaceState] = useState(lastFace);
+  const setFace = (f) => { lastFace = f; setFaceState(f); };
+  const [cardTab, setCardTab] = useState('ops');
+  const onCard = linked && face === 'card';
+  useEffect(() => { if (card.data && !linked && face !== 'wallet') setFace('wallet'); }, [linked, !!card.data]);
 
   const priced = data?.tokens.filter((t) => t.price != null || t.custom) || [];
   const unpriced = data?.tokens.filter((t) => t.price == null && !t.custom) || [];
@@ -176,32 +188,54 @@ export function Home() {
           </button>
         )}
 
-        <div class="hero" style={cardStyle(account.address)}>
-          <Guilloche seed={account.address} draw key={account.address} />
-          <div class="row between">
-            <span class="label">{t('home.totalBalance', { network: chain.name })}</span>
-            <button class="iconbtn hero-btn" title={t('home.refresh')} onClick={reloadAll}>
-              {loading ? <Spinner /> : <Icon name="refresh" size={15} />}
-            </button>
+        {(() => {
+          const walletHero = (
+          <div class="hero" style={cardStyle(account.address)}>
+            <Guilloche seed={account.address} draw key={account.address} />
+            <div class="row between">
+              <span class="label">{t('home.totalBalance', { network: chain.name })}</span>
+              <button class="iconbtn hero-btn" title={t('home.refresh')} onClick={reloadAll}>
+                {loading ? <Spinner /> : <Icon name="refresh" size={15} />}
+              </button>
+            </div>
+            <div class="total">{data ? (chain.testnet ? `${fmtNum(shown)} ${chain.native.symbol}` : fmtUsd(shown)) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
+            <div class="row between hero-foot">
+              <button class="addr" onClick={async () => { if (!addr.address) return; await navigator.clipboard.writeText(addr.address); toast(t('home.addressCopied')); }}>
+                {addr.address ? shortAddr(addr.address, 6) : '…'} <Icon name="copy" size={13} />
+              </button>
+              {data && <span class="small num" style={{ opacity: .85 }}>{fmtNum(data.native.amount)} {chain.native.symbol}</span>}
+            </div>
+            {linked && <span class="hs-peek"><Icon name="wallet" size={12} /> {t('mmcard.peekWallet')}</span>}
           </div>
-          <div class="total">{data ? (chain.testnet ? `${fmtNum(shown)} ${chain.native.symbol}` : fmtUsd(shown)) : <span class="skeleton" style={{ display: 'inline-block', width: '8.75rem', height: '2.25rem', opacity: .3 }} />}</div>
-          <div class="row between hero-foot">
-            <button class="addr" onClick={async () => { if (!addr.address) return; await navigator.clipboard.writeText(addr.address); toast(t('home.addressCopied')); }}>
-              {addr.address ? shortAddr(addr.address, 6) : '…'} <Icon name="copy" size={13} />
-            </button>
-            {data && <span class="small num" style={{ opacity: .85 }}>{fmtNum(data.native.amount)} {chain.native.symbol}</span>}
-          </div>
-        </div>
+          );
+          if (!linked) return walletHero;
+          return <HeroStack face={face} setFace={setFace} wallet={walletHero} card={<MmCardFace card={card} onRefresh={card.reload} peek={<><Icon name="card" size={12} /> MetaMask Card</>} />} />;
+        })()}
 
-        <div class="actions">
+        {onCard && <CardActions card={card} />}
+        {!onCard && <div class="actions">
           <button class="action" onClick={() => nav('send')}><span class="ic"><Icon name="send" /></span>{t('home.send')}</button>
           <button class="action" onClick={() => nav('receive')}><span class="ic"><Icon name="receive" /></span>{t('home.receive')}</button>
           <button class="action" onClick={() => nav('swap')} disabled={!drv.swapSupported?.(chain)}><span class="ic"><Icon name="swap" /></span>{t('home.swap')}</button>
           <button class="action" onClick={() => nav('bridge')} disabled={chain.testnet}><span class="ic"><Icon name="route" /></span>{t('home.bridge')}</button>
-        </div>
+        </div>}
 
         {notice && <div class="info small">{t(notice)}</div>}
 
+        {onCard && <>
+          <div class="tabs">
+            <button class={`tab ${cardTab === 'ops' ? 'active' : ''}`} onClick={() => setCardTab('ops')}>{t('mmcard.tabOps')}</button>
+            <button class={`tab ${cardTab === 'activity' ? 'active' : ''}`} onClick={() => setCardTab('activity')}>{t('mmcard.tabActivity')}</button>
+          </div>
+          {cardTab === 'ops' && <CardOps card={card} />}
+          {cardTab === 'activity' && (
+            <div class="card" style={{ padding: '0.375rem' }}>
+              <HistoryList filter="card" emptyText={t('mmcard.noPayments')} />
+            </div>
+          )}
+        </>}
+
+        {!onCard && <>
         <div class="tabs">
           <button class={`tab ${tab === 'tokens' ? 'active' : ''}`} onClick={() => setTab('tokens')}>{t('home.tabTokens')}</button>
           <button class={`tab ${tab === 'activity' ? 'active' : ''}`} onClick={() => setTab('activity')}>{t('home.tabActivity')}</button>
@@ -257,6 +291,7 @@ export function Home() {
             <button class="item" style={{ justifyContent: 'center' }} onClick={() => nav('history')}><span class="link">{t('home.seeAllHistory')}</span></button>
           </div>
         )}
+        </>}
         {data?.stale && loading && <div class="tiny muted center">{t('home.updating')}</div>}
         {!data && !error && !loading && <Empty>{t('home.noData')}</Empty>}
         </>}
