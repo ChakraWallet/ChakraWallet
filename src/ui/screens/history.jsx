@@ -214,7 +214,7 @@ function Detail({ it, onClose, nativePrice, bridge }) {
 }
 
 export function HistoryList({ limit, filter = 'all', emptyText }) {
-  const { chain, account, state } = useApp();
+  const { chain, account, state, nav } = useApp();
   const addr = useChainAddress();
   const nativePrice = useNativePrice(chain);
   const [items, setItems] = useState(null);
@@ -284,7 +284,7 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
 
   return (
     <div class="list">
-      {unsupported && <div class="info small" style={{ margin: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'history.unsupported' : 'history.unsupportedNoIndexer', { network: chain.name })}</div>}
+      {unsupported && <div class="info small" style={{ margin: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'history.unsupported' : 'history.unsupportedNoIndexer', { network: chain.name })}{chain.indexer?.needsKey && <> <button class="link small" onClick={() => nav('settings', { section: 'keys', focus: 'etherscanKey' })}>{t('keys.addKey')}</button></>}</div>}
       {err && <div class="stale-note" title={err}><Icon name="wifiOff" size={14} /><span class="grow">{t('history.loadFailed')}</span></div>}
       {!items && <div class="empty"><Spinner /></div>}
       {items && !filtered.length && <Empty>{emptyText || t('history.empty')}</Empty>}

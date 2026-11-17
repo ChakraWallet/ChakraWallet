@@ -287,7 +287,7 @@ function NftChart({ chain, nft, price }) {
     setBusy(true);
     await bg('saveSettings', { settings: { nftHistory: mode } }).catch(() => {});
     await refresh(); setBusy(false);
-    if (mode === 'own') nav('settings');
+    if (mode === 'own') nav('settings', { section: 'keys', focus: 'openseaKey' });
   };
   useEffect(() => {
     if (ask) return undefined;

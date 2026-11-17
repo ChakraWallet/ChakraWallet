@@ -282,7 +282,7 @@ export function Home() {
                 {showHidden && data.hidden?.map((t) => <TokenRow t={t} />)}
               </div>
             )}
-            {data?.noIndexer && <div class="tiny muted" style={{ padding: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'home.noIndexerKey' : 'home.noIndexer', { network: chain.name })}</div>}
+            {data?.noIndexer && <div class="tiny muted" style={{ padding: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'home.noIndexerKey' : 'home.noIndexer', { network: chain.name })}{chain.indexer?.needsKey && <> <button class="link tiny" onClick={() => nav('settings', { section: 'keys', focus: 'etherscanKey' })}>{t('keys.addKey')}</button></>}</div>}
             {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}

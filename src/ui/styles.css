@@ -1709,3 +1709,15 @@ button.dn-row:active { background: var(--card-2); }
 .nft-head .nft-add { margin-left: auto; width: 1.875rem; height: 1.875rem; color: var(--primary); }
 .nft-add-empty { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; width: 100%; }
 .nft-add-preview { gap: .75rem; }
+
+/* Settings > Service keys */
+.key-row { gap: .75rem; }
+.key-ic { width: 2.25rem; height: 2.25rem; flex: none; border-radius: .75rem; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-weight: 750; font-family: var(--display); }
+.key-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.key-row .badge { flex: none; }
+.key-head { display: flex; align-items: flex-start; gap: .75rem; justify-content: space-between; }
+.key-head .badge { flex: none; }
+.key-how { display: flex; flex-direction: column; gap: .5rem; }
+.key-how ol { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: .375rem; font-size: .875rem; line-height: 1.45; }
+.key-how .btn { align-self: flex-start; }
+.key-auto { gap: .75rem; cursor: pointer; }

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'preact/hooks';
 import { bg, ext } from '../../shared/ext.js';
 import { BUILTIN_CHAINS, normalizeCustom, isChainEnabled, builtinNetworks, ALWAYS_ON } from '../../shared/chains.js';
-import { allDrivers } from '../chains/index.js';
 import { shortAddr, fmtDateTime } from '../../shared/format.js';
 import { TopBar, Icon, Btn, Sheet, Switch, ChainIcon, useApp, Empty, SecureScreen, CopyBtn, CopyPhrase } from '../components.jsx';
 import { BackupFile } from './onboarding.jsx';
@@ -11,6 +10,7 @@ import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
 import { TermsSheet } from '../terms.jsx';
+import { ApiKeys, keysCount } from './apikeys.jsx';
 
 function Row({ icon, title, sub, onClick, right }) {
   return (
@@ -234,7 +234,7 @@ function Sites() {
   );
 }
 
-export function Settings({ section }) {
+export function Settings({ section, focus }) {
   const { state, refresh, toast, nav, account } = useApp();
   const [view, setView] = useState(section || 'main');
   const [sheet, setSheet] = useState(null);
@@ -264,6 +264,7 @@ export function Settings({ section }) {
   useEffect(() => { loadBio(); }, []);
 
   if (view === 'networks') return <div class="screen" key="networks"><TopBar title={t('settings.networks.title')} onBack={section ? undefined : () => setView('main')} /><div class="content"><Networks /></div></div>;
+  if (view === 'keys') return <div class="screen" key="keys"><TopBar title={t('keys.title')} onBack={section ? undefined : () => setView('main')} /><div class="content"><ApiKeys focus={focus} /></div></div>;
   if (view === 'sites') return <div class="screen" key="sites"><TopBar title={t('settings.sites.title')} onBack={() => setView('main')} /><div class="content"><Sites /></div></div>;
 
   return (
@@ -324,24 +325,8 @@ export function Settings({ section }) {
         </div>
 
         <div class="section-title">{t('settings.data')}</div>
-        <div class="card col" style={{ gap: '0.5rem' }}>
-          <div class="small">{t('settings.etherscan')} <span class="muted">{t('settings.etherscan.hint')}</span></div>
-          <EtherscanKey value={s.etherscanKey} onSave={(v) => save({ etherscanKey: v })} />
-          <div class="small">{t('settings.opensea')} <span class="muted">{t('settings.opensea.hint')}</span></div>
-          <EtherscanKey value={s.openseaKey} onSave={(v) => save({ openseaKey: v })} />
-          {!s.openseaKey?.trim() && ( // without a key of one's own: the app can get a free one and renew it
-            <label class="row small" style={{ gap: '.75rem', cursor: 'pointer' }}>
-              <span class="grow">{t('settings.openseaAuto')}<br /><span class="tiny muted">{t('settings.openseaAuto.sub')}</span></span>
-              <Switch on={s.nftHistory === 'auto'} onChange={(v) => save({ nftHistory: v ? 'auto' : 'local' })} />
-            </label>
-          )}
-          {allDrivers().flatMap((d) => d.ui?.settings || []).map((f) => ( // e.g. TON: TON Center and TonAPI keys (driver.ui.settings)
-            <>
-              <div class="small">{t(f.label)} <span class="muted">{t(f.hint)}</span></div>
-              <EtherscanKey value={s[f.key]} onSave={(v) => save({ [f.key]: v })} />
-            </>
-          ))}
-          <div class="tiny muted">{t('settings.sources')}</div>
+        <div class="card" style={{ padding: '0.375rem' }}>
+          <Row icon="key" title={t('keys.title')} sub={t('keys.row', keysCount(s))} onClick={() => openView('keys')} right={<span class="muted"><Icon name="forward" /></span>} />
         </div>
         {globalThis.__CK_NOTIFY__ && ( // Android: the Predictions tab and its "Per te" suggestions
           <div class="card" style={{ padding: '0.375rem' }}>
@@ -411,16 +396,6 @@ export function Settings({ section }) {
         <PasswordPrompt title={t('settings.reset')} danger onClose={() => setSheet(null)} action={async (pw) => { await bg('resetWallet', { password: pw }); await globalThis.__CK_BIO__?.disable().catch(() => {}); await refresh(); return true; }}
           warning={t('settings.reset.warning')} />
       )}
-    </div>
-  );
-}
-
-function EtherscanKey({ value, onSave }) {
-  const [v, setV] = useState(value || '');
-  return (
-    <div class="row">
-      <input class="input mono" type="password" placeholder="API key" value={v} onInput={(e) => setV(e.target.value.trim())} />
-      <Btn class="sm" disabled={v === (value || '')} onClick={() => onSave(v)}>{t('common.save')}</Btn>
     </div>
   );
 }
