@@ -32,7 +32,9 @@ export async function regionStatus() {
 
 // ------------------------------------------------------------ markets
 export function normMarket(m) {
-  const outcomes = arr(m.outcomes), prices = arr(m.outcomePrices).map(Number), tokens = arr(m.clobTokenIds);
+  // Protocol V2 markets trade their positionIds: Polymarket says to pick the field by `version`, even when both are there
+  const ids = m.version === 'v2' && m.positionIds ? m.positionIds : m.clobTokenIds;
+  const outcomes = arr(m.outcomes), prices = arr(m.outcomePrices).map(Number), tokens = arr(ids).map(String);
   return {
     id: String(m.id), slug: m.slug, question: m.question || m.title || '', label: m.groupItemTitle || '',
     image: m.image || m.icon || '', conditionId: m.conditionId,
