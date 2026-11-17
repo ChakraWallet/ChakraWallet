@@ -1272,8 +1272,9 @@ function ClosedDays({ list, onOpen }) {
 
 // ------------------------------------------------------------ rebates
 /**
- * Rebates: the account's tiers (taker, and maker from 20 Nov 2026: two ladders, each on its own weighted volume) and
- * what Polymarket has credited so far, maker and taker apart, next to the fees paid.
+ * Rebates, maker and taker as two blocks, each with what Polymarket credited and what it depends on: the taker tier
+ * (30-day weighted volume of the orders filled at once); for makers the daily pool until Polymarket moves them to
+ * tiers too, then their own ladder. Below: other income and the fees paid.
  */
 function RebateCard({ user, income, tick, onShow }) {
   const [tiers, setTiers] = useState(null);
@@ -1290,18 +1291,16 @@ function RebateCard({ user, income, tick, onShow }) {
   const inc = income || {};
   const others = (inc.rewards || 0) + (inc.referral || 0) + (inc.yield || 0);
   const line = (label, v, cls = '') => <div class="pm-rb-row"><span>{label}</span><b class={cls}>{v}</b></div>;
-  const money = (v) => (v != null ? signed(v) : '–');
   return (
     <div class="card pm-rb">
       <div class="pm-rb-head"><span class="pm-rb-ic"><Icon name="coins" size={17} /></span><b>{t('predict.rb.title')}</b></div>
-      {taker && <TierLine kind="taker" p={taker} />}
-      {maker && <TierLine kind="maker" p={maker} />}
-      {income && (
+      {/* no maker ladder yet: makers are paid from the daily pool */}
+      <RebateBlock kind="maker" received={inc.maker} tier={maker} note={makerTable ? null : t('predict.rb.makerPool')} />
+      <RebateBlock kind="taker" received={inc.taker} tier={taker} />
+      {income && (others > 0.004 || inc.fees != null) && (
         <div class="pm-rb-rows">
-          {line(t('predict.rb.takerPaid'), money(inc.taker), tone(inc.taker))}
-          {line(t('predict.rb.makerPaid'), money(inc.maker), tone(inc.maker))}
           {others > 0.004 && line(t('predict.rb.rewards'), signed(others), 'up')}
-          {inc.fees != null && line(t('predict.rb.fees'), money(inc.fees))}
+          {inc.fees != null && line(t('predict.rb.fees'), signed(inc.fees))}
         </div>
       )}
       <button class="pm-rb-link" onClick={onShow}>{t('predict.rb.show')}<Icon name="forward" size={14} /></button>
@@ -1309,15 +1308,28 @@ function RebateCard({ user, income, tick, onShow }) {
   );
 }
 
+/** Maker or taker: what was received, then the tier (or why there is none). */
+function RebateBlock({ kind, received, tier, note }) {
+  return (
+    <div class="pm-rb-blk">
+      <div class="pm-rb-top">
+        <span class="pm-rb-kind">{t(`predict.rb.${kind}`)}</span>
+        <span class="pm-rb-recv"><small>{t('predict.rb.received')}</small><b class={tone(received)}>{received != null ? signed(received) : '–'}</b></span>
+      </div>
+      {tier ? <TierLine p={tier} /> : note && <p class="pm-rb-why">{note}</p>}
+    </div>
+  );
+}
+
 /** One ladder: tier and its rate, then one short line under the bar: 30-day weighted volume / next threshold, next tier. */
-function TierLine({ kind, p }) {
+function TierLine({ p }) {
   const v = p.volume || 0;
   const left = p.next ? p.next.min - v : 0;
   const money = (x) => usd(x, x >= 1e5);
   return (
     <div class="pm-tier">
       <div class="pm-tier-top">
-        <small>{t(`predict.rb.${kind}Tier`)}</small>
+        <small>{t('predict.rb.tier')}</small>
         <b>{p.none ? t('predict.rb.none') : p.name}{!p.none && p.rate != null && <span class="pm-tier-rate">{p.rate}%</span>}</b>
       </div>
       <div class="pm-tier-bar"><span style={{ width: `${(p.next ? Math.max(0, Math.min(1, v / p.next.min)) : 1) * 100}%` }} /></div>

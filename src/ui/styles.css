@@ -1108,6 +1108,13 @@ body.kb-open .pm-totop { display: none; }
 .pm-rb { display: flex; flex-direction: column; gap: .75rem; }
 .pm-rb-head { display: flex; align-items: center; gap: .5rem; font-size: .9375rem; }
 .pm-rb-ic { width: 1.875rem; height: 1.875rem; border-radius: .625rem; display: grid; place-items: center; background: var(--green-soft); color: var(--green); flex: none; }
+.pm-rb-blk { display: flex; flex-direction: column; gap: .5rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+.pm-rb-top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.pm-rb-kind { font-size: .75rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; color: var(--text); }
+.pm-rb-recv { display: inline-flex; align-items: baseline; gap: .375rem; font-variant-numeric: tabular-nums; }
+.pm-rb-recv small { font-size: .6875rem; font-weight: 600; color: var(--muted); }
+.pm-rb-recv b { font-size: 1rem; }
+.pm-rb-why { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--muted); }
 .pm-tier { display: flex; flex-direction: column; gap: .375rem; }
 .pm-tier-top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
 .pm-tier-top small { font-size: .75rem; color: var(--muted); font-weight: 600; }
