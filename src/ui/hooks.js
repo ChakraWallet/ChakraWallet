@@ -54,6 +54,10 @@ export function useChainAddress() {
 
 /** Balances of an address on a network (the same portfolio shape for every family). */
 export const loadAnyPortfolio = (chain, raw, opts) => driverFor(chain).loadPortfolio(chain, raw, opts);
+/** The indexers' keys from the settings, for portfolios and histories (Etherscan; NodeReal on BNB Chain). */
+export const indexerKeys = (s) => ({ etherscanKey: s?.etherscanKey || '', nodeRealKey: s?.nodeRealKey || '' });
+/** The service key a network's "tokens aren't found automatically" notice points to. */
+export const indexerKeyField = (chain) => (chain?.nodeReal ? 'nodeRealKey' : 'etherscanKey');
 
 export function usePortfolio() {
   const { chain, account, state, portfolioCache, setPortfolioCache } = useApp();
@@ -68,7 +72,7 @@ export function usePortfolio() {
     setLoading(true); setError('');
     try {
       const prefs = await tokenPrefs(chain.id);
-      const p = checkScan(await loadAnyPortfolio(chain, addr.raw, { ...prefs, etherscanKey: state.settings.etherscanKey }), chain, addr.raw);
+      const p = checkScan(await loadAnyPortfolio(chain, addr.raw, { ...prefs, ...indexerKeys(state.settings) }), chain, addr.raw);
       setPortfolioCache((c) => ({ ...c, [key]: p }));
       local.set(`cache:${key}`, p).catch(() => {});
     } catch (e) { setError(e.message); scanFailed(e, chain, addr.raw); }
@@ -129,7 +133,7 @@ export function useMultichainPortfolios() {
           const p = todo.shift();
           try {
             prefs[p.c.id] ??= await tokenPrefs(p.c.id);
-            const r = checkScan(await loadAnyPortfolio(p.c, p.a.address, { ...prefs[p.c.id], etherscanKey: state.settings.etherscanKey }), p.c, p.a.address);
+            const r = checkScan(await loadAnyPortfolio(p.c, p.a.address, { ...prefs[p.c.id], ...indexerKeys(state.settings) }), p.c, p.a.address);
             if (!cancelled) setPortfolioCache((c) => ({ ...c, [p.key]: r }));
             local.set(`cache:${p.key}`, r).catch(() => {});
           } catch (e) { if (!cancelled) scanFailed(e, p.c, p.a.address); /* keep the cached value */ }
@@ -159,7 +163,7 @@ export function summarize(per, showUnpriced) {
     const hasFunds = netUsd >= 0.01 || p.native.amount > 0 || priced.some((x) => x.amount > 0) || (showUnpriced && noPrice.length > 0);
     usd += netUsd;
     unpriced += noPrice.length;
-    if (hasFunds) nets.push({ chain, usd: netUsd, native, priced, noPrice });
+    if (hasFunds) nets.push({ chain, usd: netUsd, native, priced, noPrice, noIndexer: !!p.noIndexer });
     if (p.native.amount > 0) holdings.push(native);
     holdings.push(...priced.filter((x) => x.amount > 0));
   }

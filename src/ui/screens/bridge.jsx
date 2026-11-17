@@ -8,7 +8,7 @@ import { NATIVE, isChainEnabled, getChain } from '../../shared/chains.js';
 import { getNativePrice } from '../../shared/prices.js';
 import { fmtNum, fmtUsd, fmtAmount, parseAmount, rawToInput, toFloat, shortAddr, fmtDateTime } from '../../shared/format.js';
 import { TopBar, Btn, TokenIcon, ChainIcon, Icon, Sheet, FeeView, Spinner, Avatar, useApp, explorerTx, SuccessMark, Empty, richText } from '../components.jsx';
-import { tokenPrefs } from '../hooks.js';
+import { tokenPrefs, indexerKeys } from '../hooks.js';
 import { driverFor, bridgeNetworks, bridgeFor, useAccountAddresses } from '../chains/index.js';
 import { useOperationAuth, runStep } from '../steps.js';
 import { useRecipientCheck, PoisonWarning } from '../poisonCheck.jsx';
@@ -81,7 +81,7 @@ export function Bridge({ toChainId, toAddress }) {
     if (!fromAddr || (portfolio && Date.now() - portfolio.updated < 60000)) return;
     (async () => {
       try {
-        const p = await driverFor(fromChain).loadPortfolio(fromChain, fromAddr.raw, { ...(await tokenPrefs(fromId)), etherscanKey: state.settings.etherscanKey });
+        const p = await driverFor(fromChain).loadPortfolio(fromChain, fromAddr.raw, { ...(await tokenPrefs(fromId)), ...indexerKeys(state.settings) });
         setPortfolioCache((c) => ({ ...c, [pKey]: p }));
         local.set(`cache:${pKey}`, p).catch(() => {});
       } catch { /* the toast about failed scans is shown by the hooks */ }

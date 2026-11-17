@@ -5,6 +5,7 @@ import { addressBook, checkRecipient, EVM_KIT } from '../shared/poison.js';
 import { Icon, useApp } from './components.jsx';
 import { t } from '../shared/i18n.js';
 import { driverFor } from './chains/index.js';
+import { indexerKeys } from './hooks.js';
 
 const books = new Map(); // `${chainId}:${account}` -> promise (one history scan per screen session)
 
@@ -30,7 +31,7 @@ export function useRecipientCheck(to, chain) {
         if (!mine) return null;
         const own = Object.values(resolved).filter(Boolean).map((x) => x.raw);
         const history = (ch, me, cursor, o) => drv.loadHistory(ch, me, cursor, o);
-        return addressBook(c, mine.raw, own, { etherscanKey: state.settings.etherscanKey, history }, kit);
+        return addressBook(c, mine.raw, own, { ...indexerKeys(state.settings), history }, kit);
       })().catch(() => null));
       setTimeout(() => books.delete(key), 5 * 60e3);
     }

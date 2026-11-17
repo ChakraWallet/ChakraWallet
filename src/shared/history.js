@@ -1,5 +1,7 @@
 // Transaction history from free indexers (Blockscout v2 / Etherscan-compatible), normalized.
-import { etherscanUrl, isSpamToken } from './portfolio.js';
+import { isSpamToken } from './portfolio.js';
+import { etherscanGet, planRefused, planError, poolExhausted, poolError, nodeRealHistory, alchemyHistory } from './indexer.js';
+import { alchemyUrl } from './alchemy.js';
 import { rpc, getTokenInfo } from './rpc.js';
 import { POPULAR_TOKENS } from './tokens.js';
 import { markCardRecords } from './mmcard.js';
@@ -64,14 +66,16 @@ async function blockscoutPage(chain, address, cursor) {
 async function etherscanPage(chain, address, cursor, key) {
   const page = cursor?.page || 1;
   const p = { address, page, offset: 50, sort: 'desc', module: 'account' };
-  const [txs, tts] = await Promise.all([
-    getJson(etherscanUrl(chain, { ...p, action: 'txlist' }, key)),
-    getJson(etherscanUrl(chain, { ...p, action: 'tokentx' }, key)),
+  const [txs, tts] = await Promise.all([ // Etherscan's own requests take turns (indexer.js): under its rate limit
+    etherscanGet(chain, { ...p, action: 'txlist' }, key),
+    etherscanGet(chain, { ...p, action: 'tokentx' }, key),
   ]);
   const list = (j) => (Array.isArray(j?.result) ? j.result : []);
   // status "0" is also how an empty list is answered; anything else (rate limit, missing key, server error) in
   // either half is an error: a page without its token transfers would show swaps and sends as contract calls
   for (const j of [txs, tts]) {
+    if (planRefused(j)) throw planError(j); // the key's plan doesn't cover this network: not a failure
+    if (poolExhausted(j)) throw poolError(j); // the network's free pool ran out for today: not a failure either
     if (j?.status === '0' && !/no (transactions|records)/i.test(`${j.message} ${j.result}`)) throw new Error(String(typeof j.result === 'string' ? j.result : j.message));
   }
   const map = new Map();
@@ -185,12 +189,24 @@ export function classify(r, address, chain) {
  * Loads one page of history. Returns {items, next, error, unsupported}.
  * `localLog`: transactions sent from this wallet (to show pending ones immediately).
  */
-export async function loadHistory(chain, address, cursor, { etherscanKey = '', localLog = [] } = {}) {
-  let page = { records: [], next: null }, error = null, unsupported = false;
+export async function loadHistory(chain, address, cursor, { etherscanKey = '', nodeRealKey = '', localLog = [] } = {}) {
+  let page = { records: [], next: null }, error = null, unsupported = false, limitUntil = 0;
+  // BNB Chain with a NodeReal key: the history from NodeReal (Etherscan's free plan doesn't cover it)
+  const viaNodeReal = !!(chain.nodeReal && nodeRealKey) && (!cursor || cursor.src === 'nodereal');
+  const backup = alchemyUrl(chain); // Alchemy: the backup, when the usual service can't give the history
+  const viaAlchemy = cursor?.src === 'alchemy';
   // indexers to try, in order (some networks prefer a faster alternative for the history); a "next page"
   // cursor always goes back to the indexer that produced it
   const order = chain.altIndexer ? (chain.historyIndexer === 'alt' ? ['alt', 'main'] : ['main', 'alt']) : ['main'];
-  const srcs = cursor?.src ? [cursor.src] : order;
+  const srcs = viaNodeReal || viaAlchemy ? [] : cursor?.src ? [cursor.src] : order;
+  if (viaNodeReal) {
+    try {
+      const r = await nodeRealHistory(chain.nodeReal, nodeRealKey, address, cursor, record);
+      const map = new Map(r.records.map((x) => [x.hash, x]));
+      markNotMine(map, address, r.since);
+      page = { records: [...map.values()], next: r.next ? { ...r.next, src: 'nodereal' } : null };
+    } catch (e) { error = e.message; }
+  }
   for (const src of srcs) {
     const idx = src === 'alt' ? chain.altIndexer : chain.indexer;
     const c = { ...chain, indexer: idx };
@@ -204,7 +220,22 @@ export async function loadHistory(chain, address, cursor, { etherscanKey = '', l
       }
       if (page.next) page.next = { ...page.next, src };
       break;
-    } catch (e) { error = e.message; }
+    } catch (e) {
+      if (e.plan) { unsupported = true; error = null; break; } // as without a key: the screen says what's needed
+      if (e.pool) { limitUntil = e.resetAt || -1; error = null; break; } // the screen says when it comes back
+      error = e.message;
+    }
+  }
+  // Alchemy: a first page the usual service couldn't give (an error, no key, a plan or a free pool that doesn't
+  // cover the network), and the pages after one of its own
+  if (backup && (viaAlchemy || (!cursor && (error || unsupported || limitUntil)))) {
+    try {
+      const r = await alchemyHistory(backup, address, viaAlchemy ? cursor : null, record);
+      const map = new Map(r.records.map((x) => [x.hash, x]));
+      markNotMine(map, address, r.since);
+      page = { records: [...map.values()], next: r.next ? { ...r.next, src: 'alchemy' } : null };
+      error = null; unsupported = false; limitUntil = 0;
+    } catch (e) { if (viaAlchemy || !(unsupported || limitUntil)) error = error || e.message; }
   }
 
   let records = page.records;
@@ -235,5 +266,5 @@ export async function loadHistory(chain, address, cursor, { etherscanKey = '', l
   }
   await markCardRecords(chain, address, records).catch(() => {}); // MetaMask Card payments (Linea)
   const items = records.map((r) => classify(r, address, chain)).sort((a, b) => b.time - a.time);
-  return { items, next: page.next, error, unsupported };
+  return { items, next: page.next, error, unsupported, limitUntil };
 }

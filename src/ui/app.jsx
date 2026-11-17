@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'preact/hooks';
+import { setAlchemy } from '../shared/alchemy.js';
 import { ext, bg } from '../shared/ext.js';
 import { getChain, BUILTIN_CHAINS } from '../shared/chains.js';
 import { AppCtx, Spinner, MASK } from './components.jsx';
@@ -83,7 +84,11 @@ export function App() {
   const [authorize, authEl] = useAuthorizer();
 
   const refresh = useCallback(async () => {
-    try { setState(await bg('getState')); } catch (e) { console.error(e); }
+    try {
+      const st = await bg('getState');
+      setAlchemy(st?.settings); // the Alchemy key and its networks, for the reads made from the screens
+      setState(st);
+    } catch (e) { console.error(e); }
   }, []);
 
   useEffect(() => {

@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'preact/hooks';
 import { bg, ext, local } from '../../shared/ext.js';
 import { allChains, NATIVE, isChainEnabled } from '../../shared/chains.js';
-import { fmtUsd, fmtNum, shortAddr, fmtTime } from '../../shared/format.js';
+import { fmtUsd, fmtNum, shortAddr, fmtTime, fmtBackAt } from '../../shared/format.js';
 import { Icon, Avatar, TokenIcon, ChainIcon, ExpandBtn, Sheet, Btn, Spinner, useApp, Empty, Guilloche, useCountUp, cardStyle, richText, usePrivacy, PrivacyBtn } from '../components.jsx';
-import { usePortfolio, useChainAddress, useNfts, useNftPrices, useNftVisibility } from '../hooks.js';
+import { usePortfolio, useChainAddress, useNfts, useNftPrices, useNftVisibility, indexerKeyField } from '../hooks.js';
 import { driverFor, accountFamily, familyOf, isEvmAccount } from '../chains/index.js';
 import { usePolyFunds, POLY_CHAIN } from '../polyBalance.js';
 import { HistoryList } from './history.jsx';
@@ -292,7 +292,8 @@ export function Home() {
                 {showHidden && data.hidden?.map((t) => <TokenRow t={t} />)}
               </div>
             )}
-            {data?.noIndexer && <div class="tiny muted" style={{ padding: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'home.noIndexerKey' : 'home.noIndexer', { network: chain.name })}{chain.indexer?.needsKey && <> <button class="link tiny" onClick={() => nav('settings', { section: 'keys', focus: 'etherscanKey' })}>{t('keys.addKey')}</button></>}</div>}
+            {!!data?.indexerLimit && !data?.noIndexer && <div class="tiny muted" style={{ padding: '0.375rem' }}>{t('home.indexerPool', { network: chain.name, when: fmtBackAt(data.indexerLimit, t) })}</div>}
+            {data?.noIndexer && <div class="tiny muted" style={{ padding: '0.375rem' }}>{t(chain.nodeReal ? 'home.noIndexerNodeReal' : chain.indexer?.paidPlan ? 'home.noIndexerPaid' : chain.indexer?.needsKey ? 'home.noIndexerKey' : 'home.noIndexer', { network: chain.name })}{chain.indexer?.needsKey && <> <button class="link tiny" onClick={() => nav('settings', { section: 'keys', focus: indexerKeyField(chain) })}>{t('keys.addKey')}</button></>}</div>}
             {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}

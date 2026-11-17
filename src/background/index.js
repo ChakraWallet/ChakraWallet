@@ -3,6 +3,7 @@ import { Transaction, getAddress, TypedDataEncoder } from 'ethers';
 import { ext, local, session, DEFAULT_SETTINGS } from '../shared/ext.js';
 import { getChain, chainFromEip3085, toHex, BUILTIN_CHAINS, isChainEnabled } from '../shared/chains.js';
 import { rpc } from '../shared/rpc.js';
+import { setAlchemy } from '../shared/alchemy.js';
 import { sendRaw } from '../shared/mev.js';
 import * as vault from './vault.js';
 import { setLang, i18nError, tEn } from '../shared/i18n.js';
@@ -20,7 +21,11 @@ const E = {
 
 const lc = (a) => String(a || '').toLowerCase();
 
-async function settings() { return { ...DEFAULT_SETTINGS, ...(await local.get('settings', {})) }; }
+async function settings() {
+  const s = { ...DEFAULT_SETTINGS, ...(await local.get('settings', {})) };
+  setAlchemy(s); // the Alchemy key and its networks, for the transactions sent from here
+  return s;
+}
 async function customChains() { return local.get('customChains', []); }
 /**
  * The EVM network for sites and EVM operations. The app may show a non-EVM network (TON, Android app): sites keep

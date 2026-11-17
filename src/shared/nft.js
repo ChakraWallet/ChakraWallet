@@ -7,7 +7,7 @@
 // screen, and their images are never loaded.
 import { Interface } from 'ethers';
 import { rpc } from './rpc.js';
-import { etherscanUrl } from './portfolio.js';
+import { etherscanGet } from './indexer.js';
 import { getJson as httpJson } from './http.js';
 import { mediaUrl, spamNft, fakeBrand, traitsOf } from './nftMeta.js';
 
@@ -102,7 +102,7 @@ export async function loadEvmNfts(chain, address, { etherscanKey = '' } = {}) {
     return { items: items.slice(0, MAX_ITEMS), unsupported: false };
   }
   const list = async (action) => {
-    const r = await getJson(etherscanUrl(chain, { module: 'account', action, address, page: 1, offset: 1000, sort: 'desc' }, etherscanKey));
+    const r = await etherscanGet(chain, { module: 'account', action, address, page: 1, offset: 1000, sort: 'desc' }, etherscanKey);
     return Array.isArray(r?.result) ? r.result : [];
   };
   const [e721, e1155] = await Promise.all([list('tokennfttx'), list('token1155tx').catch(() => [])]);

@@ -27,12 +27,12 @@ async function sendPrivate(url, signed) {
   } catch (e) { if (e instanceof RpcError) throw e; return null; } finally { clearTimeout(timer); }
 }
 
-/** Sends a signed transaction: through the private channel when protected, else (or if unreachable) the nodes. */
+/** Sends a signed transaction: through the private channel when protected, else (or if unreachable) the nodes (Alchemy first, when set). */
 export async function sendRaw(chain, signed, { protect = true } = {}) {
   const url = protect ? mevRpc(chain.id) : null;
   if (url) {
     const hash = await sendPrivate(url, signed); // its errors stand: the nodes would say the same, and see the swap
     if (hash) return { hash, protected: true };
   }
-  return { hash: await rpc(chain, 'eth_sendRawTransaction', [signed]), protected: false };
+  return { hash: await rpc(chain, 'eth_sendRawTransaction', [signed], { send: true }), protected: false }; // Alchemy first, when set
 }

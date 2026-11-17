@@ -1,6 +1,9 @@
-// Minimal JSON-RPC client with fallback across the chain's RPC endpoints.
+// Minimal JSON-RPC client with fallback across the chain's RPC endpoints. With an Alchemy key whose app has the
+// network switched on (shared/alchemy.js): transactions go to Alchemy first, reads to the public nodes first and to
+// Alchemy only when none of them answers.
 import { Interface } from 'ethers';
 import { t, i18nError } from './i18n.js';
+import { alchemyUrl } from './alchemy.js';
 
 let reqId = 1;
 const preferred = new Map(); // chainId -> index of last working rpc
@@ -9,17 +12,22 @@ export class RpcError extends Error {
   constructor(message, code, data) { super(message); this.code = code; this.data = data; }
 }
 
-export async function rpc(chain, method, params = []) {
+/** send: a transaction going out (Alchemy, when there, is asked first). */
+export async function rpc(chain, method, params = [], { send = false } = {}) {
   const urls = chain.rpc || [];
-  if (!urls.length) throw i18nError('errors.noRpc', { chain: chain.name });
+  const alchemy = alchemyUrl(chain);
+  if (!urls.length && !alchemy) throw i18nError('errors.noRpc', { chain: chain.name });
   const start = preferred.get(chain.id) || 0;
+  // indexes into urls; -1 is Alchemy (never made the preferred node for reads: it stays the backup)
+  const order = urls.map((_, k) => (start + k) % urls.length);
+  if (alchemy) send ? order.unshift(-1) : order.push(-1);
   let lastErr;
-  for (let k = 0; k < urls.length; k++) {
-    const i = (start + k) % urls.length;
+  for (const i of order) {
+    const url = i < 0 ? alchemy : urls[i];
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 15000);
-      const res = await fetch(urls[i], {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: reqId++, method, params }),
@@ -29,10 +37,10 @@ export async function rpc(chain, method, params = []) {
       const json = await res.json();
       if (json.error) {
         // A JSON-RPC error is a real answer from the node (e.g. revert): don't retry elsewhere.
-        preferred.set(chain.id, i);
+        if (i >= 0) preferred.set(chain.id, i);
         throw new RpcError(json.error.message || t('errors.rpcGeneric'), json.error.code, json.error.data);
       }
-      preferred.set(chain.id, i);
+      if (i >= 0) preferred.set(chain.id, i);
       return json.result;
     } catch (e) {
       if (e instanceof RpcError) throw e;

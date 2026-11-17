@@ -1752,3 +1752,9 @@ button.dn-row:active { background: var(--card-2); }
 .key-how ol { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: .375rem; font-size: .875rem; line-height: 1.45; }
 .key-how .btn { align-self: flex-start; }
 .key-auto { gap: .75rem; cursor: pointer; }
+/* Alchemy: the key's networks, switched on (green) or to switch on in its app (grey, with the link) */
+.key-nets { display: flex; flex-direction: column; gap: .25rem; }
+.key-net { gap: .625rem; min-height: 2.25rem; }
+.key-net .dot { background: var(--muted); opacity: .5; }
+.key-net .dot.on { background: var(--green); opacity: 1; box-shadow: 0 0 0 3px var(--green-soft); }
+.key-net .btn { flex: none; }

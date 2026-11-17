@@ -73,6 +73,8 @@ export function fmtDateGroup(ms) {
 
 export const fmtTime = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 export const fmtDateTime = (ms) => new Date(ms).toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' });
+/** "at 01:00" (within a day), "on 18 Nov 2026, 01:00" (later), "within a day" (time not known: ms <= 0). */
+export const fmtBackAt = (ms, t) => (ms > 0 ? (ms - Date.now() < 86400000 ? t('net.backAt', { time: fmtTime(ms) }) : t('net.backOn', { when: fmtDateTime(ms) })) : t('net.backSoon'));
 
 /** Deterministic avatar gradient for an address */
 export function hexToUtf8(hex) {

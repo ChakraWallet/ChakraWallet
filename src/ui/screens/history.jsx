@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'preact/hooks';
 import { local } from '../../shared/ext.js';
-import { reportScanError, useChainAddress } from '../hooks.js';
+import { reportScanError, useChainAddress, indexerKeys, indexerKeyField } from '../hooks.js';
 import { driverFor } from '../chains/index.js';
-import { fmtAmount, fmtUsd, toFloat, fmtDateGroup, fmtTime, fmtDateTime, shortAddr } from '../../shared/format.js';
+import { fmtAmount, fmtUsd, toFloat, fmtDateGroup, fmtTime, fmtDateTime, shortAddr, fmtBackAt } from '../../shared/format.js';
 import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx, useApp, Avatar, ChainIcon, TokenIcon, usePrivacy, MASK } from '../components.jsx';
 import { BUILTIN_CHAINS, getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
@@ -222,6 +222,7 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [unsupported, setUnsupported] = useState(false);
+  const [poolUntil, setPoolUntil] = useState(0); // the indexer's shared free pool ran out until then (-1: not said)
   const [open, setOpen] = useState(null);
   const [showSpam, setShowSpam] = useState(false);
   // bridges: the ones sent from the app + any other bridge transaction recognised in the history, whose
@@ -250,14 +251,14 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
     setLoading(true);
     if (!addr.raw) { if (addr.missing) setItems([]); setLoading(false); return; } // TON: an account without a TON key
     const log = (await local.get('txlog', {}))[`${chain.id}:${account.address.toLowerCase()}`] || [];
-    const r = await driverFor(chain).loadHistory(chain, addr.raw, cursor, { etherscanKey: state.settings.etherscanKey, localLog: log })
+    const r = await driverFor(chain).loadHistory(chain, addr.raw, cursor, { ...indexerKeys(state.settings), localLog: log })
       .catch((e) => ({ items: [], next: null, error: e.message }));
     setItems((prev) => {
       const map = new Map((cursor ? prev || [] : []).map((x) => [x.hash, x]));
       for (const x of r.items) if (!map.has(x.hash)) map.set(x.hash, x);
       return [...map.values()].sort((a, b) => b.time - a.time);
     });
-    setNext(r.next); setErr(r.error || ''); setUnsupported(r.unsupported);
+    setNext(r.next); setErr(r.error || ''); setUnsupported(r.unsupported); setPoolUntil(r.limitUntil || 0);
     if (r.error) reportScanError({ chain: chain.name, what: 'history', error: r.error });
     setLoading(false);
   };
@@ -284,7 +285,8 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
 
   return (
     <div class="list">
-      {unsupported && <div class="info small" style={{ margin: '0.375rem' }}>{t(chain.indexer?.needsKey ? 'history.unsupported' : 'history.unsupportedNoIndexer', { network: chain.name })}{chain.indexer?.needsKey && <> <button class="link small" onClick={() => nav('settings', { section: 'keys', focus: 'etherscanKey' })}>{t('keys.addKey')}</button></>}</div>}
+      {unsupported && <div class="info small" style={{ margin: '0.375rem' }}>{t(chain.nodeReal ? 'history.unsupportedNodeReal' : chain.indexer?.paidPlan ? 'history.unsupportedPaid' : chain.indexer?.needsKey ? 'history.unsupported' : 'history.unsupportedNoIndexer', { network: chain.name })}{chain.indexer?.needsKey && <> <button class="link small" onClick={() => nav('settings', { section: 'keys', focus: indexerKeyField(chain) })}>{t('keys.addKey')}</button></>}</div>}
+      {!!poolUntil && <div class="info small" style={{ margin: '0.375rem' }}>{t('history.poolLimit', { network: chain.name, when: fmtBackAt(poolUntil, t) })} <button class="link small" onClick={() => nav('settings', { section: 'keys', focus: 'alchemyKey' })}>{t('keys.addKey')}</button></div>}
       {err && <div class="stale-note" title={err}><Icon name="wifiOff" size={14} /><span class="grow">{t('history.loadFailed')}</span></div>}
       {!items && <div class="empty"><Spinner /></div>}
       {items && !filtered.length && <Empty>{emptyText || t('history.empty')}</Empty>}

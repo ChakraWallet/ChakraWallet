@@ -5,16 +5,12 @@ import { POPULAR_TOKENS, LEGIT_VARIANTS } from './tokens.js';
 import { toFloat } from './format.js';
 
 import { getJson as httpJson } from './http.js';
+import { etherscanGet, planRefused, planError, poolExhausted, poolError, nodeRealHoldings, alchemyHoldings } from './indexer.js';
+import { alchemyUrl } from './alchemy.js';
+
+export { etherscanUrl, planRefused, planError } from './indexer.js';
 
 const getJson = (url, timeout = 25000) => httpJson(url, { timeout, label: 'Indexer HTTP' });
-
-export function etherscanUrl(chain, params, key) {
-  const u = new URL(chain.indexer.url);
-  if (chain.indexer.url.includes('etherscan.io/v2')) u.searchParams.set('chainid', chain.id);
-  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
-  if (key && chain.indexer.url.includes('etherscan.io')) u.searchParams.set('apikey', key); // the key goes to Etherscan only
-  return u.toString();
-}
 
 async function discoverTokens(chain, address, etherscanKey, timeout = 25000) {
   const idx = chain.indexer;
@@ -34,7 +30,12 @@ async function discoverTokens(chain, address, etherscanKey, timeout = 25000) {
   }
   if (idx.type === 'etherscan') {
     if (idx.needsKey && !etherscanKey) return [];
-    const json = await getJson(etherscanUrl(chain, { module: 'account', action: 'tokentx', address, page: 1, offset: 200, sort: 'desc' }, etherscanKey), timeout);
+    const json = await etherscanGet(chain, { module: 'account', action: 'tokentx', address, page: 1, offset: 200, sort: 'desc' }, etherscanKey, { timeout });
+    if (planRefused(json)) throw planError(json);
+    if (poolExhausted(json)) throw poolError(json);
+    // status "0" is also how "no transfers" is answered; anything else (a rate limit after the retries, a bad key) is
+    // an error, not "no tokens"
+    if (json?.status === '0' && !Array.isArray(json.result) && !/no (transactions|records)/i.test(`${json.message} ${json.result}`)) throw new Error(String(json.result || json.message));
     const seen = new Map();
     for (const t of Array.isArray(json?.result) ? json.result : []) {
       const a = t.contractAddress.toLowerCase();
@@ -90,12 +91,29 @@ export function suspectToken(t, chainId) {
   return t.price == null && KNOWN_NAME.test(plain(`${t.symbol || ''} ${t.name || ''}`).toUpperCase().replace(/[^A-Z]/g, ''));
 }
 
-export async function loadPortfolio(chain, address, { customTokens = [], hiddenTokens = [], etherscanKey = '' } = {}) {
-  let indexerOk = true, indexerError = '';
-  const [nativeRaw, discovered] = await Promise.all([
+export async function loadPortfolio(chain, address, { customTokens = [], hiddenTokens = [], etherscanKey = '', nodeRealKey = '' } = {}) {
+  let indexerOk = true, indexerError = '', planLimited = false, indexerLimit = 0;
+  // BNB Chain with a NodeReal key: the tokens held come from NodeReal (Etherscan's free plan doesn't cover it)
+  const viaNodeReal = !!(chain.nodeReal && nodeRealKey);
+  const discover = viaNodeReal ? nodeRealHoldings(chain.nodeReal, nodeRealKey, address) : discoverWithFallback(chain, address, etherscanKey);
+  let [nativeRaw, discovered] = await Promise.all([
     rpc(chain, 'eth_getBalance', [address, 'latest']).then(BigInt),
-    discoverWithFallback(chain, address, etherscanKey).catch((e) => { indexerOk = false; indexerError = e?.name === 'TimeoutError' ? 'timeout 25s' : e?.message || String(e); return []; }),
+    discover.catch((e) => {
+      if (e?.plan) { planLimited = true; return []; } // the key's plan doesn't cover the network: as without a key
+      if (e?.pool) { indexerLimit = e.resetAt || -1; return []; } // the network's free pool ran out: back at resetAt
+      indexerOk = false; indexerError = e?.name === 'TimeoutError' ? 'timeout 25s' : e?.message || String(e); return [];
+    }),
   ]);
+  // Alchemy, when its key has this network: the backup when the usual service failed, isn't there (no key, a plan or
+  // a free pool that doesn't cover the network); the usual one stays the first
+  let noIndexer = !viaNodeReal && (!chain.indexer || (chain.indexer.needsKey && !etherscanKey) || planLimited);
+  const backup = alchemyUrl(chain);
+  if (backup && (noIndexer || !indexerOk || indexerLimit)) {
+    try {
+      discovered = await alchemyHoldings(backup, address);
+      indexerOk = true; indexerError = ''; indexerLimit = 0; noIndexer = false;
+    } catch { /* the usual service's state stands */ }
+  }
 
   const map = new Map();
   for (const t of discovered) map.set(t.address, t);
@@ -111,7 +129,9 @@ export async function loadPortfolio(chain, address, { customTokens = [], hiddenT
   // on-chain balances for tokens that don't have one yet
   const needBalance = [...map.values()].filter((t) => t.balance === undefined);
   const results = await multiCall(chain, needBalance.map((t) => ({ to: t.address, data: erc20.encodeFunctionData('balanceOf', [address]) })));
-  needBalance.forEach((t, i) => { t.balance = results[i] ? BigInt(results[i]) : (t.indexerBalance ?? 0n); });
+  // a balanceOf answer is one 32-byte word: anything else (some spam contracts answer garbage) isn't a balance
+  const word = (r) => (typeof r === 'string' && /^0x[0-9a-f]{1,64}$/i.test(r) ? BigInt(r) : null);
+  needBalance.forEach((t, i) => { t.balance = word(results[i]) ?? (t.indexerBalance ?? 0n); });
 
   const hidden = new Set(hiddenTokens);
   let tokens = [...map.values()].filter((t) => t.balance > 0n || t.custom);
@@ -145,7 +165,8 @@ export async function loadPortfolio(chain, address, { customTokens = [], hiddenT
     totalUsd,
     indexerOk,
     indexerError,
-    noIndexer: !chain.indexer || (chain.indexer.needsKey && !etherscanKey),
+    noIndexer,
+    indexerLimit, // > 0: the shared free pool of the network's indexer ran out until then (-1: until an hour not given)
     updated: Date.now(),
   };
 }

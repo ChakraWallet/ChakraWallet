@@ -176,7 +176,7 @@ function AccountCard({ a, sum, poly, selected, showUnpriced, onSelect, onChain, 
                   <span class="muted">{h.unpriced ? t('accounts.mc.noPrice') : valueOf(h, m)}</span>
                 </div>
               ))}
-              {n.chain.indexer?.needsKey && <div class="tiny muted">{t('accounts.mc.needsKey')}</div>}
+              {n.noIndexer && n.chain.indexer?.needsKey && <div class="tiny muted">{t(n.chain.nodeReal ? 'accounts.mc.needsNodeReal' : n.chain.indexer.paidPlan ? 'accounts.mc.needsPaidKey' : 'accounts.mc.needsKey', { network: n.chain.name })}</div>}
             </div>
           ))}
         </div>

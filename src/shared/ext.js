@@ -19,6 +19,9 @@ export const DEFAULT_SETTINGS = {
   autoLockMin: 15,
   metamaskCompat: true,
   etherscanKey: '',
+  nodeRealKey: '', // BNB Chain: tokens held and history (NodeReal's free plan)
+  alchemyKey: '', // Alchemy: node for sending and backup for reads, history and tokens (shared/alchemy.js)
+  alchemyNets: {}, // { [chainId]: { state: 'on' | 'off' | 'error', link? } }: the key's networks, checked when saved
   showUnpriced: false,
   allowEthSign: false, // advanced: raw-hash signing (dangerous, disabled by default)
   theme: 'system', // 'system' | 'light' | 'dark'

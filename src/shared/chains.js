@@ -4,6 +4,7 @@ export const NATIVE = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 export const BUILTIN_CHAINS = [
   {
     id: 1, name: 'Ethereum', short: 'ETH', color: '#627EEA',
+    alchemy: 'eth-mainnet', // the network's name at Alchemy (shared/alchemy.js)
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
     rpc: ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
     explorer: 'https://etherscan.io',
@@ -16,6 +17,7 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 8453, name: 'Base', short: 'BASE', color: '#0052FF', opStack: true,
+    alchemy: 'base-mainnet',
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
     rpc: ['https://mainnet.base.org', 'https://base-rpc.publicnode.com'],
     explorer: 'https://basescan.org',
@@ -24,6 +26,7 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 42161, name: 'Arbitrum', short: 'ARB', color: '#28A0F0',
+    alchemy: 'arb-mainnet',
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
     rpc: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum-one-rpc.publicnode.com'],
     explorer: 'https://arbiscan.io',
@@ -32,6 +35,7 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 10, name: 'Optimism', short: 'OP', color: '#FF0420', opStack: true,
+    alchemy: 'opt-mainnet',
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
     rpc: ['https://mainnet.optimism.io', 'https://optimism-rpc.publicnode.com'],
     explorer: 'https://optimistic.etherscan.io',
@@ -40,6 +44,7 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 137, name: 'Polygon', short: 'POL', color: '#8247E5', minPriorityFee: 30_000_000_000n,
+    alchemy: 'polygon-mainnet',
     native: { symbol: 'POL', name: 'Polygon', decimals: 18, priceId: 'coingecko:polygon-ecosystem-token' },
     rpc: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon-rpc.com'],
     explorer: 'https://polygonscan.com',
@@ -48,14 +53,19 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 56, name: 'BNB Chain', short: 'BNB', color: '#F0B90B',
+    alchemy: 'bnb-mainnet',
     native: { symbol: 'BNB', name: 'BNB', decimals: 18, priceId: 'coingecko:binancecoin' },
     rpc: ['https://bsc-rpc.publicnode.com', 'https://bsc-dataseed.bnbchain.org'],
     explorer: 'https://bscscan.com',
-    indexer: { type: 'etherscan', url: 'https://api.etherscan.io/v2/api', needsKey: true },
+    // Etherscan's free plan doesn't cover BNB Chain (since November 2025): a paid plan's key is needed. With a free
+    // NodeReal key (BNB Chain's infrastructure) the tokens held and the history come from NodeReal instead.
+    indexer: { type: 'etherscan', url: 'https://api.etherscan.io/v2/api', needsKey: true, paidPlan: true },
+    nodeReal: 'https://bsc-mainnet.nodereal.io/v1',
     llama: 'bsc', swap: true,
   },
   {
     id: 43114, name: 'Avalanche', short: 'AVAX', color: '#E84142',
+    alchemy: 'avax-mainnet',
     native: { symbol: 'AVAX', name: 'Avalanche', decimals: 18, priceId: 'coingecko:avalanche-2' },
     rpc: ['https://api.avax.network/ext/bc/C/rpc', 'https://avalanche-c-chain-rpc.publicnode.com'],
     explorer: 'https://snowtrace.io',
@@ -64,6 +74,7 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 100, name: 'Gnosis', short: 'GNO', color: '#3E6957',
+    alchemy: 'gnosis-mainnet',
     native: { symbol: 'xDAI', name: 'xDAI', decimals: 18, priceId: 'coingecko:xdai' },
     rpc: ['https://rpc.gnosischain.com', 'https://gnosis-rpc.publicnode.com'],
     explorer: 'https://gnosisscan.io',
@@ -74,6 +85,7 @@ export const BUILTIN_CHAINS = [
     // Linea (Consensys): the network of the MetaMask Card. No free keyless indexer: Etherscan V2 (its free key
     // covers Linea) for the history and token discovery; without a key, the balances of the well-known tokens
     id: 59144, name: 'Linea', short: 'LINEA', color: '#61DFFF',
+    alchemy: 'linea-mainnet',
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
     rpc: ['https://rpc.linea.build', 'https://linea-rpc.publicnode.com'],
     explorer: 'https://lineascan.build',
@@ -82,6 +94,7 @@ export const BUILTIN_CHAINS = [
   },
   {
     id: 11155111, name: 'Sepolia (test)', short: 'SEP', color: '#9CA3AF', testnet: true,
+    alchemy: 'eth-sepolia',
     native: { symbol: 'ETH', name: 'Sepolia Ether', decimals: 18, priceId: null },
     rpc: ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc.sepolia.org'],
     explorer: 'https://sepolia.etherscan.io',
