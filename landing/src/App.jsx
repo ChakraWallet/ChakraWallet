@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { rosette } from './guilloche.js';
 
 // Store / download links: replace with the real ones before publishing.
 const LINKS = {
@@ -36,18 +37,7 @@ function Icon({ name, size = 22, stroke = true }) {
   );
 }
 
-/* ------------------------------------------------------------------ guilloche (the app's motif) */
-function rosette(p, q, d, steps = 900) {
-  const r = q / p, ext = 1 - r + d;
-  let s = '';
-  for (let i = 0; i <= steps; i++) {
-    const t = (i / steps) * Math.PI * 2 * q;
-    const x = ((1 - r) * Math.cos(t) + d * Math.cos(((1 - r) / r) * t)) / ext;
-    const y = ((1 - r) * Math.sin(t) - d * Math.sin(((1 - r) / r) * t)) / ext;
-    s += `${i ? 'L' : 'M'}${(x * 500).toFixed(1)},${(y * 500).toFixed(1)}`;
-  }
-  return s;
-}
+/* ------------------------------------------------------------------ guilloche (the app's motif, src/guilloche.js) */
 function Guilloche({ className }) {
   const paths = useMemo(() => [rosette(29, 9, 0.62), rosette(31, 12, 0.48), rosette(23, 7, 0.8)], []);
   return (

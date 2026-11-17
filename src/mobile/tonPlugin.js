@@ -50,13 +50,12 @@ registerConnector({
 });
 
 // Links that open the app (tc://, chakra-tc://, https://chakrawallet.dev/ton-connect): a connection, or a dapp that
-// brings Chakra up for a request already on its way through the bridge. Then back to the app that asked (`ret`):
-// 'back' sends Chakra behind it, a link opens it, 'none' stays here.
+// brings Chakra up for a request already on its way through the bridge. Then back to the app that asked, unless the
+// link says `ret=none`. On Android Chakra goes behind the app that opened it, whatever `ret` names: dapps turn "back"
+// into a browser's own scheme (googlechrome://, firefox://) or the page address, which would open another browser or
+// a new tab instead of the one the user came from.
 const Os = registerPlugin('Os');
-const returnTo = (ret) => {
-  if (ret === 'back') Os.moveToBack().catch(() => {});
-  else if (ret && ret !== 'none') Os.openLink({ url: ret }).catch(() => {});
-};
+const returnTo = (ret) => { if (ret !== 'none') Os.moveToBack().catch(() => {}); };
 let waiting = null; // { ret, until }: where to go once the request the dapp opened Chakra for is answered
 tonConnect.onAnswered(() => {
   if (!waiting) return;
@@ -74,4 +73,11 @@ async function openedWith(url) {
   if (r.connected || r.code === 300) returnTo(link.ret);
 }
 CapApp.addListener('appUrlOpen', (e) => { openedWith(e.url); });
+// the same links in a page of the in-app browser (DappBrowserPlugin): handled here, the user stays on the page
+globalThis.__CK_NATIVE__?.addListener('tonConnectLink', async (e) => {
+  const link = parseConnectLink(e.url);
+  if (!link) return;
+  const r = await bg('tonConnectLink', { url: e.url }).catch((err) => ({ connected: false, error: err.message }));
+  if (link.kind === 'connect') told(r);
+});
 Promise.resolve(CapApp.getLaunchUrl?.()).then((r) => { if (r?.url) openedWith(r.url); }).catch(() => {});

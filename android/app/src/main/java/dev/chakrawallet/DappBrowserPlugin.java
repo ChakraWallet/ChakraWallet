@@ -316,6 +316,7 @@ public class DappBrowserPlugin extends Plugin {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme();
+                if (isTonConnectLink(uri)) { tonConnectLink(tab, uri); return true; }
                 if (scheme.equals("http") || scheme.equals("https")) {
                     // moving to a site that uses the other version (desktop/mobile): reload it with the right user agent
                     String ua = uaFor(uri.toString());
@@ -740,6 +741,30 @@ public class DappBrowserPlugin extends Plugin {
             if (lazy) load(t.web, t.url);
             call.resolve(state(t));
         });
+    }
+
+    /**
+     * A TON Connect link (tc://, chakra-tc://, https://chakrawallet.dev/ton-connect?...) in a page of the in-app
+     * browser: Chakra is the wallet here, so the app handles it (no app chooser, no other wallet, the user stays on
+     * the page). Dapps open these links with window.open: a tab created only for the link has nothing to show and goes.
+     */
+    private static boolean isTonConnectLink(Uri uri) {
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+        if (scheme.equals("tc") || scheme.equals("chakra-tc")) return true;
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        return scheme.equals("https") && "chakrawallet.dev".equalsIgnoreCase(uri.getHost()) && path.startsWith("/ton-connect");
+    }
+
+    private void tonConnectLink(Tab tab, Uri uri) {
+        JSObject ev = new JSObject();
+        ev.put("url", uri.toString());
+        ev.put("tabId", tab.id);
+        notifyListeners("tonConnectLink", ev);
+        if (tab.url == null || tab.url.isEmpty()) { // opened for this link only (window.open): no page in it
+            JSObject c = new JSObject();
+            c.put("tabId", tab.id);
+            notifyListeners("tabClosedByPage", c);
+        }
     }
 
     @PluginMethod

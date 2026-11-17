@@ -81,3 +81,24 @@ test('TON Connect through the bridge: a link connects, a transfer is approved, C
   assert.deepEqual(page.errors, []);
   await page.context().close();
 });
+
+test('TON Connect: a tc:// link in a page of the in-app browser connects without leaving the app', async () => {
+  const page = await openWallet(TON, { name: 'tonconnect-inapp-link' });
+  await page.context().route(MANIFEST, (r) => r.fulfill({
+    status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+    body: JSON.stringify({ url: 'https://dapp2.example', name: 'Example 2' }),
+  }));
+  const d = dapp();
+  const link = `tc://?v=2&id=${d.id}&r=${encodeURIComponent(JSON.stringify({ manifestUrl: MANIFEST, items: [{ name: 'ton_addr', network: String(TON) }] }))}&ret=back`;
+  await step(page, 'connect', async () => {
+    // what DappBrowserPlugin reports when a page navigates to the link (instead of handing it to another app)
+    await page.evaluate((url) => globalThis.__e2eDapp.emit('tonConnectLink', { url, tabId: 7 }), link);
+    await page.waitForSelector('h3:has-text("Connect a TON account")', { timeout: 20000 });
+    await page.click('.footer .btn:last-child');
+    await page.waitForSelector('.toast:has-text("Connected to Example 2")', { timeout: 20000 });
+  });
+  const hello = await waitFor(async () => (await d.inbox())[0], { what: 'the connection through the bridge' });
+  assert.equal(hello.msg.event, 'connect');
+  assert.deepEqual(page.errors, []);
+  await page.context().close();
+});
