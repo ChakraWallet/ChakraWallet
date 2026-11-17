@@ -8,6 +8,8 @@
 // A family registers here how to check one of those entries, so the vault can store, back up and restore them without
 // knowing anything else about the family. Validation is plain data checks (no network library): it is registered in the
 // browser extension too, so a backup made by the app keeps its TON accounts after a round trip through the extension.
+import * as b58 from '../shared/solana/base58.js';
+
 const families = new Map();
 
 /**
@@ -24,4 +26,17 @@ registerFamily('ton', {
   clean: (x) => (x && /^-?\d+:[0-9a-f]{64}$/i.test(x.address) && /^[0-9a-f]{64}$/i.test(x.secret) && TON_VERSIONS.includes(x.version)
     ? { address: x.address.toLowerCase(), secret: x.secret.toLowerCase(), version: x.version }
     : null),
+});
+
+// ---------------------------------------------------------------- Solana (wallets imported from other Solana apps)
+// w.solana = [{ address (base58), secret: base58 of the 64-byte key, as Phantom exports it }], type 'solana'.
+// Base58 is case-sensitive: kept as it is. The key's public half must be the address.
+registerFamily('solana', {
+  clean(x) {
+    try {
+      const a = String(x?.address || ''), s = String(x?.secret || '');
+      const pub = b58.decode(a), key = b58.decode(s);
+      return pub.length === 32 && key.length === 64 && key.slice(32).every((v, i) => v === pub[i]) ? { address: a, secret: s } : null;
+    } catch { return null; }
+  },
 });

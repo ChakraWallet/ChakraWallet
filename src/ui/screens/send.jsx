@@ -134,6 +134,7 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
       if (tk) setToken(tk);
       const dec = (tk || token)?.decimals;
       if (pendingQr.amountRaw != null && dec != null) { setAmount(rawToInput(pendingQr.amountRaw, dec)); setIsMax(false); }
+      else if (pendingQr.amountText != null) { setAmount(pendingQr.amountText); setIsMax(false); } // already in the token's units (Solana Pay)
       setPendingQr(null);
     })();
   }, [pendingQr, chain.id, tokens.length]);

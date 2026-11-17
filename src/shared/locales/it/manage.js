@@ -3,7 +3,7 @@ export default {
   'settings.title': 'Impostazioni',
   'settings.general': 'Generale',
   'settings.metamask': 'Modalità MetaMask',
-  'settings.metamask.sub': 'I siti che chiedono MetaMask apriranno Chakra',
+  'settings.metamask.sub': 'Chakra compare anche come “MetaMask” negli elenchi di wallet dei siti: serve solo per i pochi siti che elencano soltanto MetaMask. Lasciala spenta se usi anche il vero MetaMask.',
   'settings.theme': 'Tema',
   'settings.theme.sub': 'Sostituisce quello del sistema',
   'settings.theme.system': 'Sistema',
@@ -272,7 +272,7 @@ export default {
   'settings.privacy': 'Modalità privacy',
   'settings.privacy.sub': "I saldi restano nascosti (••••) ogni volta che apri l'app: tocca l'occhio sulla carta per vederli.",
   'settings.mev': 'Protezione MEV',
-  'settings.mev.sub': "Su Ethereum le transazioni passano da Flashbots Protect, non dalla mempool pubblica: i bot non possono vederle e fare front-running o sandwich sui tuoi swap.",
+  'settings.mev.sub': "Su Ethereum le transazioni passano da Flashbots Protect, non dalla mempool pubblica; su Solana gli swap vanno a Jito come bundle privati: i bot non possono vederli e fare front-running o sandwich sui tuoi swap.",
 
   // Impostazioni > Chiavi dei servizi (screens/apikeys.jsx)
   'keys.title': 'Chiavi dei servizi',

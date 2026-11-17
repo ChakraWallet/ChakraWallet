@@ -1834,3 +1834,4 @@ button.dn-row:active { background: var(--card-2); }
 .key-net .dot { background: var(--muted); opacity: .5; }
 .key-net .dot.on { background: var(--green); opacity: 1; box-shadow: 0 0 0 3px var(--green-soft); }
 .key-net .btn { flex: none; }
+.nft-note { padding: .25rem .375rem 0; }

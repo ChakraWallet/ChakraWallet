@@ -79,6 +79,23 @@ const LOGOS = {
     </>
   ),
   // Sepolia (grey ethereum)
+  // Solana: three slanted bars, purple to green (solid colours: a gradient's id would clash between icons)
+  [-501]: (
+    <>
+      <circle cx="16" cy="16" r="16" fill="#121212" />
+      <path fill="#14F195" d="M10.4 9.6h14.2l-3 3H7.4z" />
+      <path fill="#5F9BD8" d="M7.4 14.5h14.2l3 3H10.4z" />
+      <path fill="#9945FF" d="M10.4 19.4h14.2l-3 3H7.4z" />
+    </>
+  ),
+  [-502]: (
+    <>
+      <circle cx="16" cy="16" r="16" fill="#9CA3AF" />
+      <path fill={W} d="M10.4 9.6h14.2l-3 3H7.4z" />
+      <path fill={W} fill-opacity=".75" d="M7.4 14.5h14.2l3 3H10.4z" />
+      <path fill={W} fill-opacity=".5" d="M10.4 19.4h14.2l-3 3H7.4z" />
+    </>
+  ),
   // TON (coin: GRAM)
   [-239]: (
     <>
@@ -104,7 +121,7 @@ const LOGOS = {
 };
 
 // Native coins / common tokens -> logo of the chain they belong to
-const SYMBOL_LOGO = { GRAM: -239, TON: -239, ETH: 1, WETH: 1, POL: 137, MATIC: 137, WPOL: 137, BNB: 56, WBNB: 56, AVAX: 43114, WAVAX: 43114, XDAI: 100, WXDAI: 100, OP: 10, ARB: 42161, LINEA: 59144 };
+const SYMBOL_LOGO = { GRAM: -239, TON: -239, SOL: -501, WSOL: -501, ETH: 1, WETH: 1, POL: 137, MATIC: 137, WPOL: 137, BNB: 56, WBNB: 56, AVAX: 43114, WAVAX: 43114, XDAI: 100, WXDAI: 100, OP: 10, ARB: 42161, LINEA: 59144 };
 
 export function hasChainLogo(id) { return !!LOGOS[id]; }
 export function symbolLogoId(symbol = '') { return SYMBOL_LOGO[symbol.toUpperCase()]; }

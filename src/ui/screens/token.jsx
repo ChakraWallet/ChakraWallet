@@ -52,6 +52,11 @@ export function TokenDetails({ token: tk }) {
   // a hidden token (opened from "hidden tokens" on the home screen): back among the others
   const unhide = async () => {
     await local.update('hiddenTokens', {}, (all) => ({ ...all, [chain.id]: (all[chain.id] || []).filter((a) => a !== tk.address) }));
+    // hidden automatically as probable junk (Solana): shown from now on as a token the user chose
+    if (tk.junk) {
+      const keep = { address: tk.address, symbol: tk.symbol, name: tk.name || '', decimals: tk.decimals, icon: tk.icon || '', ...(tk.program ? { program: tk.program } : {}) };
+      await local.update('customTokens', {}, (all) => ({ ...all, [chain.id]: [...(all[chain.id] || []).filter((x) => x.address !== tk.address), keep] }));
+    }
     setPortfolioCache({});
     toast(t('token.shown', { symbol: tk.symbol })); back();
   };

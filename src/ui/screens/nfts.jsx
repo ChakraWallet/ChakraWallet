@@ -78,14 +78,24 @@ export function AddNftSheet({ onClose, onAdded }) {
   );
 }
 
-/** items: the NFTs (useNfts); priceOf(nft): their collection's floor price (useNftPrices); onAdd: add one by hand. */
-export function NftSection({ items: all0, priceOf, onAdd }) {
+/**
+ * items: the NFTs (useNfts); priceOf(nft): their collection's floor price (useNftPrices); onAdd: add one by hand;
+ * note: { key (i18n), keyField? } a word from the network's driver (e.g. Solana without an indexer key: the compressed
+ * NFTs need one), with a link to that key's field in Settings.
+ */
+export function NftSection({ items: all0, priceOf, onAdd, note }) {
   const { nav } = useApp();
   const [all, setAll] = useState(false);
   const [showSpam, setShowSpam] = useState(false);
   const items = all0 || [];
   const good = items.filter((x) => !x.spam), spam = items.filter((x) => x.spam);
-  if (!good.length && !spam.length) return onAdd ? <button class="nft-more nft-add-empty" onClick={onAdd}><Icon name="image" size={15} /> {t('nft.add.cta')}</button> : null;
+  const noteEl = note && (
+    <div class="tiny muted nft-note">{t(note.key)}{note.keyField && <> <button class="link tiny" onClick={() => nav('settings', { section: 'keys', focus: note.keyField })}>{t('keys.addKey')}</button></>}</div>
+  );
+  if (!good.length && !spam.length) {
+    if (noteEl) return <section class="nft-section"><div class="nft-head"><span class="section-title">{t('nft.title')}</span></div>{noteEl}</section>;
+    return onAdd ? <button class="nft-more nft-add-empty" onClick={onAdd}><Icon name="image" size={15} /> {t('nft.add.cta')}</button> : null;
+  }
   const shown = all ? good : good.slice(0, FIRST);
   const open = (nft) => nav('nft', { nft, price: priceOf?.(nft) ?? null });
   return (
@@ -129,6 +139,7 @@ export function NftSection({ items: all0, priceOf, onAdd }) {
           )}
         </>
       )}
+      {noteEl}
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { rosette } from './guilloche.js';
+import { ChainLogo } from './chainLogos.jsx';
 
 // Store / download links: replace with the real ones before publishing.
 const LINKS = {
@@ -132,7 +133,7 @@ function Hero() {
           <span className="eyebrow"><span className="dot" />Free &amp; open source · iPhone · Android · Chrome · Firefox</span>
           <h1>Your crypto,<br /><span className="ink">beautifully clear.</span></h1>
           <p className="lede">
-            Chakra is a self-custodial wallet for Ethereum, every major EVM network and TON. Send, swap at the best price,
+            Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON and Solana. Send, swap at the best price,
             bridge and explore web3 — your keys never leave your device.
           </p>
           <StoreButtons />
@@ -155,7 +156,7 @@ function Hero() {
 }
 
 const STATS = [
-  { v: '10', l: 'networks built in, plus your own' },
+  { v: '11', l: 'networks built in, plus your own' },
   { v: '8', l: 'swap & bridge providers compared' },
   { v: '0', l: 'extra fees, ever' },
   { v: '600k', l: 'PBKDF2 rounds on your password' },
@@ -179,14 +180,14 @@ const FEATURES = [
   },
   {
     id: 'nfts', kicker: 'NFTs', title: 'Your collectibles, next to your tokens.',
-    text: 'The NFTs you own on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis and TON appear right under your tokens, with their artwork, collection and details.',
+    text: 'The NFTs you own on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis, TON and Solana appear right under your tokens, with their artwork, collection and details.',
     points: ['Scam airdrops and fake brand collections hidden', 'Spam artwork never loaded, so it can’t track you', 'Details and explorer link in one tap'],
     img: 'nfts',
   },
   {
     id: 'swap', kicker: 'Swap & Bridge', title: 'The best price, not the first price.',
-    text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. Bridges compare LI.FI, Relay, Across and deBridge the same way.',
-    points: ['Approvals for the exact amount — never unlimited', 'Fees shown in dollars before you sign', 'Bridge transfers tracked until they arrive'],
+    text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. On Solana, Jupiter compares every exchange for you. Bridges compare LI.FI, Relay, Across and deBridge the same way — Solana included.',
+    points: ['Approvals for the exact amount — never unlimited', 'MEV protection: Flashbots on Ethereum, Jito on Solana', 'Bridge transfers tracked until they arrive'],
     img: 'swap',
   },
   {
@@ -209,13 +210,13 @@ const FEATURES = [
   },
   {
     id: 'contracts', kicker: 'Builders', title: 'Deploy contracts from your pocket.',
-    text: 'Create tokens, NFTs and multi-token contracts from templates, write your own in Solidity or Tact, or open any contract by address and call it with a generated form.',
-    points: ['Solidity and Tact compilers on device', 'Official TON jetton and NFT code, shown before you deploy', 'Decode any calldata before you sign'],
+    text: 'Create tokens, NFTs and multi-token contracts from templates, write your own in Solidity or Tact, deploy a Solana program you compiled, or open any contract or program by address and call it with a form built from its ABI or IDL.',
+    points: ['Solidity and Tact compilers on device', 'TON jettons and NFTs, Solana tokens and NFT collections', 'Decode any calldata or transaction before you sign'],
     img: 'contracts',
   },
   {
     id: 'browser', kicker: 'Dapp browser', title: 'All of web3, already connected.',
-    text: 'Multiple tabs, previews and favicons, with Chakra built in. Sites see it as MetaMask, so “Connect wallet” just works — and every connection, signature and transaction waits for your approval.',
+    text: 'Multiple tabs, previews and favicons, with Chakra built in. Sites find Chakra by name — and the older ones that only know MetaMask work too — so “Connect wallet” just works — and every connection, signature and transaction waits for your approval.',
     points: ['Certificate details behind the padlock', 'Disconnect a site and clear its data in a tap', 'Warnings on permits and unlimited approvals'],
     img: 'browser',
   },
@@ -459,9 +460,10 @@ function Security() {
   );
 }
 
+// [name, id of its mark in chainLogos.jsx (the app's own ids), null: no mark]
 const NETWORKS = [
-  ['Ethereum', '#627EEA'], ['Base', '#0052FF'], ['Arbitrum', '#28A0F0'], ['Optimism', '#FF0420'], ['Polygon', '#8247E5'],
-  ['BNB Chain', '#F0B90B'], ['Avalanche', '#E84142'], ['Gnosis', '#3E6957'], ['Linea', '#61DFFF'], ['TON', '#0098EA'], ['+ custom networks', null],
+  ['Ethereum', 1], ['Base', 8453], ['Arbitrum', 42161], ['Optimism', 10], ['Polygon', 137], ['BNB Chain', 56],
+  ['Avalanche', 43114], ['Gnosis', 100], ['Linea', 59144], ['TON', -239], ['Solana', -501], ['+ custom networks', null],
 ];
 function Networks() {
   return (
@@ -470,11 +472,11 @@ function Networks() {
         <div className="section-head reveal">
           <span className="kicker">Networks</span>
           <h2>One wallet, many chains.</h2>
-          <p>All the major EVM networks built in, TON in the mobile apps, and any EVM network you add yourself — or that a dapp asks for.</p>
+          <p>All the major EVM networks built in, TON and Solana in the mobile apps, and any EVM network you add yourself — or that a dapp asks for.</p>
         </div>
         <div className="chips reveal">
-          {NETWORKS.map(([n, c]) => (
-            <span key={n} className={`chip ${c ? '' : 'ghost'}`}>{c && <i style={{ background: c }} />}{n}</span>
+          {NETWORKS.map(([n, id]) => (
+            <span key={n} className={`chip ${id != null ? '' : 'ghost'}`}>{id != null && <ChainLogo id={id} size={22} />}{n}</span>
           ))}
         </div>
       </div>

@@ -13,6 +13,8 @@ const typeLabel = (a) => ({ hd: 'accounts.type.hd', imported: 'accounts.type.imp
 const typeShort = (a) => ({ hd: 'accounts.short.hd', imported: 'accounts.short.imported', generated: 'accounts.short.generated' }[a.type] || driverOf(a.type)?.ui?.typeShort || 'accounts.short.imported');
 /** Families that can import an account of their own (e.g. a wallet from another TON app): driver.ui.ImportAccount. */
 const importers = () => allDrivers().filter((d) => d.ui?.ImportAccount);
+/** Other ways a family adds an account (e.g. a Solana vanity address): driver.ui.addOptions [{ key, icon, label, sub, Component }]. */
+const addOptions = () => allDrivers().flatMap((d) => (d.ui?.addOptions || []).map((o) => ({ ...o, id: `${d.kind}:${o.key}` })));
 /** Balances of the other families in the summary (driver.ui.useSummaries): drivers register before the UI, so the hooks keep their order. */
 const useFamilySummaries = () => allDrivers().filter((d) => d.ui?.useSummaries).map((d) => d.ui.useSummaries());
 /** An account of one family shows its address the way that family does (TON: UQ…). */
@@ -34,6 +36,15 @@ function AddSheet({ onClose }) {
     } catch (e) { setErr(e.message); }
     setLoading(false);
   };
+  const option = mode?.startsWith('option:') ? addOptions().find((o) => `option:${o.id}` === mode) : null;
+  if (option) {
+    const C = option.Component;
+    return (
+      <Sheet title={t(option.label)} onClose={onClose}>
+        <C onBack={() => setMode(null)} onDone={(acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />
+      </Sheet>
+    );
+  }
   if (mode === 'vanity') {
     return (
       <Sheet title={t('vanity.title')} onClose={onClose}>
@@ -53,6 +64,10 @@ function AddSheet({ onClose }) {
             <div><div class="bold">{t('accounts.add.vanity')}</div><div class="small muted">{t('accounts.add.vanity.sub')}</div></div></button>
           <button class="item" onClick={() => setMode('import')}><div class="tx-icon" style={{ background: 'var(--amber-soft)', color: 'var(--amber)' }}><Icon name="receive" /></div>
             <div><div class="bold">{t('accounts.add.import')}</div><div class="small muted">{t('accounts.add.import.sub')}</div></div></button>
+          {addOptions().map((o) => ( // e.g. Android: a Solana vanity address
+            <button class="item" onClick={() => setMode(`option:${o.id}`)}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name={o.icon} /></div>
+              <div><div class="bold">{t(o.label)}</div><div class="small muted">{t(o.sub)}</div></div></button>
+          ))}
           {importers().map((d) => ( // e.g. Android: a wallet from another TON app
             <button class="item" onClick={() => setMode(`import:${d.kind}`)}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="wallet" /></div>
               <div><div class="bold">{t(d.ui.importLabel)}</div><div class="small muted">{t(d.ui.importSub)}</div></div></button>
@@ -63,7 +78,7 @@ function AddSheet({ onClose }) {
         const C = driverOf(mode.slice(7))?.ui.ImportAccount;
         return C && <C onBack={() => setMode(null)} onDone={(acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />;
       })()}
-      {mode && !mode.startsWith('import:') && (
+      {mode && !mode.startsWith('import:') && !mode.startsWith('option:') && (
         <>
           <div class="field"><label>{t('common.nameOptional')}</label><input class="input" value={name} onInput={(e) => setName(e.target.value)} placeholder={t('accounts.add.namePlaceholder')} /></div>
           {mode === 'import' && <div class="field"><label>{t('accounts.privateKey')}</label><input class="input mono" type="password" value={pk} onInput={(e) => setPk(e.target.value)} placeholder="0x…" /></div>}

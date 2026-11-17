@@ -234,6 +234,7 @@ export function Home() {
         </div>}
 
         {notice && <div class="info small">{t(notice)}</div>}
+        {!onCard && data && drv.ui?.HomeExtra && <drv.ui.HomeExtra chain={chain} data={data} reload={reload} />}
 
         {onCard && <>
           <div class="tabs">
@@ -297,7 +298,7 @@ export function Home() {
             {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}
-        {tab === 'tokens' && data && <NftSection items={nftItems} priceOf={nftValue.priceOf} onAdd={drv.features.customNfts ? () => setSheet('nft') : null} />}
+        {tab === 'tokens' && data && <NftSection items={nftItems} priceOf={nftValue.priceOf} onAdd={drv.features.customNfts ? () => setSheet('nft') : null} note={nfts.data?.note} />}
 
         {tab === 'activity' && (
           <div class="card" style={{ padding: '0.375rem' }}>

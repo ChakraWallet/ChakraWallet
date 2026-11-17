@@ -174,7 +174,7 @@ export function Bridge({ toChainId, toAddress }) {
         const used = r.quote || quote; // a quote refreshed by the last step (after an approval or a swap): its reference tracks the transfer
         const entry = {
           id: r.hash, txHash: r.hash, provider: used.provider, tool: used.tool, ref: used.ref, created: Date.now(), status: 'pending',
-          fromChainId: fromId, toChainId: toId, from: fromAddr.address, to: toAddr.address,
+          fromChainId: fromId, toChainId: toId, from: fromAddr.address, to: toAddr.address, account: account.address,
           fromToken: { symbol: fromToken.symbol, decimals: fromToken.decimals }, toToken: { symbol: toToken.symbol, decimals: toToken.decimals },
           amountIn: raw.toString(), amountOut: used.amountOut, durationSec: used.durationSec, refuel: used.refuel,
         };
@@ -207,13 +207,14 @@ export function Bridge({ toChainId, toAddress }) {
           )}
           <RouteSummary q={quote} fromChain={fromChain} toChain={toChain} fromToken={fromToken} toToken={toToken} raw={raw} recipient={toAddr.address} self={selfTo?.address} mine={mine} ext={extRecipient} />
           <FeeView chain={fromChain} fee={review?.fee} speed={speed} setSpeed={setSpeed} nativePrice={nativePrice} />
+          {review?.problem?.(speed) && <div class="error">{review.problem(speed)}</div>}
           {busy && <div class="info small row"><Spinner />{busy}</div>}
           {err && <div class="error">{err}</div>}
           {err && quote.twoStep && idx > 0 && <div class="warn small">{t('bridge.twoStep.afterSwap')}</div>}
         </div>
         <div class="footer">
           <Btn kind="secondary" onClick={cancel}>{t('common.cancel')}</Btn>
-          <Btn loading={!!busy} disabled={!review} onClick={confirm}>{approving ? t('swap.approve') : t('bridge.send')}</Btn>
+          <Btn loading={!!busy} disabled={!review || !!review.problem?.(speed)} onClick={confirm}>{approving ? t('swap.approve') : t('bridge.send')}</Btn>
         </div>
       </div>
     );
@@ -509,7 +510,7 @@ function RecentBridges() {
   useEffect(() => {
     let alive = true;
     const mine = new Set(state.accounts.map((a) => a.address.toLowerCase()));
-    const read = () => local.get('bridges', []).then((l) => alive && setList(l.filter((x) => mine.has(x.from.toLowerCase())).slice(0, 8)));
+    const read = () => local.get('bridges', []).then((l) => alive && setList(l.filter((x) => mine.has((x.account || x.from).toLowerCase()) || mine.has(x.from.toLowerCase())).slice(0, 8)));
     read();
     return onBridges(read, () => { alive = false; });
   }, [state.accounts.length]);

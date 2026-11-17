@@ -520,5 +520,7 @@ export const rich = (key, vars) => richText(t(key), vars);
 
 export function Empty({ children }) { return <div class="empty">{children}</div>; }
 
-export function explorerTx(chain, hash) { return chain.explorer ? `${chain.explorer}/tx/${hash}` : null; }
-export function explorerAddr(chain, a) { return chain.explorer ? `${chain.explorer}/address/${a}` : null; }
+// networks whose explorer differs: explorerAddress (the path of an address, e.g. Solscan's "account"), explorerQuery
+// (e.g. "?cluster=devnet")
+export function explorerTx(chain, hash) { return chain.explorer ? `${chain.explorer}/tx/${hash}${chain.explorerQuery || ''}` : null; }
+export function explorerAddr(chain, a) { return chain.explorer ? `${chain.explorer}/${chain.explorerAddress || 'address'}/${a}${chain.explorerQuery || ''}` : null; }

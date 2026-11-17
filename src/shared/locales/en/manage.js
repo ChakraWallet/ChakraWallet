@@ -3,7 +3,7 @@ export default {
   'settings.title': 'Settings',
   'settings.general': 'General',
   'settings.metamask': 'MetaMask mode',
-  'settings.metamask.sub': 'Sites that ask for MetaMask will open Chakra',
+  'settings.metamask.sub': 'Chakra also shows up as “MetaMask” in sites’ wallet lists: only for the few sites that list MetaMask alone. Keep it off if you use the real MetaMask too.',
   'settings.theme': 'Theme',
   'settings.theme.sub': 'Overrides the system theme',
   'settings.theme.system': 'System',
@@ -272,7 +272,7 @@ export default {
   'settings.privacy': 'Privacy mode',
   'settings.privacy.sub': 'Balances stay hidden (••••) every time you open the app: tap the eye on the card to see them.',
   'settings.mev': 'MEV protection',
-  'settings.mev.sub': 'On Ethereum, transactions go through Flashbots Protect instead of the public mempool: bots can’t see them to front-run or sandwich your swaps.',
+  'settings.mev.sub': 'On Ethereum, transactions go through Flashbots Protect instead of the public mempool; on Solana, swaps go to Jito as private bundles: bots can’t see them to front-run or sandwich your swaps.',
 
   // Settings > Service keys (screens/apikeys.jsx)
   'keys.title': 'Service keys',

@@ -1,4 +1,5 @@
-// Contracts tab (Android app): open, read, inspect and call any contract; write, compile and deploy Solidity.
+// Contracts tab (Android app): open, read, inspect and call any contract; write, compile and deploy Solidity (and Tact
+// on TON); Solana programs: read and call them with their IDL, create tokens and NFTs, deploy compiled programs.
 // Screens stack over the home (which stays mounted), like the Predictions tab.
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../../components.jsx';
@@ -12,6 +13,11 @@ import { TonContractView } from './ton/view.jsx';
 import { TonTxReview } from './ton/review.jsx';
 import { TonCreate } from './ton/create.jsx';
 import { TonStudio, TonDeploy } from './ton/studio.jsx';
+import { isSolana } from '../../../shared/solana/api.js';
+import { SolContractView } from './sol/view.jsx';
+import { SolTxReview } from './sol/review.jsx';
+import { SolCreate } from './sol/create.jsx';
+import { SolDeploy } from './sol/deploy.jsx';
 
 let seq = 0;
 
@@ -44,6 +50,14 @@ export function Contracts({ visible, onDeep }) {
     const chain = getChain(e.chainId, state.customChains) || active;
     const common = { onBack: back, open };
     if (e.name === 'contract' && isTon(chain)) return <TonContractView chainId={e.chainId} address={e.address} {...common} />;
+    // Solana: programs, tokens, NFTs, accounts
+    if (e.name === 'contract' && isSolana(chain)) return <SolContractView chainId={e.chainId} address={e.address} {...common} />;
+    if (e.name === 'soltx') {
+      return <SolTxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined}
+        onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />;
+    }
+    if (e.name === 'solcreate') return <SolCreate kind={e.kind} chainId={e.chainId} {...common} />;
+    if (e.name === 'soldeploy') return <SolDeploy chainId={e.chainId} program={e.program} {...common} />;
     if (e.name === 'tontx') {
       return <TonTxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined}
         onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />;

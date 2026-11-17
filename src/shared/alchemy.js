@@ -38,13 +38,15 @@ export async function checkAlchemy(key, chains, { timeout = 15000 } = {}) {
   let bad = false;
   await Promise.all(chains.filter((c) => c.alchemy).map(async (c) => {
     try {
+      // Solana (Android app): the network is recognised by its genesis block
+      const sol = c.kind === 'solana';
       const res = await fetch(alchemyNodeUrl(c.alchemy, key), {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }), signal: AbortSignal.timeout(timeout),
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: sol ? 'getGenesisHash' : 'eth_chainId', params: [] }), signal: AbortSignal.timeout(timeout),
       });
       const j = await res.json().catch(() => null);
       const msg = String(j?.error?.message || '');
-      if (res.ok && j?.result) nets[c.id] = { state: Number(j.result) === Number(c.id) ? 'on' : 'error' };
+      if (res.ok && j?.result) nets[c.id] = { state: (sol ? j.result === c.genesis : Number(j.result) === Number(c.id)) ? 'on' : 'error' };
       else if (res.status === 401) bad = true;
       else if (/not enabled/i.test(msg)) {
         const link = (/https:\/\/dashboard\.alchemy\.com\/[^\s"']*/.exec(msg) || [])[0]?.replace(/[.,;)]+$/, '');

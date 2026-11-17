@@ -1,7 +1,7 @@
 # Chakra
 
 A simple wallet for Ethereum and EVM networks, available as a browser extension for **Chrome** (and Chromium browsers: Edge, Brave, Opera) and **Firefox**, and as an **Android** app.
-It is MetaMask compatible: sites that ask for "MetaMask" use Chakra.
+Sites find it by name (EIP-6963), and older sites that only know MetaMask use it too.
 
 The interface is in English, with Italian available (Settings → General → Language; by default it follows the device language).
 
@@ -15,7 +15,7 @@ The interface is in English, with Italian available (Settings → General → La
 - **Best-price swaps**: queries KyberSwap, Velora (ParaSwap), OpenOcean and LI.FI in parallel and ranks them by *net value* (what you receive minus the network fee). Approvals are for the exact amount only, never unlimited.
 - **Bridge between networks**: compares LI.FI, Relay, Across and deBridge (public APIs, no keys, no fee added by Chakra) and ranks routes by net value; exact-amount approvals, optional gas top-up on arrival (Relay), recipient = same account / another account / external address. Transfers are tracked until they arrive, with a notification.
 - **History** grouped by day, with filters (Sent/Received/Swap/Other), fees paid, details and explorer links. Spam transactions are hidden, including address-poisoning fakes (look-alike token names with invisible or foreign characters, well-known symbols at the wrong contract, "sent" transfers you never signed). Bridges are recognised in the history, also when made elsewhere (destination and status asked to Relay / LI.FI / Across / deBridge with the transaction hash only).
-- **Dapps**: EIP-1193 provider on `window.ethereum` (`isMetaMask: true`) and EIP-6963 announcement, both as "Chakra" and as "MetaMask" (can be turned off in Settings). Supports connecting, `personal_sign`, `eth_signTypedData_v4` (with a warning on *permits*), `eth_sendTransaction` (decodes approve/transfer, warns about unlimited approvals), switching and adding networks, `wallet_watchAsset`.
+- **Dapps**: EIP-1193 provider on `window.ethereum` (`isMetaMask: true`) and EIP-6963 announcement as "Chakra"; for the rare sites that list MetaMask alone, Chakra can also announce itself as "MetaMask" (Settings → MetaMask mode, off by default: with the real MetaMask installed two wallets would claim its name). Supports connecting, `personal_sign`, `eth_signTypedData_v4` (with a warning on *permits*), `eth_sendTransaction` (decodes approve/transfer, warns about unlimited approvals), switching and adding networks, `wallet_watchAsset`.
 - **Authorization of signatures and transactions**: every send, every swap (once for approval + swap) and every signature or transaction requested by a site needs the wallet password, checked by the background. In the Android app you can use your fingerprint instead (Settings → Security → Fingerprint unlock), also to unlock the wallet: the password is encrypted with a Keystore key that can only be used right after a fingerprint and is invalidated if fingerprints are added or changed on the phone. Recovery phrase, private keys, backup and reset always ask for the password.
 - **Encrypted text backup** (Settings → Security): a single line of text `CHAKRA-BACKUP-2:…` with **only the active wallet** (its recovery phrase, all its keys and the account names), encrypted with a password chosen at every export (PBKDF2-SHA256 600k + AES-256-GCM). It can be imported in both the extension and the app: on first launch ("Restore from a Chakra backup") or into an existing installation ("Import backup": it becomes a new wallet without touching the others; if its phrase is already in a wallet, only the missing accounts are added there). `CHAKRA-BACKUP-1` backups can still be imported.
 - **Theme**: light, dark or system (Settings → General → Theme). In the Android app the interface is 25% larger and the keyboard never covers fields or buttons.
@@ -81,13 +81,13 @@ src/mobile/         Android runtime (Capacitor): extension API shim, in-app brow
 src/shared/         networks, RPC, fees, balances, history, prices, swaps, i18n
 src/shared/locales/ dictionaries (en = base and fallback, it)
 src/ui/             interface (Preact): popup, screens, approvals
-src/ui/chains/      chain drivers: the screens' interface to each family of networks (EVM here, TON in src/ui/ton)
+src/ui/chains/      chain drivers: the screens' interface to each family of networks (EVM here, TON in src/ui/ton, Solana in src/ui/solana)
 scripts/            Android build, icon renderer, i18n checker
 android/            Capacitor Android project (native plugins: dapp browser, fingerprint, system bars)
 build.mjs           build for Chrome, Firefox and Android + icons + zip
 ```
 
-The wallet screens are the same for every network: each family of networks (EVM, TON…) plugs in through a chain
+The wallet screens are the same for every network: each family of networks (EVM, TON, Solana…) plugs in through a chain
 driver (`src/ui/chains/driver.d.md`) and, for keys, a family module in the background (`src/background/families.js`).
-Adding one (e.g. Solana, Tron): [docs/adding-a-chain.md](docs/adding-a-chain.md). `npm test` checks every driver
+Adding one (e.g. Tron): [docs/adding-a-chain.md](docs/adding-a-chain.md). `npm test` checks every driver
 against the interface (`tests/drivers.test.js`).

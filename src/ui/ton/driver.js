@@ -19,7 +19,7 @@ import { tonapiResolve } from '../../shared/ton/tonapi.js';
 import { rememberRecipient, prefixLen, suffixLen } from '../../shared/poison.js';
 import { t, i18nError } from '../../shared/i18n.js';
 import { TON_TYPES } from './labels.js';
-import { NATIVE } from '../../shared/chains.js';
+import { NATIVE, isEvm } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { approvalStep, txStep } from '../chains/evm.js';
 
@@ -414,7 +414,7 @@ export const tonDriver = {
   // ---------------------------------------------------------------- bridge: TON <-> EVM (GRAM through Relay, USD₮ through Symbiosis)
   bridge: {
     chains: () => Object.values(TON_CHAINS).filter((c) => !c.testnet), // TON (and a local test network in e2e/)
-    supports: (a, b) => (a.kind === 'ton') !== (b.kind === 'ton') && !a.testnet && !b.testnet,
+    supports: (a, b) => (a.kind === 'ton') !== (b.kind === 'ton') && (isEvm(a) || isEvm(b)) && !a.testnet && !b.testnet, // TON <-> an EVM network (not Solana)
     freeRecipient: true, // any address on the other side (TON -> EVM: an EVM address; EVM -> TON: a TON address)
     /** Arriving on TON the bridge can't attach a comment: no exchange deposit that needs one. */
     recipientNote: (chain) => (chain.kind === 'ton' ? t('ton.bridge.memoWarn') : null),

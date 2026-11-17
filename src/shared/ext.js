@@ -17,7 +17,7 @@ export const session = {
 
 export const DEFAULT_SETTINGS = {
   autoLockMin: 15,
-  metamaskCompat: true,
+  metamaskCompat: false, // also announce Chakra as "MetaMask" (EIP-6963): only for sites that list MetaMask alone
   etherscanKey: '',
   nodeRealKey: '', // BNB Chain: tokens held and history (NodeReal's free plan)
   alchemyKey: '', // Alchemy: node for sending and backup for reads, history and tokens (shared/alchemy.js)

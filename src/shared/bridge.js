@@ -179,7 +179,8 @@ export async function requote(provider, params) {
  */
 export async function bridgeStatus(entry) {
   if (entry.provider === 'LI.FI') {
-    const q = new URLSearchParams({ txHash: entry.txHash, fromChain: entry.fromChainId, toChain: entry.toChainId, ...(entry.ref?.tool ? { bridge: entry.ref.tool } : {}) });
+    // networks LI.FI knows by an id of its own (Solana): the route's reference carries them
+    const q = new URLSearchParams({ txHash: entry.txHash, fromChain: entry.ref?.lifiFrom ?? entry.fromChainId, toChain: entry.ref?.lifiTo ?? entry.toChainId, ...(entry.ref?.tool ? { bridge: entry.ref.tool } : {}) });
     const r = await fetchJson(`${ENDPOINTS.lifi}/v1/status?${q}`);
     if (r.status === 'DONE') return { status: r.substatus === 'REFUNDED' ? 'refunded' : 'done', destTxHash: r.receiving?.txHash };
     if (r.status === 'FAILED' || r.status === 'INVALID') return { status: 'failed' };

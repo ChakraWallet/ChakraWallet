@@ -7,6 +7,7 @@ globalThis.__CK_ENDPOINTS__ = {
   relay: `${S.services}/relay`, across: null, debridge: null, debridgeStats: null,
   symbiosis: `${S.services}/symbiosis`, ston: `${S.services}/ston`, omniston: S.omniston || null,
   opensea: null, coingecko: null, getgems: null, // NFT prices: not simulated
+  jupiter: null, jito: null, jitoTips: null, // Solana: not simulated (its nodes are outside the test network, refused like every outside address)
   tonconnectBridge: S.tcbridge || null, // TON Connect bridge (e2e/env/tcbridge.mjs)
   mevEth: null, // MEV protection: the local networks have no private channel
 };

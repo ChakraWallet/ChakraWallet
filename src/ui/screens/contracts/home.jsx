@@ -16,10 +16,15 @@ import { isTon } from '../../../shared/ton/api.js';
 import { parseTonLink } from '../../../shared/ton/core.js';
 import { rawAddress, showAddress } from '../../../shared/ton/contracts.js';
 import { TonCellSheet } from './ton/tools.jsx';
+import { isSolana, SOL_MAINNET } from '../../../shared/solana/api.js';
+import { isAddress as isSolAddress } from '../../../shared/solana/core.js';
+import { parseSolanaPay } from '../../solana/driver.js';
+import { SolToolSheet } from './sol/tools.jsx';
 
 const KINDS = [['erc20', 'coins'], ['erc721', 'sparkle'], ['erc1155', 'grid'], ['empty', 'code']];
 const TON_KINDS = [['jetton', 'coins'], ['nft', 'sparkle'], ['tact', 'code']];
-const contractNet = (c) => isEvm(c) || isTon(c); // networks of the Contracts tab
+const SOL_KINDS = [['token', 'coins'], ['nft', 'sparkle'], ['program', 'code']];
+const contractNet = (c) => isEvm(c) || isTon(c) || isSolana(c); // networks of the Contracts tab
 
 export function ContractsHome({ open }) {
   const { state, chain: active, account } = useApp();
@@ -31,11 +36,13 @@ export function ContractsHome({ open }) {
   const [sheet, setSheet] = useState(null);
   const chain = getChain(chainId, state.customChains) || active;
   const v = addr.trim();
-  const ton = isTon(chain);
-  const valid = ton ? !!rawAddress(v) : isAddress(v);
+  const ton = isTon(chain), sol = isSolana(chain);
+  const valid = ton ? !!rawAddress(v) : sol ? isSolAddress(v) : isAddress(v);
   const go = () => valid && open({ name: 'contract', chainId: chain.id, address: ton ? rawAddress(v) : v });
   const onQr = (text) => {
     setScan(false);
+    const sp = parseSolanaPay(text); // a Solana address or solana: link
+    if (sp) { if (!sol) setChainId(SOL_MAINNET); setAddr(sp.mint || sp.address); return; }
     const tl = parseTonLink(text);
     const ta = tl?.address || (rawAddress(text) ? String(text).trim() : null);
     if (ta && rawAddress(ta)) { if (!ton) setChainId(-239); setAddr(ta); return; }
@@ -71,22 +78,23 @@ export function ContractsHome({ open }) {
             <button class="ct-hero-chip" onClick={() => setPick(true)}><ChainIcon chain={chain} size={18} /><span>{chain.name}</span><Icon name="chevron" size={13} /></button>
           </div>
           <div class="ct-hero-field">
-            <input placeholder={ton ? t('tonc.home.placeholder') : t('contracts.home.placeholder')} value={addr} spellcheck={false} autocapitalize="off"
+            <input placeholder={ton ? t('tonc.home.placeholder') : sol ? t('solc.home.placeholder') : t('contracts.home.placeholder')} value={addr} spellcheck={false} autocapitalize="off"
               onInput={(e) => setAddr(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go()} />
             <button class="ct-hero-scan" onClick={() => setScan(true)} title={t('scan.title')}><Icon name="qr" size={18} /></button>
           </div>
           <div class="row between hero-foot">
-            <span class="small ct-hero-note">{v && !valid ? t('contracts.err.badAddress') : ton ? t('tonc.home.hint') : t('contracts.home.hint')}</span>
+            <span class="small ct-hero-note">{v && !valid ? t('contracts.err.badAddress') : ton ? t('tonc.home.hint') : sol ? t('solc.home.hint') : t('contracts.home.hint')}</span>
             <button class="ct-hero-go" disabled={!valid} onClick={go}>{t('contracts.home.go')} <Icon name="forward" size={14} /></button>
           </div>
         </div>
 
         <div class="group-title">{t('contracts.home.create')}</div>
         <div class="actions">
-          {ton ? TON_KINDS.map(([k, ic]) => <button class="action" onClick={() => open(k === 'tact' ? { name: 'tonstudio', newProject: true, chainId: chain.id } : { name: 'toncreate', kind: k, chainId: chain.id })}><span class="ic"><Icon name={ic} /></span>{t(`tonc.tpl.${k}.short`)}</button>)
+          {sol ? SOL_KINDS.map(([k, ic]) => <button class="action" onClick={() => open(k === 'program' ? { name: 'soldeploy', chainId: chain.id } : { name: 'solcreate', kind: k, chainId: chain.id })}><span class="ic"><Icon name={ic} /></span>{t(`solc.tpl.${k}.short`)}</button>)
+            : ton ? TON_KINDS.map(([k, ic]) => <button class="action" onClick={() => open(k === 'tact' ? { name: 'tonstudio', newProject: true, chainId: chain.id } : { name: 'toncreate', kind: k, chainId: chain.id })}><span class="ic"><Icon name={ic} /></span>{t(`tonc.tpl.${k}.short`)}</button>)
             : KINDS.map(([k, ic]) => <button class="action" onClick={() => open({ name: 'create', kind: k })}><span class="ic"><Icon name={ic} /></span>{t(`contracts.tpl.${k}.short`)}</button>)}
         </div>
-        {!ton && <button class="link" onClick={() => setSheet('artifact')}><Icon name="receive" size={14} /> {t('contracts.home.import')}</button>}
+        {!ton && !sol && <button class="link" onClick={() => setSheet('artifact')}><Icon name="receive" size={14} /> {t('contracts.home.import')}</button>}
 
         {store.projects.length > 0 && (
           <>
@@ -118,12 +126,18 @@ export function ContractsHome({ open }) {
 
         <div class="group-title">{t('contracts.home.tools')}</div>
         <div class="card flat list ct-list">
-          {ton ? <button class="item" onClick={() => setSheet('cells')}><span class="ct-kind-ic sm"><Icon name="search" size={16} /></span><div class="grow"><div class="bold">{t('tonc.inspect.cellReader')}</div><div class="tiny muted">{t('tonc.home.cellsSub')}</div></div></button>
+          {sol ? (
+            <>
+              <button class="item" onClick={() => setSheet('soldecoder')}><span class="ct-kind-ic sm"><Icon name="search" size={16} /></span><div class="grow"><div class="bold">{t('solc.decoder.title')}</div><div class="tiny muted">{t('solc.home.decoderSub')}</div></div></button>
+              <button class="item" onClick={() => setSheet('solpda')}><span class="ct-kind-ic sm"><Icon name="key" size={16} /></span><div class="grow"><div class="bold">{t('solc.pda.title')}</div><div class="tiny muted">{t('solc.home.pdaSub')}</div></div></button>
+            </>
+          ) : ton ? <button class="item" onClick={() => setSheet('cells')}><span class="ct-kind-ic sm"><Icon name="search" size={16} /></span><div class="grow"><div class="bold">{t('tonc.inspect.cellReader')}</div><div class="tiny muted">{t('tonc.home.cellsSub')}</div></div></button>
             : <button class="item" onClick={() => setSheet('decoder')}><span class="ct-kind-ic sm"><Icon name="search" size={16} /></span><div class="grow"><div class="bold">{t('contracts.inspect.decoder')}</div><div class="tiny muted">{t('contracts.home.decoderSub')}</div></div></button>}
         </div>
       </div>
       {pick && <NetworkSheet current={chainId} onPick={(id) => { setChainId(id); setAddr(''); }} only={contractNet} onClose={() => setPick(false)} />}
       {sheet === 'cells' && <TonCellSheet onClose={() => setSheet(null)} />}
+      {(sheet === 'soldecoder' || sheet === 'solpda') && <SolToolSheet kind={sheet === 'solpda' ? 'pda' : 'decoder'} chain={chain} onClose={() => setSheet(null)} onOpenAddress={(a) => { setSheet(null); open({ name: 'contract', chainId: chain.id, address: a }); }} />}
       {scan && <QrScanner onResult={onQr} onClose={() => setScan(false)} />}
       {sheet === 'decoder' && <Sheet title={t('contracts.inspect.decoder')} onClose={() => setSheet(null)}><DecoderBox onOpenAddress={(a) => { setSheet(null); open({ name: 'contract', chainId: chain.id, address: a }); }} /></Sheet>}
       {sheet === 'artifact' && <ArtifactSheet onClose={() => setSheet(null)} onLoaded={(artifact) => { setSheet(null); open({ name: 'deploy', chainId: chain.id, artifact, compilation: null }); }} />}

@@ -12,8 +12,12 @@ import { BUILTIN_CHAINS } from '../src/shared/chains.js';
 import { TON_CHAINS, setTonCenterKey } from '../src/shared/ton/api.js';
 import { registerFamily, familyKinds, familyOf as familySpec, TON_VERSIONS } from '../src/background/families.js';
 import { VERSIONS } from '../src/shared/ton/core.js';
+import { solanaChainDriver } from '../src/ui/solana/index.jsx';
+import { SOL_CHAINS } from '../src/shared/solana/api.js';
+import { keyOfSeed, secretText } from '../src/shared/solana/core.js';
 
 registerDriver(tonDriver);
+registerDriver(solanaChainDriver);
 setTonCenterKey('test'); // TON Center's 10 requests/s pace instead of 1/s
 
 const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
@@ -75,6 +79,53 @@ const FIXTURES = {
   },
 };
 
+// Solana: two wallets, a USDC account, one SOL received
+const ME_SOL = keyOfSeed(new Uint8Array(32).fill(7)).address, OTHER_SOL = keyOfSeed(new Uint8Array(32).fill(8)).address;
+const USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const JUNK_SOL = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263';
+const SYSTEM = '11111111111111111111111111111111';
+FIXTURES.solana = {
+  chain: SOL_CHAINS[-501],
+  me: { address: ME_SOL, raw: ME_SOL }, other: OTHER_SOL, bad: '0x5e83857a7719B6aE2DE17af827140C04323a231C',
+  async fetch(url, init = {}) {
+    const u = new URL(String(url));
+    if (init.method === 'POST' && !u.host.includes('jup')) {
+      const { id, method, params } = JSON.parse(init.body);
+      const ok = (result) => json({ jsonrpc: '2.0', id, result });
+      if (method === 'getBalance') return ok({ context: { slot: 1 }, value: 2_500_000_000 });
+      if (method === 'getTokenAccountsByOwner') {
+        if (params[1].programId !== 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') return ok({ context: { slot: 1 }, value: [] });
+        return ok({ context: { slot: 1 }, value: [
+          { pubkey: 'FGETo8T8wMcN2wCjav8VK6eh3dLk63evNDPxzLSJra8B', account: { data: { parsed: { info: { mint: USDC_SOL, owner: ME_SOL, state: 'initialized', tokenAmount: { amount: '150000000', decimals: 6 } }, type: 'account' } } } },
+          { pubkey: '3hNzYSQs2ziFhnXYzxNqQ1HGnW8pQs9Gf4KfoRErfw9i', account: { data: { parsed: { info: { mint: JUNK_SOL, owner: ME_SOL, state: 'initialized', tokenAmount: { amount: '5000000000', decimals: 6 } }, type: 'account' } } } },
+        ] });
+      }
+      if (method === 'getSignaturesForAddress') {
+        return ok(params[0] === ME_SOL ? [{ signature: '5'.repeat(87), slot: 10, blockTime: 1794557759, err: null }] : []);
+      }
+      if (method === 'getTransaction') {
+        return ok({
+          slot: 10, blockTime: 1794557759,
+          meta: { err: null, fee: 5000, preBalances: [10e9, 1e9, 1], postBalances: [9e9 - 5000, 2e9, 1], preTokenBalances: [], postTokenBalances: [], innerInstructions: [], logMessages: [] },
+          transaction: { signatures: ['5'.repeat(87)], message: {
+            accountKeys: [{ pubkey: OTHER_SOL, signer: true, writable: true }, { pubkey: ME_SOL, signer: false, writable: true }, { pubkey: SYSTEM, signer: false, writable: false }],
+            instructions: [{ program: 'system', programId: SYSTEM, parsed: { type: 'transfer', info: { source: OTHER_SOL, destination: ME_SOL, lamports: 1e9 } } }],
+          } },
+        });
+      }
+      return ok(null);
+    }
+    if (u.host === 'lite-api.jup.ag') {
+      return json([
+        { id: USDC_SOL, name: 'USD Coin', symbol: 'USDC', icon: '', decimals: 6, usdPrice: 1, isVerified: true, tokenProgram: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+        { id: JUNK_SOL, name: 'Free Doge', symbol: 'FDOGE', icon: '', decimals: 6, usdPrice: 0.01, isVerified: false, organicScoreLabel: 'low', liquidity: 3 }, // airdropped junk
+      ]);
+    }
+    if (u.host === 'coins.llama.fi') return json({ coins: { 'coingecko:solana': { price: 150, confidence: 0.99 }, [`solana:${USDC_SOL}`]: { price: 1, confidence: 0.99 } } });
+    return json({}, 404);
+  },
+};
+
 const KINDS = ['send', 'receive', 'swap', 'approve', 'contract', 'self'];
 const serializable = (v) => { assert.doesNotThrow(() => JSON.stringify(v), 'no BigInt: portfolios are cached on the device as JSON'); };
 
@@ -133,7 +184,8 @@ for (const [kind, fx] of Object.entries(FIXTURES)) {
     const p = await d().loadPortfolio(fx.chain, fx.me.raw, { hiddenTokens: [tk.address] });
     serializable(p);
     assert.ok(!p.tokens.some((x) => x.address === tk.address), 'out of the list');
-    assert.deepEqual(p.hidden.map((x) => [x.address, x.hidden]), [[tk.address, true]], 'kept apart, marked');
+    // (tokens put apart automatically as junk, `junk: true`, may be there too)
+    assert.deepEqual(p.hidden.filter((x) => !x.junk).map((x) => [x.address, x.hidden]), [[tk.address, true]], 'kept apart, marked');
     assert.ok(Math.abs(p.totalUsd - (all.totalUsd - (tk.usd || 0))) < 1e-6, 'out of the total');
   });
 
@@ -168,11 +220,18 @@ for (const [kind, fx] of Object.entries(FIXTURES)) {
 
 // ---------------------------------------------------------------- the registry
 test('a pair of networks has at most one bridge, and EVM <-> TON has TON\'s', () => {
-  const eth = BUILTIN_CHAINS[0], base = BUILTIN_CHAINS.find((c) => c.id === 8453), ton = TON_CHAINS[-239];
+  const eth = BUILTIN_CHAINS[0], base = BUILTIN_CHAINS.find((c) => c.id === 8453), ton = TON_CHAINS[-239], sol = SOL_CHAINS[-501];
   assert.equal(bridgeFor(eth, base), driverOf('evm').bridge);
   assert.equal(bridgeFor(eth, ton), driverOf('ton').bridge);
   assert.equal(bridgeFor(ton, base), driverOf('ton').bridge);
   assert.equal(bridgeFor(ton, ton), null);
+  assert.equal(bridgeFor(eth, sol), driverOf('solana').bridge);
+  assert.equal(bridgeFor(sol, base), driverOf('solana').bridge);
+  assert.equal(bridgeFor(sol, ton), null, 'no route between TON and Solana');
+  assert.equal(bridgeFor(sol, SOL_CHAINS[-502]), null);
+  for (const [a, b] of [[eth, base], [eth, ton], [ton, base], [eth, sol], [sol, base]]) {
+    assert.ok(allDrivers().filter((d) => d.bridge?.supports(a, b)).length <= 1, `one bridge for ${a.name} -> ${b.name}`);
+  }
 });
 
 test('registerDriver refuses a driver without the required functions', () => {
@@ -187,6 +246,25 @@ test('vault families: TON entries are checked, and the versions match the TON li
   assert.deepEqual(ok, { address: '0:' + 'ab'.repeat(32), secret: 'cd'.repeat(32), version: 'v4r2' });
   assert.equal(familySpec('ton').clean({ address: 'nope', secret: 'cd'.repeat(32), version: 'v4r2' }), null);
   assert.equal(familySpec('ton').clean({ address: '0:' + 'ab'.repeat(32), secret: 'cd'.repeat(32), version: 'v9' }), null);
+  // Solana: base58 kept as it is (case matters); the key's public half must be the address
+  const k = keyOfSeed(new Uint8Array(32).fill(7));
+  assert.deepEqual(familySpec('solana').clean({ address: k.address, secret: secretText(k.seed) }), { address: k.address, secret: secretText(k.seed) });
+  assert.equal(familySpec('solana').clean({ address: keyOfSeed(new Uint8Array(32).fill(8)).address, secret: secretText(k.seed) }), null);
+  assert.equal(familySpec('solana').clean({ address: k.address, secret: 'abc' }), null);
   registerFamily('demo', { clean: (x) => x });
   assert.ok(familyKinds().includes('demo'));
 });
+
+test('solana: probable junk is apart (hidden, flagged), out of the list and of the total; empty token accounts listed', async () => {
+  globalThis.fetch = FIXTURES.solana.fetch;
+  const p = await driverOf('solana').loadPortfolio(SOL_CHAINS[-501], ME_SOL, {});
+  assert.deepEqual(p.tokens.map((x) => x.symbol), ['USDC']);
+  assert.deepEqual(p.hidden.map((x) => [x.symbol, x.junk, x.hidden]), [['FDOGE', true, true]]);
+  assert.ok(Math.abs(p.totalUsd - (2.5 * 150 + 150)) < 1e-6, 'SOL and USDC only');
+  assert.equal(driverOf('solana').tokenWarning(SOL_CHAINS[-501], p.hidden[0]), 'sol.token.junk');
+  // added by hand: always among the tokens
+  const q = await driverOf('solana').loadPortfolio(SOL_CHAINS[-501], ME_SOL, { customTokens: [{ address: JUNK_SOL, symbol: 'FDOGE', decimals: 6 }] });
+  assert.ok(q.tokens.some((x) => x.symbol === 'FDOGE' && !x.junk));
+  assert.deepEqual(p.empty, []);
+});
+

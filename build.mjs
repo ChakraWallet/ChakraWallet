@@ -179,6 +179,7 @@ async function buildAndroid() {
   await esbuild.build({
     entryPoints: {
       app: path.join(SRC, 'mobile', 'index.jsx'), inject: path.join(SRC, 'mobile', 'inject.js'), 'vanity-worker': path.join(SRC, 'ui', 'vanityWorker.js'),
+      'sol-vanity-worker': path.join(SRC, 'ui', 'solana', 'vanityWorker.js'), // Solana vanity search (Android app only)
       'solc-worker': path.join(SRC, 'ui', 'solcWorker.js'), // Solidity compiler (Contracts tab), downloads soljson on first use
     },
     bundle: true, outdir, format: 'iife', target: ['chrome100'],

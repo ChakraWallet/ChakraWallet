@@ -165,12 +165,13 @@ export function Swap({ fromAddress, toAddress }) {
           )}
           <Summary />
           <FeeView chain={chain} fee={review?.fee} speed={speed} setSpeed={setSpeed} nativePrice={ctx?.nativePrice ?? owned[0]?.price} />
+          {review?.problem?.(speed) && <div class="error">{review.problem(speed)}</div>}
           {busy && <div class="info row"><Spinner /> {busy}</div>}
           {err && <div class="error">{err}</div>}
         </div>
         <div class="footer">
           <Btn kind="secondary" onClick={cancel}>{t('common.cancel')}</Btn>
-          <Btn loading={!!busy} disabled={!review} onClick={confirm}>{approving ? t('swap.approve') : t('swap.confirmTitle')}</Btn>
+          <Btn loading={!!busy} disabled={!review || !!review.problem?.(speed)} onClick={confirm}>{approving ? t('swap.approve') : t('swap.confirmTitle')}</Btn>
         </div>
       </div>
     );

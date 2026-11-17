@@ -6,9 +6,7 @@
 // raw keys (other TON wallets) are handled by tonKeyFromPhrase / tonKeyFromSecret.
 // Wallet contract: W5 (v5r1) by default; v4r2 and v3r2 for wallets imported from other apps.
 import { Buffer } from './buffer.js';
-import { Mnemonic } from 'ethers';
-import { hmac } from '@noble/hashes/hmac';
-import { sha512 } from '@noble/hashes/sha512';
+import { slip10Ed25519, bip39Seed, forgetSeeds, HARDENED } from '../hd25519.js';
 import { keyPairFromSeed, mnemonicValidate, mnemonicToPrivateKey } from '@ton/crypto';
 import { Address, beginCell, internal, external, storeMessage, SendMode, Cell, storeStateInit } from '@ton/core';
 import { WalletContractV5R1 } from '@ton/ton/dist/wallets/v5r1/WalletContractV5R1.js';
@@ -22,36 +20,11 @@ const NET = { mainnet: -239, testnet: -3 }; // global ids (also the chain ids us
 export const isTestnetId = (chainId) => Number(chainId) === NET.testnet;
 
 // ------------------------------------------------------------ keys
-const H = 0x80000000;
-const ser32 = (i) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, i >>> 0); return b; };
-
-/** SLIP-0010 Ed25519 (hardened only): 32-byte private seed for a path of indexes (already hardened). */
-export function slip10Ed25519(seed, path) {
-  let I = hmac(sha512, new TextEncoder().encode('ed25519 seed'), seed);
-  let k = I.slice(0, 32), c = I.slice(32);
-  for (const i of path) {
-    const data = new Uint8Array(37);
-    data.set(k, 1);
-    data.set(ser32(i), 33);
-    I = hmac(sha512, c, data);
-    k = I.slice(0, 32); c = I.slice(32);
-  }
-  return k;
-}
+const H = HARDENED;
+export { slip10Ed25519, forgetSeeds };
 
 export const tonPath = (index) => [44 + H, 607 + H, (index >>> 0) + H];
 export const TON_PATH_TEXT = (index) => `m/44'/607'/${index}'`;
-
-const seeds = new Map(); // phrase -> BIP-39 seed (the PBKDF2 is the slow part; kept only in memory, in the background)
-function bip39Seed(phrase) {
-  let s = seeds.get(phrase);
-  if (!s) {
-    s = Uint8Array.from(Buffer.from(Mnemonic.fromPhrase(phrase).computeSeed().slice(2), 'hex'));
-    seeds.set(phrase, s);
-  }
-  return s;
-}
-export const forgetSeeds = () => seeds.clear();
 
 /** Key pair of account `index` of a BIP-39 phrase: { publicKey (32), secretKey (64, nacl format) } as Buffers. */
 export function hdKeyPair(phrase, index) {

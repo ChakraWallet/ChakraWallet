@@ -44,6 +44,8 @@ import java.util.concurrent.TimeUnit;
  *    per network): an increase or a decrease since the last check -> "Received" / "Sent" notification;
  *  - TON (Android app): GRAM and the watched jettons of each account's TON wallet, from TON Center (at most one
  *    request a second without a key); tiny GRAM credits (the ads of spam transfers) aren't notified;
+ *  - Solana: SOL and the watched tokens of each account's Solana address, from a Solana node (the first of the list
+ *    that answers); tiny SOL credits (the dust of address poisoning) aren't notified;
  *  - bridges still in transit: asks Relay / LI.FI / Across / deBridge -> "Bridge arrived / refunded / failed".
  * Nothing is notified while the app is in the foreground (the app shows its own toasts there).
  */
@@ -84,6 +86,7 @@ public class WatchWorker extends Worker {
             locale = "it".equals(cfg.optString("lang")) ? Locale.ITALIAN : Locale.ENGLISH;
             checkBalances(c, lc, cfg);
             try { checkTon(c, lc, cfg.optJSONObject("ton")); } catch (Exception ignored) { }
+            try { checkSolana(c, lc, cfg.optJSONObject("solana")); } catch (Exception ignored) { }
             checkBridges(c, lc, store.getString("ew_local:bridges", "[]"));
         } catch (Exception ignored) { }
         return Result.success();
@@ -203,6 +206,76 @@ public class WatchWorker extends Worker {
                 }
             } catch (Exception ignored) { }
             Thread.sleep(gap);
+        }
+        ed.apply();
+    }
+
+    // ------------------------------------------------------------------ Solana
+    private static final BigInteger SOL_DUST = BigInteger.valueOf(1_000_000L); // 0.001 SOL: below it, a credit is poisoning dust
+    private static final String[] SPL_PROGRAMS = { "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" };
+
+    /** The `result` of a JSON-RPC call from the first node that gives one (nodes refuse some methods), or null. */
+    private static Object solRpc(JSONArray rpcs, String method, JSONArray params) {
+        String body;
+        try { body = new JSONObject().put("jsonrpc", "2.0").put("id", 1).put("method", method).put("params", params).toString(); } catch (Exception e) { return null; }
+        for (int i = 0; rpcs != null && i < rpcs.length(); i++) {
+            try {
+                JSONObject r = new JSONObject(post(rpcs.getString(i), body));
+                if (r.has("result") && !r.isNull("result")) return r.get("result");
+            } catch (Exception ignored) { }
+        }
+        return null;
+    }
+
+    /** solana: { name, symbol, decimals, rpc: [urls], accounts: [{ id, address, name }], tokens: [{ mint, symbol, decimals }] } */
+    private void checkSolana(Context c, Context lc, JSONObject sol) throws Exception {
+        if (sol == null) return;
+        JSONArray accounts = sol.optJSONArray("accounts");
+        if (accounts == null || accounts.length() == 0) return;
+        JSONArray rpcs = sol.optJSONArray("rpc");
+        JSONArray tokens = sol.optJSONArray("tokens");
+        JSONObject ch = new JSONObject().put("id", -501).put("name", sol.optString("name", "Solana"));
+        SharedPreferences st = c.getSharedPreferences(STATE, Context.MODE_PRIVATE);
+        SharedPreferences.Editor ed = st.edit();
+        JSONObject confirmed = new JSONObject().put("commitment", "confirmed");
+        for (int ai = 0; ai < accounts.length(); ai++) {
+            JSONObject acc = accounts.getJSONObject(ai);
+            String a = acc.getString("address"); // base58: case matters
+            Object bal = solRpc(rpcs, "getBalance", new JSONArray().put(a).put(confirmed));
+            if (bal instanceof JSONObject && ((JSONObject) bal).has("value")) {
+                compareAmount(c, lc, ed, st, ch, acc, a, "native", sol.optString("symbol", "SOL"), sol.optInt("decimals", 9),
+                        new BigInteger(((JSONObject) bal).get("value").toString()), true, SOL_DUST);
+            }
+            if (tokens == null || tokens.length() == 0) continue;
+            // the token accounts of both token programs; a query that fails leaves the tokens alone (no false "sent")
+            java.util.Map<String, BigInteger> byMint = new java.util.HashMap<>();
+            boolean ok = true;
+            for (String program : SPL_PROGRAMS) {
+                Object r = solRpc(rpcs, "getTokenAccountsByOwner", new JSONArray().put(a).put(new JSONObject().put("programId", program))
+                        .put(new JSONObject().put("encoding", "jsonParsed").put("commitment", "confirmed")));
+                JSONArray list = r instanceof JSONObject ? ((JSONObject) r).optJSONArray("value") : null;
+                if (list == null) { ok = false; break; }
+                for (int i = 0; i < list.length(); i++) {
+                    JSONObject info = list.getJSONObject(i).optJSONObject("account");
+                    info = info == null ? null : info.optJSONObject("data");
+                    info = info == null ? null : info.optJSONObject("parsed");
+                    info = info == null ? null : info.optJSONObject("info");
+                    if (info == null) continue;
+                    String mint = info.optString("mint", "");
+                    JSONObject amt = info.optJSONObject("tokenAmount");
+                    String v = amt == null ? "" : amt.optString("amount", "");
+                    if (!v.matches("\\d+")) continue;
+                    BigInteger prev = byMint.containsKey(mint) ? byMint.get(mint) : BigInteger.ZERO;
+                    byMint.put(mint, prev.add(new BigInteger(v)));
+                }
+            }
+            if (!ok) continue;
+            for (int ti = 0; ti < tokens.length(); ti++) {
+                JSONObject tk = tokens.getJSONObject(ti);
+                String mint = tk.getString("mint");
+                BigInteger now = byMint.containsKey(mint) ? byMint.get(mint) : BigInteger.ZERO;
+                compareAmount(c, lc, ed, st, ch, acc, a, mint, tk.getString("symbol"), tk.getInt("decimals"), now, false, BigInteger.ZERO);
+            }
         }
         ed.apply();
     }

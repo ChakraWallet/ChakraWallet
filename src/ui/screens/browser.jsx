@@ -563,10 +563,10 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
   const saveBookmarks = async (next) => { await local.set('bookmarks', next); setBookmarks(next); };
   const toggleBookmark = () => saveBookmarks(isBookmarked ? bookmarks.filter((b) => b.url !== tab.url) : [{ url: tab.url, title: tab.title || hostOf(tab.url), favicon: tab.favicon || '' }, ...bookmarks]);
   const clearHistory = async () => { await local.set('browserHistory', []); setRecent([]); toast(t('browser.historyCleared')); };
-  const connected = opened && (state.permissions?.[originOf(tab.url)] || state.tonSites?.[originOf(tab.url)]);
+  const connected = opened && (state.permissions?.[originOf(tab.url)] || state.tonSites?.[originOf(tab.url)] || state.solSites?.[originOf(tab.url)]);
   const secure = opened && tab.url.startsWith('https://') && !tab.flagged;
   // sites connected to Ethereum accounts and to TON (TON Connect)
-  const connectedOrigins = useMemo(() => new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {})]), [state.permissions, state.tonSites]);
+  const connectedOrigins = useMemo(() => new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {}), ...Object.keys(state.solSites || {})]), [state.permissions, state.tonSites, state.solSites]);
 
   const suggestions = useMemo(() => {
     const q = input.trim().toLowerCase();
@@ -792,6 +792,8 @@ function CertSheet({ tab, onClose }) {
   const perm = state.permissions?.[origin];
   const ton = state.tonSites?.[origin]; // TON Connect session
   const tonAcc = ton && state.accounts.find((x) => x.address === ton.account);
+  const sol = state.solSites?.[origin]; // Solana session (Wallet Standard)
+  const solAcc = sol && state.accounts.find((x) => x.address === sol.account);
   const now = Date.now();
   const expired = cert?.validTo && cert.validTo < now;
   const name = (x) => [x?.cn, x?.o].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || '—';
@@ -834,7 +836,7 @@ function CertSheet({ tab, onClose }) {
         </>
       )}
       <div class="section-title">{t('browser.wallet')}</div>
-      {perm || ton ? (
+      {perm || ton || sol ? (
         <div class="card col" style={{ gap: '0.5rem' }}>
           {perm && <div class="small">{tn('browser.seesAccounts', perm.accounts.length)}</div>}
           {perm?.accounts.map((a) => {
@@ -843,6 +845,8 @@ function CertSheet({ tab, onClose }) {
           })}
           {ton && <div class="small">{t('tonconnect.site.sees')}</div>}
           {ton && <div class="row"><Avatar address={ton.account} /><span class="bold ellipsis grow">{tonAcc?.name || shortAddr(ton.display, 6)}</span><span class="tiny muted">{shortAddr(ton.display, 6)}</span></div>}
+          {sol && <div class="small">{t('solapp.site.sees')}</div>}
+          {sol && <div class="row"><Avatar address={sol.account} /><span class="bold ellipsis grow">{solAcc?.name || shortAddr(sol.address, 6)}</span><span class="tiny muted">{shortAddr(sol.address, 6)}</span></div>}
           <Btn kind="secondary" onClick={disconnect}>{t('browser.disconnect')}</Btn>
         </div>
       ) : <div class="small muted">{t('browser.notConnectedInfo')}</div>}

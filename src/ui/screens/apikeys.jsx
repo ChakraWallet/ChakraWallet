@@ -46,7 +46,7 @@ const autoOn = (s, k) => k.auto && s[k.auto] === 'auto' && !isSet(s, k);
 const PRICE = { free: ['green', 'keys.price.free'], freemium: ['primary', 'keys.price.freemium'], paid: ['amber', 'keys.price.paid'] };
 
 /** The networks Alchemy can serve (built-in EVM ones, not test networks). */
-const alchemyChains = () => builtinNetworks().filter((c) => isEvm(c) && !c.testnet && c.alchemy);
+const alchemyChains = () => builtinNetworks().filter((c) => (isEvm(c) || c.kind === 'solana') && !c.testnet && c.alchemy); // Solana: Android app
 
 /** Alchemy: each network of the key, switched on (green dot) or to switch on in its app (grey dot, link to the page). */
 function AlchemyNets({ nets, busy, onCheck }) {
