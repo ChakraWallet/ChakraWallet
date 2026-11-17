@@ -55,15 +55,17 @@ export function NetworkSheet({ onClose, current, onPick, only }) {
 
 function AddTokenSheet({ onClose, onAdded }) {
   const { chain, toast } = useApp();
+  const drv = driverFor(chain);
   const [addr, setAddr] = useState('');
   const [info, setInfo] = useState(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [ack, setAck] = useState(false);
   const lookup = async (v) => {
-    setAddr(v); setInfo(null); setErr('');
-    if (!/^0x[0-9a-fA-F]{40}$/.test(v.trim())) return;
+    setAddr(v); setInfo(null); setErr(''); setAck(false);
+    if (!drv.isTokenAddress(chain, v.trim())) return;
     setLoading(true);
-    try { setInfo(await driverFor(chain).tokenInfo(chain, v.trim())); } catch (e) { setErr(e.message); }
+    try { setInfo(await drv.tokenInfo(chain, v.trim())); } catch (e) { setErr(e.message); }
     setLoading(false);
   };
   const add = async () => {
@@ -75,12 +77,19 @@ function AddTokenSheet({ onClose, onAdded }) {
     <Sheet title={t('home.addToken.title', { network: chain.name })} onClose={onClose}>
       <div class="field">
         <label>{t('home.addToken.contract')}</label>
-        <input class="input mono" placeholder="0x…" value={addr} onInput={(e) => lookup(e.target.value)} autoFocus />
+        <input class="input mono" placeholder={drv.tokenPlaceholder?.(chain) || '0x…'} value={addr} onInput={(e) => lookup(e.target.value)} autoFocus />
       </div>
       {loading && <Spinner />}
-      {info && <div class="card flat row"><TokenIcon symbol={info.symbol} /><div><div class="bold">{info.symbol}</div><div class="small muted">{info.name} · {tn('home.addToken.decimals', info.decimals)}</div></div></div>}
+      {info && <div class="card flat row"><TokenIcon symbol={info.symbol} icon={info.icon} /><div><div class="bold">{info.symbol}</div><div class="small muted">{info.name} · {tn('home.addToken.decimals', info.decimals)}</div></div></div>}
+      {/* flagged as a scam by the network's indexers: added only on purpose */}
+      {info?.scam && (
+        <div class="poison-warn">
+          <div class="small">{t('home.addToken.scam')}</div>
+          <label class="row ack"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /><span class="small bold">{t('home.addToken.scamAck')}</span></label>
+        </div>
+      )}
       {err && <div class="error">{err}</div>}
-      <Btn disabled={!info} onClick={add}>{t('home.addToken.add')}</Btn>
+      <Btn disabled={!info || (info.scam && !ack)} kind={info?.scam ? 'danger' : 'primary'} onClick={add}>{t('home.addToken.add')}</Btn>
     </Sheet>
   );
 }
@@ -287,7 +296,7 @@ export function Home() {
             {drv.features.customTokens && <button class="item" style={{ justifyContent: 'center' }} onClick={() => setSheet('token')}><span class="link">{t('home.addCustomToken')}</span></button>}
           </div>
         )}
-        {tab === 'tokens' && data && <NftSection items={nftItems} priceOf={nftValue.priceOf} onAdd={drv.features.customTokens ? () => setSheet('nft') : null} />}
+        {tab === 'tokens' && data && <NftSection items={nftItems} priceOf={nftValue.priceOf} onAdd={drv.features.customNfts ? () => setSheet('nft') : null} />}
 
         {tab === 'activity' && (
           <div class="card" style={{ padding: '0.375rem' }}>

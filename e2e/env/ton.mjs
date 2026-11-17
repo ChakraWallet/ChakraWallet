@@ -1,6 +1,7 @@
 // A local TON network for the end-to-end tests: @ton/sandbox (the official emulator: real wallet and jetton contracts,
 // real signature and seqno checks) behind a small TON Center v3-compatible HTTP API - the endpoints the app uses.
-// Also the TON side of the simulated services: STON.fi assets, Omniston swaps (WebSocket), Relay bridges (GRAM).
+// Also the TON side of the simulated services: STON.fi assets, Omniston swaps (WebSocket), Relay bridges (GRAM), and
+// TonAPI's name resolution (TON DNS) for two names that point to the wallet of the phrase's second account.
 //
 // Funds: a "treasury" wallet pays the wallet under test at start (100 GRAM, wallet not deployed yet: the first send
 // deploys it), holds the jettons, plays the DEX of the swaps and the relayer of the bridges.
@@ -28,6 +29,7 @@ export async function startTon({ port = 9300, wsPort = 9301 } = {}) {
   tick();
   const treasury = await bc.treasury('chakra-e2e', { balance: toNano('1000000') });
   const user = walletContract(hdKeyPair(MNEMONIC, 0).publicKey).address; // the wallet under test (the app derives the same)
+  const friend = walletContract(hdKeyPair(MNEMONIC, 1).publicKey).address; // the second account: friend.ton, @friend
 
   // ---------------------------------------------------------------- transactions, recorded for the history
   const txs = []; // { account (Address), tx }
@@ -146,8 +148,22 @@ export async function startTon({ port = 9300, wsPort = 9301 } = {}) {
     actions: (q) => actions(Address.parse(q.get('account'))),
     traces: async () => ({ traces: [] }),
   };
+  // TonAPI's DNS (the app asks it when the network has `tonapi`: e2e/app/networks.js)
+  const DNS = { 'friend.ton': friend, 'friend.t.me': friend };
+  const tonapi = (path) => {
+    const m = /^\/v2\/dns\/([^/]+)\/resolve$/.exec(path);
+    const a = m && DNS[decodeURIComponent(m[1])];
+    if (!m) return { status: 404, body: { error: 'not found' } };
+    if (!a) return { status: 404, body: { error: 'entity not found' } };
+    return { status: 200, body: { wallet: { address: a.toRawString(), is_wallet: false, account: { address: a.toRawString(), is_wallet: true, is_scam: false } } } };
+  };
+
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://x');
+    if (u.pathname.startsWith('/v2/')) {
+      const r = tonapi(u.pathname);
+      res.writeHead(r.status, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(r.body)); return;
+    }
     const name = u.pathname.replace(/^\/api\/v3\//, '');
     let body = null;
     if (req.method === 'POST') { const ch = []; for await (const c of req) ch.push(c); body = JSON.parse(Buffer.concat(ch).toString() || 'null'); }

@@ -28,7 +28,7 @@ export class TonApiError extends Error {
 }
 
 async function call(chain, path, { body, timeout = 25000 } = {}) {
-  const host = HOSTS[chain.id];
+  const host = chain.tonapi || HOSTS[chain.id];
   if (!host) throw new TonApiError('TonAPI: network', 0);
   for (let attempt = 0; ; attempt++) {
     await slot();
@@ -86,6 +86,21 @@ export async function tonapiJetton(chain, master) {
     description: m.description || null, mintable: !!r.mintable, totalSupply: BigInt(r.total_supply ?? 0), admin: r.admin?.address || null,
     holders: r.holders_count ?? null, verification: r.verification || null,
   };
+}
+
+/**
+ * Resolves a TON DNS name (alice.ton, alice.t.me): { address (raw), name (TonAPI's name of the account, if any),
+ * isWallet, scam } or null when the name doesn't exist or doesn't point to an address.
+ */
+export async function tonapiResolve(chain, domain) {
+  let r;
+  try { r = await call(chain, `/v2/dns/${encodeURIComponent(domain)}/resolve`); } catch (e) {
+    if (e.status === 404 || /not resolved|not found/i.test(e.message)) return null;
+    throw e;
+  }
+  const w = r?.wallet;
+  if (!w?.address) return null;
+  return { address: w.address, name: w.account?.name || null, isWallet: !!(w.account?.is_wallet ?? w.is_wallet), scam: !!w.account?.is_scam };
 }
 
 /**

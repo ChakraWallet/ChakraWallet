@@ -150,6 +150,27 @@ export async function stonAsset(master) {
   return out;
 }
 
+/**
+ * A jetton master typed by the user ("Add a token"): { master (raw), symbol, name, decimals, image, scam, known } from
+ * TON Center's metadata, with STON.fi's data on mainnet (icon, blacklist); null if the address isn't a jetton master.
+ * Network errors are thrown (not "not a jetton").
+ */
+export async function tonJettonInfo(chain, master) {
+  const a = addr(master);
+  if (!a) return null;
+  const raw = a.toRawString().toUpperCase(); // TON Center's keys
+  const r = await call(chain, '/api/v3/metadata', { params: { address: raw } });
+  const entry = Object.entries(r).find(([k]) => k.toUpperCase() === raw)?.[1];
+  const info = (entry?.token_info || []).find((x) => x.type === 'jetton_masters');
+  if (!info) return null;
+  const s = chain.testnet ? {} : await stonAsset(raw);
+  return {
+    master: raw, symbol: s.symbol || info.symbol || '???', name: s.name || info.name || '',
+    decimals: info.extra?.decimals != null ? Number(info.extra.decimals) : s.decimals ?? 9, image: s.image || info.image || null,
+    scam: !!(info.is_scam || s.blacklisted), known: !!s.known,
+  };
+}
+
 /** DefiLlama's key of a jetton: ton:<bounceable address> (the raw form isn't recognised). */
 export const llamaKey = (master) => `ton:${addr(master).toString({ urlSafe: true, bounceable: true })}`;
 

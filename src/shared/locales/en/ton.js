@@ -58,4 +58,11 @@ export default {
   'ton.bridge.symbiosisLimit': "Symbiosis is receiving too many requests: try again in a minute, or add a Symbiosis key in Settings › Data.",
   'settings.symbiosis': "Symbiosis key",
   'settings.symbiosis.hint': "(optional, free at explorer.symbiosis.finance/partners: bridges of USD₮ on TON without the request limit)",
+
+  'ton.token.notJetton': "This address isn't a jetton: paste the jetton's master address (as shown on Tonviewer or STON.fi).",
+  'ton.name.notFound': "{name} doesn't exist or doesn't point to an address.",
+  'send.name.resolving': 'Looking up the name…',
+  'send.name.notWallet': 'This name points to a contract, not to a wallet: send only if you know it accepts this transfer.',
+  'send.name.scam': "The network's indexers flag the address of this name as a scam.",
+  'send.name.scamAck': 'I know who this is, send anyway',
 };

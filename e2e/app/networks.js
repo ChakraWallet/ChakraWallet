@@ -26,6 +26,7 @@ if (S.ton) {
     id: S.ton.id, kind: 'ton', name: 'TON Local', short: 'TONL', color: '#0098EA',
     native: { symbol: 'GRAM', name: 'Gram', decimals: 9, priceId: 'coingecko:the-open-network' },
     api: S.ton.api, explorer: `${S.ton.api}/explorer`, rpc: [`${S.ton.api}/api/v3`], swap: true,
+    tonapi: S.ton.api, // TonAPI's routes the app uses here (names): served by the same local API
   };
   TON_CHAINS[c.id] = c;
   registerChains([c]);

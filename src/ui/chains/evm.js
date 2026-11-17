@@ -60,6 +60,7 @@ export const evmDriver = {
   kind: 'evm',
   features: {
     customTokens: true, // tokens added by contract address (home: "Add a custom token")
+    customNfts: true, // NFTs added by contract and token id (home: "Add an NFT")
     poisonCheck: true, // recipients checked against the history for address poisoning
     feeMarket: true, // Slow / Normal / Fast
     approvals: true, // tokens need an approval before a swap or a bridge
@@ -94,6 +95,8 @@ export const evmDriver = {
   loadPortfolio: (chain, raw, opts) => loadPortfolio(chain, raw, opts),
   loadHistory: (chain, raw, cursor, opts) => loadHistory(chain, raw, cursor, opts),
   tokenInfo: (chain, address) => getTokenInfo(chain, address),
+  isTokenAddress: (chain, text) => /^0x[0-9a-fA-F]{40}$/.test(String(text || '').trim()),
+  tokenPlaceholder: () => '0x…',
   priceKey: (chain, token) => (token.native || token.address === NATIVE ? chain.native.priceId : tokenPriceKey(chain, token.address)),
   explorerToken: (chain, address) => (chain.explorer ? `${chain.explorer}/token/${address}` : null),
   loadNfts: (chain, raw, opts) => loadEvmNfts(chain, raw, opts),

@@ -51,8 +51,8 @@ export async function openWallet(chainId, { name = 'wallet' } = {}) {
   await page.waitForFunction(() => globalThis.chrome?.runtime);
   await page.evaluate(async ({ mnemonic, password, chainId }) => {
     const bg = async (type, p = {}) => { const r = await chrome.runtime.sendMessage({ type, ...p }); if (!r?.ok) throw new Error(`${type}: ${r?.error}`); return r.result; };
-    // tonCenterKey: TON Center's faster pace (the local TON API ignores the key)
-    await bg('saveSettings', { settings: { language: 'en', notifications: false, autoLockMin: 240, tonCenterKey: 'e2e', termsAccepted: { version: 1, at: 0 } } }); // terms of use accepted (src/ui/terms.jsx)
+    // tonCenterKey, tonApiKey: their faster pace (the local TON API ignores the keys)
+    await bg('saveSettings', { settings: { language: 'en', notifications: false, autoLockMin: 240, tonCenterKey: 'e2e', tonApiKey: 'e2e', termsAccepted: { version: 1, at: 0 } } }); // terms of use accepted (src/ui/terms.jsx)
     await bg('createVault', { password, mnemonic, name: 'Main' });
     await bg('addAccount', { name: 'Second', mode: 'hd' });
     const { accounts } = await bg('getState');

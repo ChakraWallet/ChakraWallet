@@ -15,7 +15,7 @@ asked for (noted below), which the screen translates.
 | member | returns | notes |
 | --- | --- | --- |
 | `kind` | `'evm' \| 'ton' \| …` | |
-| `features` | `{ memo, feeMarket, customTokens, poisonCheck, approvals, dapps, contracts, predictions }` | missing = false |
+| `features` | `{ memo, feeMarket, customTokens, customNfts, poisonCheck, approvals, dapps, contracts, predictions }` | missing = false |
 | `resolveAddresses(chain, accounts)` | `{ [account.address]: { address, raw, …extra } \| null }` (may be a Promise) | null: the account has no key for this family. `resolveAddressesSync` (optional) when known at once |
 | `validateAddress(chain, text, ownAddress)` | `{ ok, normalized, toSelf, warnings: [{ key }] }` or `{ ok: false, error }` | `error`, `warnings[].key`: i18n keys |
 | `parseQr(chain, text)` | `{ address, chainId?, token?, amountRaw?, memo? } \| null` | `token`: an address, or NATIVE |
@@ -35,7 +35,7 @@ Both are drawn by `FeeView` (`components.jsx`).
 `addressPlaceholder(chain)`, `receiveTokens(chain, held)` (tokens a payment request can ask for),
 `receiveNote(chain, ask)` → `{ key, network? }` (i18n key; `network`: the key has a `{network}` slot),
 `priceKey(chain, token)` (DefiLlama key for the price chart, or null), `explorerToken(chain, address)`,
-`tokenInfo(chain, address)` (custom tokens), `tokenWarning(chain, token)` → i18n key | null,
+`isName(chain, text)` and `resolveName(chain, text)` (optional: recipients typed as names, e.g. TON DNS; `resolveName` -> `{ name, address, accountName, isWallet, scam }` or throws), `tokenPlaceholder(chain)`, `poisonKit(chain)` (with `features.poisonCheck`, when the family's addresses aren't EVM's: see `src/shared/poison.js`), `tokenInfo(chain, address)` and `isTokenAddress(chain, text)` (custom tokens: required with `features.customTokens`; `tokenInfo` may add `scam: true`, shown as a warning before adding), `tokenWarning(chain, token)` → i18n key | null,
 `homeNotice(chain, portfolio)` → i18n key | null, `displayAddress(account)` (accounts of this family only),
 `loadNfts(chain, raw, { etherscanKey })` (optional) → `{ items: [{ key, contract, tokenId, name, collection, image, description,
 standard, amount, spam, address? }], unsupported }` (the home screen's NFTs, `src/shared/nft.js`), `explorerNft(chain, nft)`,

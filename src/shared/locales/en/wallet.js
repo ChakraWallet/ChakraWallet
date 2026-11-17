@@ -57,6 +57,8 @@ export default {
   'home.addToken.decimals.one': '{n} decimal',
   'home.addToken.decimals.other': '{n} decimals',
   'home.addToken.add': 'Add token',
+  'home.addToken.scam': "The network's indexers flag this token as a scam. Add it only if you know exactly what it is, and never send it to sites that promise to swap or redeem it.",
+  'home.addToken.scamAck': 'I know what this token is, add it anyway',
   'home.addToken.added': '{symbol} added',
   'home.settings': 'Settings',
   'home.lock': 'Lock',

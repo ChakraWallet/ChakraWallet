@@ -77,9 +77,23 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
   const [err, setErr] = useState('');
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null); // { hash, status: 'sent' | 'pending' | 'ok' | 'late' }
+  // a recipient typed as a name (TON DNS: alice.ton, @alice): the address it points to is what's checked and paid
+  const [named, setNamed] = useState(null); // { state: 'resolving' | 'ok' | 'error', name, address, accountName, isWallet, scam, error }
+  useEffect(() => {
+    setNamed(null);
+    if (!drv.isName?.(chain, to)) return undefined;
+    let alive = true;
+    setNamed({ state: 'resolving' });
+    const tm = setTimeout(() => drv.resolveName(chain, to).then(
+      (r) => alive && setNamed({ state: 'ok', ...r }),
+      (e) => alive && setNamed({ state: 'error', error: e.message }),
+    ), 400); // while typing: ask once the name is complete
+    return () => { alive = false; clearTimeout(tm); };
+  }, [to, chain.id]);
+  const dest = named?.state === 'ok' ? named.address : named ? '' : to;
   // address-poisoning protection (families with features.poisonCheck)
   const [ack, setAck] = useState(false);
-  const verdict = useRecipientCheck(drv.features.poisonCheck ? to : '');
+  const verdict = useRecipientCheck(drv.features.poisonCheck ? dest : '');
 
   useEffect(() => { if (!token) setToken(tokens.find((t) => t.address === (tokenAddress || NATIVE)) || tokens[0]); }, [tokens.length]);
   useEffect(() => setAck(false), [to]);
@@ -129,9 +143,9 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
 
   const raw = parseAmount(amount, token.decimals);
   const balance = BigInt(token.balance || 0);
-  const check = drv.validateAddress(chain, to, wallet.address);
+  const check = drv.validateAddress(chain, dest, wallet.address);
   const validTo = check.ok;
-  const risky = validTo && verdict.risky;
+  const risky = validTo && (verdict.risky || (named?.state === 'ok' && named.scam));
   const usd = raw != null && token.price != null ? toFloat(raw, token.decimals) * token.price : null;
   const recipients = state.accounts.filter((a) => a.address !== account.address && others?.[a.address])
     .map((a) => ({ name: a.name, address: others[a.address].address, avatar: a.address }));
@@ -165,7 +179,7 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
         <div class="content" style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
           {done?.status === 'pending' ? <Spinner lg /> : <SuccessMark />}
           <h2 style={{ margin: 0 }}>{done?.status === 'ok' ? t('tx.confirmed') : t('send.sent')}</h2>
-          <div class="muted">{t('send.sentTo', { amount: fmtAmount(sendValue ?? 0n, token.decimals), symbol: token.symbol, address: shortAddr(review?.recipient || to) })}</div>
+          <div class="muted">{t('send.sentTo', { amount: fmtAmount(sendValue ?? 0n, token.decimals), symbol: token.symbol, address: named?.state === 'ok' ? `${named.name} (${shortAddr(review?.recipient || named.address)})` : shortAddr(review?.recipient || to) })}</div>
           <div class="small muted">{done?.status === 'sent' ? t('send.sentNote') : done?.status === 'pending' ? t('tx.waiting') : done?.status === 'late' ? t('tx.late') : ''}</div>
           {link && <a href={link} target="_blank" class="btn secondary sm"><Icon name="external" size={14} /> {t('send.viewOnExplorer')}</a>}
         </div>
@@ -186,7 +200,7 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
           </div>
           <div class="card kv">
             <span class="k">{t('send.from')}</span><span class="v">{account.name} ({shortAddr(wallet.address || account.address)})</span>
-            <span class="k">{t('send.to')}</span><span class="v mono">{review?.recipient || check.normalized || to.trim()}</span>
+            <span class="k">{t('send.to')}</span><span class="v">{named?.state === 'ok' && <div class="bold">{named.name}</div>}<span class="mono">{review?.recipient || check.normalized || to.trim()}</span></span>
             <span class="k">{t('send.network')}</span><span class="v">{chain.name}</span>
             {(review?.rows || []).map((r) => <><span class="k">{r.k}</span><span class="v">{r.v}</span></>)}
           </div>
@@ -214,7 +228,21 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
             <input class="input mono" placeholder={drv.addressPlaceholder(chain)} value={to} onInput={(e) => setTo(e.target.value)} spellcheck={false} autocapitalize="off" />
             <button class="scan-open" onClick={openScanner} title={t('scan.title')}><Icon name="qr" size={20} /></button>
           </div>
-          {to && !validTo && <span class="small red">{t(check.error)}</span>}
+          {named?.state === 'resolving' && <span class="small muted row" style={{ gap: '0.375rem' }}><Spinner /> {t('send.name.resolving')}</span>}
+          {named?.state === 'error' && <span class="small red">{named.error}</span>}
+          {named?.state === 'ok' && (
+            <span class="small row" style={{ gap: '0.25rem', flexWrap: 'wrap' }}>
+              <b>{named.name}</b> → <span class="mono">{shortAddr(named.address, 6)}</span>{named.accountName && <span class="muted">· {named.accountName}</span>}
+            </span>
+          )}
+          {named?.state === 'ok' && named.scam && (
+            <div class="poison-warn">
+              <div class="small">{t('send.name.scam')}</div>
+              <label class="row ack"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /><span class="small bold">{t('send.name.scamAck')}</span></label>
+            </div>
+          )}
+          {named?.state === 'ok' && !named.isWallet && !named.scam && <span class="small" style={{ color: 'var(--amber)' }}>{t('send.name.notWallet')}</span>}
+          {to && !named && !validTo && <span class="small red">{t(check.error)}</span>}
           {validTo && check.toSelf && <span class="small" style={{ color: 'var(--amber)' }}>{t('send.toSelf')}</span>}
           {validTo && (check.warnings || []).map((w) => <span class="small" style={{ color: 'var(--amber)' }}>{t(w.key)}</span>)}
           {verdict.level === 'known' && !check.toSelf && <span class="small green row" style={{ gap: '0.25rem' }}><Icon name="check" size={14} />{t('send.poison.known')}</span>}

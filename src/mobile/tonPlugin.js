@@ -17,6 +17,8 @@ import { setTonApiKey } from '../shared/ton/tonapi.js';
 import { setSymbiosisKey } from '../shared/ton/bridge.js';
 import { tonHandlers } from '../background/ton.js';
 import { tonChainDriver } from '../ui/ton/index.jsx';
+import { tonWatch } from '../ui/ton/hooks.js';
+import { registerWatchExtra } from '../ui/hooks.js';
 import { registerDriver } from '../ui/chains/index.js';
 import { bg, ext, local } from '../shared/ext.js';
 import { t } from '../shared/i18n.js';
@@ -24,6 +26,7 @@ import { t } from '../shared/i18n.js';
 registerChains(Object.values(TON_CHAINS));
 registerUiHandlers(tonHandlers);
 registerDriver(tonChainDriver);
+registerWatchExtra(tonWatch); // notifications with the app closed: TON's balances too (WatchWorker.java)
 
 // optional TON Center, TonAPI and Symbiosis keys (Settings > Data)
 const keys = (s) => { setTonCenterKey(s?.tonCenterKey); setTonApiKey(s?.tonApiKey); setSymbiosisKey(s?.symbiosisKey); };

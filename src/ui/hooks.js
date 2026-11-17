@@ -172,9 +172,14 @@ export function summarize(per, showUnpriced) {
  * Android: keeps the background check (WatchWorker) configured: accounts of every wallet, main networks with
  * their RPCs and well-known tokens, language; asks the notification permission once.
  */
+// Families that add their part to the background check (TON in the Android app: src/ui/ton/hooks.js, tonWatch):
+// fn(state, prev) -> fields merged into the "watch" config; prev: the config written last time.
+const watchExtras = [];
+export const registerWatchExtra = (fn) => { watchExtras.push(fn); };
+
 export function useBackgroundWatch(state) {
   const enabled = state?.settings?.notifications !== false;
-  const sig = `${state?.initialized}|${state?.accounts?.length}|${state?.wallets?.length}|${enabled}|${state?.settings?.language}|${state?.settings?.disabledChains}`;
+  const sig = `${state?.initialized}|${state?.unlocked}|${state?.accounts?.length}|${state?.wallets?.length}|${enabled}|${state?.settings?.language}|${state?.settings?.disabledChains}|${state?.settings?.tonCenterKey}`;
   useEffect(() => {
     const n = globalThis.__CK_NOTIFY__;
     if (!n || !state?.initialized) return;
@@ -184,7 +189,9 @@ export function useBackgroundWatch(state) {
         id: c.id, name: c.name, symbol: c.native.symbol, decimals: c.native.decimals, rpc: c.rpc,
         tokens: (POPULAR_TOKENS[c.id] || []).map((x) => ({ address: x.address, symbol: x.symbol, decimals: x.decimals })),
       }));
-      await local.set('watch', { enabled, lang: getLang(), accounts, chains });
+      const prev = await local.get('watch', {});
+      const extra = Object.assign({}, ...(await Promise.all(watchExtras.map((f) => f(state, prev).catch(() => ({}))))));
+      await local.set('watch', { enabled, lang: getLang(), accounts, chains, ...extra });
       await n.schedule({ enabled }).catch(() => {});
       if (enabled && !(await local.get('notifAsked', false))) {
         await local.set('notifAsked', true);
@@ -265,7 +272,7 @@ export function useNfts(enabled = true) {
     let r = null;
     try { r = await drv.loadNfts(chain, addr.raw, { etherscanKey: state.settings.etherscanKey }); } catch (e) { setError(e.message || 'NFT'); }
     // NFTs added by hand (EVM): shown while the account owns them, also where the indexer lists nothing
-    const refs = drv.features?.customTokens ? (await local.get('customNfts', {}))[chain.id] || [] : [];
+    const refs = drv.features?.customNfts ? (await local.get('customNfts', {}))[chain.id] || [] : [];
     if (refs.length) {
       const extra = await loadCustomNfts(chain, addr.raw, refs).catch(() => []);
       const items = [...(r?.items || [])];

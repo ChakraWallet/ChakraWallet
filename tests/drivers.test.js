@@ -92,6 +92,8 @@ for (const [kind, fx] of Object.entries(FIXTURES)) {
     for (const k of REQUIRED) assert.equal(typeof d()[k], 'function', `${kind}.${k}`);
     assert.equal(typeof d().features, 'object');
     for (const k of ['addressPlaceholder', 'receiveTokens', 'receiveNote', 'priceKey', 'explorerToken']) assert.equal(typeof d()[k], 'function', `${kind}.${k}`);
+    // features that need their own members
+    if (d().features.customTokens) for (const k of ['tokenInfo', 'isTokenAddress']) assert.equal(typeof d()[k], 'function', `${kind}.${k} (customTokens)`);
   });
 
   test(`${kind}: addresses`, () => {

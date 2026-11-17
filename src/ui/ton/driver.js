@@ -5,17 +5,19 @@ import { Address } from '../../shared/ton/core.js';
 import { keyPairFromSeed } from '@ton/crypto';
 import { Buffer } from '../../shared/ton/buffer.js';
 import {
-  parseAddress, parseTonLink, tonLink, commentCell, jettonTransferCell, DEFAULT_JETTON_VALUE, walletContract, signTransfer, feeQuery, cellToBase64,
+  parseAddress, tonDnsName, parseTonLink, tonLink, commentCell, jettonTransferCell, DEFAULT_JETTON_VALUE, walletContract, signTransfer, feeQuery, cellToBase64,
 } from '../../shared/ton/core.js';
 import {
-  TON_CHAINS, tonAccount, tonJettons, tonHistory, gramPrice, llamaKey, stonAsset, tonAddressStatus, tonEstimateFee, tonWaitApplied, tonTxUrl, loadTonNfts,
+  TON_CHAINS, tonAccount, tonJettons, tonJettonInfo, tonHistory, gramPrice, llamaKey, stonAsset, tonAddressStatus, tonEstimateFee, tonWaitApplied, tonTxUrl, loadTonNfts,
 } from '../../shared/ton/api.js';
 import { bg } from '../../shared/ext.js';
 import { fmtNum } from '../../shared/format.js';
 import { omnistonQuotes, POPULAR_JETTONS } from '../../shared/ton/swap.js';
 import { TON_ASSETS, tonBridgeQuote } from '../../shared/ton/bridge.js';
 import { actionFee, showAddress } from '../../shared/ton/contracts.js';
-import { t } from '../../shared/i18n.js';
+import { tonapiResolve } from '../../shared/ton/tonapi.js';
+import { rememberRecipient, prefixLen, suffixLen } from '../../shared/poison.js';
+import { t, i18nError } from '../../shared/i18n.js';
 import { TON_TYPES } from './labels.js';
 import { NATIVE } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
@@ -25,6 +27,18 @@ import { approvalStep, txStep } from '../chains/evm.js';
 export const jettonId = (master, testnet = false) => {
   try { return Address.parse(master).toString({ urlSafe: true, bounceable: true, testOnly: !!testnet }); } catch { return String(master); }
 };
+/**
+ * Address poisoning on TON (src/shared/poison.js): an address is the same in any spelling (identity on the raw form);
+ * look-alikes are judged on the form wallets and explorers show (UQ…, non-bounceable), where scammers copy the first
+ * and the last 4 characters (what a shortened address shows: UQDH…5N8r).
+ */
+export const tonPoisonKit = (chain) => ({
+  canonical: (a) => { try { return Address.parse(String(a || '').trim()).toRawString(); } catch { return null; } },
+  display: (raw) => showAddress(raw, { testnet: !!chain.testnet, wallet: true }),
+  lookalike(a, b) { const x = this.display(a), y = this.display(b); return x !== y && prefixLen(x, y) >= 4 && suffixLen(x, y) >= 4; },
+  store: 'tonRecipients',
+});
+
 /** Same address, any spelling (raw 0:…, EQ…, UQ…)? */
 export const sameTonAddress = (a, b) => { try { return Address.parse(a).equals(Address.parse(b)); } catch { return false; } };
 
@@ -32,15 +46,24 @@ export const sameTonAddress = (a, b) => { try { return Address.parse(a).equals(A
  * A TON wallet's balances as an EVM portfolio: { native, tokens, totalUsd, updated, ... } with numbers and strings
  * only (it is cached on the device like the EVM ones). Tokens carry their jetton wallet and a DefiLlama price key.
  */
-export async function loadTonPortfolio(chain, raw, { hiddenTokens = [] } = {}) {
+export async function loadTonPortfolio(chain, raw, { hiddenTokens = [], customTokens = [] } = {}) {
   const [acc, jettons, price] = await Promise.all([tonAccount(chain, raw), tonJettons(chain, raw), gramPrice(chain).catch(() => null)]);
   const amount = Number(acc.balance) / 1e9;
   const hidden = new Set(hiddenTokens);
-  const all = jettons.filter((j) => !j.scam).map((j) => ({
+  // jettons added by hand: always listed (also with nothing held, also if flagged as a scam: the user chose them)
+  const custom = new Map(customTokens.map((c) => [jettonId(c.address, chain.testnet), c]));
+  const held = jettons.filter((j) => !j.scam || custom.has(jettonId(j.master, chain.testnet))).map((j) => ({
     address: jettonId(j.master, chain.testnet), symbol: j.symbol, name: j.name, decimals: j.decimals,
     balance: j.balance.toString(), amount: j.amount, price: j.price, usd: j.usd, icon: j.image || '',
     wallet: j.wallet, known: j.known, priceKey: chain.testnet ? null : llamaKey(j.master),
+    ...(custom.has(jettonId(j.master, chain.testnet)) ? { custom: true } : {}),
   }));
+  const heldIds = new Set(held.map((x) => x.address));
+  const empty = [...custom.entries()].filter(([id]) => !heldIds.has(id)).map(([id, c]) => ({
+    address: id, symbol: c.symbol, name: c.name || '', decimals: c.decimals, balance: '0', amount: 0, price: null, usd: null,
+    icon: c.icon || '', wallet: null, known: c.known ?? false, priceKey: chain.testnet ? null : llamaKey(id), custom: true,
+  }));
+  const all = [...held, ...empty];
   const tokens = all.filter((x) => !hidden.has(x.address));
   const nativeUsd = price != null ? amount * price : null;
   return {
@@ -151,6 +174,7 @@ export async function prepareSend(chain, { wallet, portfolio, token, to, amountR
 export async function confirmSend(chain, { review, from, authorize, title }) {
   const messages = review.messages.map((m) => ({ to: m.to.toString(), value: String(m.value), bounce: m.bounce, body: m.body ? cellToBase64(m.body) : null }));
   const r = await authorize((password) => bg('tonSend', { from, chainId: chain.id, messages, sendAll: review.sendAll, password }), title);
+  rememberRecipient(review.recipient, tonPoisonKit(chain)).catch(() => {}); // a real recipient, for the poisoning check
   return { wait: tonWaitApplied(chain, r.wallet, r.seqno, { hash: r.hash }) };
 }
 
@@ -282,7 +306,12 @@ function withLatestQuote(step, quote, latest) {
 
 export const tonDriver = {
   kind: 'ton',
-  features: { memo: true }, // a text with the transfer (exchanges ask for it on deposits)
+  features: {
+    memo: true, // a text with the transfer (exchanges ask for it on deposits)
+    customTokens: true, // jettons added by their master address (home: "Add a custom token")
+    poisonCheck: true, // recipients checked against the history for address poisoning (tonPoisonKit)
+  },
+  poisonKit: tonPoisonKit,
   defaultChainId: -239, // where an account imported from another TON app lives
 
   // ---------------------------------------------------------------- addresses
@@ -299,7 +328,20 @@ export const tonDriver = {
     if (!r.ok) return { ok: false, error: 'ton.send.badAddress' };
     return { ok: true, normalized: String(text).trim(), toSelf: r.toSelf, warnings: r.otherNet ? [{ key: chain.testnet ? 'ton.send.mainnetAddress' : 'ton.send.testnetAddress' }] : [] };
   },
-  addressPlaceholder: () => 'UQ… / EQ…',
+  addressPlaceholder: () => 'UQ… / EQ… / name.ton',
+  tokenPlaceholder: () => 'EQ…',
+  /** A recipient typed as a name (alice.ton, alice.t.me, @alice)? */
+  isName: (chain, text) => !!tonDnsName(text),
+  /**
+   * The address a name points to: { name, address (UQ… for a wallet, EQ… for a contract, as explorers show them),
+   * accountName, isWallet, scam }; throws (i18n) when the name doesn't exist or points nowhere.
+   */
+  async resolveName(chain, text) {
+    const name = tonDnsName(text);
+    const r = name ? await tonapiResolve(chain, name) : null;
+    if (!r) throw i18nError('ton.name.notFound', { name: name || String(text).trim() });
+    return { name, address: showAddress(r.address, { testnet: !!chain.testnet, wallet: r.isWallet }), accountName: r.name, isWallet: r.isWallet, scam: r.scam };
+  },
   /** ton:// link; it carries GRAM amounts only (jettons arrive at the same address). */
   paymentLink: (chain, { address, amountRaw, ask }) => tonLink(address, { amount: ask ? amountRaw : null }),
   /** ton:// links carry GRAM amounts: the amount comes with the native token. */
@@ -317,6 +359,14 @@ export const tonDriver = {
   loadNfts: (chain, raw) => loadTonNfts(chain, raw),
   explorerNft: (chain, nft) => `${chain.explorer}/nft/${nft.address}`,
   tokenWarning: (chain, token) => (!token.native && token.known === false ? 'ton.token.unknown' : null),
+  /** "Add a custom token": a jetton master in any spelling (EQ…, UQ…, raw 0:…). */
+  isTokenAddress: (chain, text) => !!parseAddress(String(text || '').trim()),
+  /** The jetton behind a master address, as a custom token: { address (EQ…), symbol, name, decimals, icon, scam, known }. */
+  async tokenInfo(chain, address) {
+    const j = await tonJettonInfo(chain, String(address).trim());
+    if (!j) throw i18nError('ton.token.notJetton');
+    return { address: jettonId(j.master, chain.testnet), symbol: j.symbol, name: j.name, decimals: j.decimals, icon: j.image || '', scam: j.scam, known: j.known };
+  },
   /** A wallet contract is deployed with its first outgoing transfer. */
   homeNotice: (chain, p) => (p?.status && p.status !== 'active' && BigInt(p.native?.balance || 0) > 0n ? 'ton.notDeployed' : null),
 

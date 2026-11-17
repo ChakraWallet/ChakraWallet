@@ -88,6 +88,18 @@ export function walletContract(publicKey, { version = DEFAULT_VERSION, testnet =
 export const friendly = (address, { testnet = false, bounceable = false } = {}) => address.toString({ urlSafe: true, bounceable, testOnly: testnet });
 export const rawOf = (address) => address.toRawString();
 
+/**
+ * A TON DNS name typed as a recipient -> the domain to resolve, or null: "alice.ton" (and subdomains, e.g.
+ * "pay.alice.ton"), "alice.t.me" and "@alice" (Telegram usernames, which are .t.me names on TON).
+ */
+export function tonDnsName(text) {
+  const s = String(text || '').trim().toLowerCase();
+  if (/^@[a-z0-9_]{4,32}$/.test(s)) return `${s.slice(1)}.t.me`;
+  if (/^[a-z0-9_]{4,32}\.t\.me$/.test(s)) return s;
+  if (/^([a-z0-9-]{1,63}\.)*[a-z0-9-]{4,126}\.ton$/.test(s) && !/(^|\.)-|-\./.test(s)) return s;
+  return null;
+}
+
 /** Parses an address typed or scanned by the user: { address, bounceable, testOnly, raw } or null. Accepts ton:// links. */
 export function parseAddress(text) {
   let s = String(text || '').trim();
