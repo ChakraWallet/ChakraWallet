@@ -80,7 +80,9 @@ function Glyph({ it, k, bridge, chain }) {
     const p = (POPULAR_TOKENS[chain.id] || []).find((q) => q.address === String(it.to).toLowerCase());
     if (p) return <span class="glyph"><TokenIcon symbol={p.symbol} icon={p.icon} /><span class="dir-badge approve"><Icon name="approve" size={10} stroke={2.6} /></span></span>;
   }
-  return <div class="tx-icon round" style={{ background: k.bg, color: k.color }}><Icon name={k.icon} size={18} /></div>;
+  // an operation of a family with an icon of its own (e.g. Tron's stake: { icon, tone: 'amber' | 'green' | 'red' | 'primary' })
+  const g = it.glyph;
+  return <div class="tx-icon round" style={{ background: g ? `var(--${g.tone}-soft)` : k.bg, color: g ? `var(--${g.tone})` : k.color }}><Icon name={g?.icon || k.icon} size={18} /></div>;
 }
 
 function HistoryItem({ it, onOpen, bridge }) {

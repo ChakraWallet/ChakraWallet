@@ -259,6 +259,53 @@ function ston(u) {
   return m ? { asset: { dex_usd_price: String(m.price), image_url: m.image, symbol: m.symbol, display_name: m.name, decimals: m.decimals } } : null;
 }
 
+// ---------------------------------------------------------------- Tron (TronGrid): TRX, USDT, some TRX staked for energy
+const USDT_TRON = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', PEER_TRON = 'TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH';
+function trongrid(u, init) {
+  const p = u.pathname;
+  const body = init.body ? JSON.parse(init.body) : {};
+  const me = body.address || body.owner_address || decodeURIComponent((/^\/v1\/accounts\/([^/]+)/.exec(p) || [])[1] || '');
+  const now = Date.now();
+  const account = { address: me, balance: 2_431_250_000, create_time: now - 400 * 86400e3, latest_consume_time: now - 3 * 3600e3,
+    frozenV2: [{}, { type: 'ENERGY', amount: 30_000_000_000 }, { type: 'TRON_POWER' }], votes: [{ vote_address: 'TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH', vote_count: 30000 }],
+    account_resource: { latest_consume_time_for_energy: now - 3 * 3600e3, energy_window_size: 28800, energy_usage: 65000 },
+    owner_permission: { keys: [{ address: me, weight: 1 }] }, active_permission: [{ keys: [{ address: me, weight: 1 }] }] };
+  if (p === `/v1/accounts/${me}`) return { success: true, data: [{ ...account, trc20: [{ [USDT_TRON]: '1250500000' }] }] };
+  if (p === `/v1/accounts/${me}/transactions`) {
+    return { success: true, meta: {}, data: [
+      { txID: 'a1'.repeat(32), block_timestamp: now - 5 * 3600e3, ret: [{ contractRet: 'SUCCESS', fee: 0 }], raw_data: { timestamp: now - 5 * 3600e3, contract: [{ type: 'TransferContract', parameter: { value: { owner_address: PEER_TRON, to_address: me, amount: 150_000_000 } } }] } },
+      { txID: 'a2'.repeat(32), block_timestamp: now - 30 * 3600e3, ret: [{ contractRet: 'SUCCESS', fee: 0 }], raw_data: { timestamp: now - 30 * 3600e3, contract: [{ type: 'FreezeBalanceV2Contract', parameter: { value: { owner_address: me, frozen_balance: 30_000_000_000, resource: 'ENERGY' } } }] } },
+    ] };
+  }
+  if (p === `/v1/accounts/${me}/transactions/trc20`) {
+    return { success: true, meta: {}, data: [
+      { transaction_id: 'b1'.repeat(32), block_timestamp: now - 2 * 3600e3, from: me, to: PEER_TRON, type: 'Transfer', value: '85000000', token_info: { address: USDT_TRON, symbol: 'USDT', decimals: 6, name: 'Tether USD' } },
+      { transaction_id: 'b2'.repeat(32), block_timestamp: now - 50 * 3600e3, from: PEER_TRON, to: me, type: 'Transfer', value: '500000000', token_info: { address: USDT_TRON, symbol: 'USDT', decimals: 6, name: 'Tether USD' } },
+    ] };
+  }
+  if (p === '/v1/trc20/info') return { success: true, data: [] };
+  if (p === '/wallet/getaccount') return account;
+  if (p === '/wallet/getaccountresource') {
+    return { freeNetLimit: 600, freeNetUsed: 120, EnergyLimit: 289680, EnergyUsed: 65000, TotalEnergyLimit: 180000000000, TotalEnergyWeight: 18642090639,
+      TotalNetLimit: 43200000000, TotalNetWeight: 26601598388, tronPowerLimit: 30000, tronPowerUsed: 30000 };
+  }
+  if (p === '/wallet/getchainparameters') {
+    const P = { getTransactionFee: 1000, getEnergyFee: 100, getCreateAccountFee: 100000, getCreateNewAccountFeeInSystemContract: 1000000, getMemoFee: 1000000, getUnfreezeDelayDays: 14, getMaxFeeLimit: 15000000000, getWitnessPayPerBlock: 8000000, getWitness127PayPerBlock: 128000000 };
+    return { chainParameter: Object.entries(P).map(([key, value]) => ({ key, value })) };
+  }
+  if (p === '/wallet/triggerconstantcontract' && body.contract_address === 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd') { // JustLend's energy market: its terms as read on mainnet, no rental
+    const w = (h) => h.padStart(64, '0');
+    const out = { '21620ec2': w('1538297b3'), '24ec7590': w('1312d00'), '41744dd4': w('48c273950000'), fdcb648c: w('0'), '58d0a4db': w('0'), '3193fada': w('196b8b9f1'), '195d0f08': w('0').repeat(3), c449d2a9: w('0').repeat(3) }[String(body.data || '').slice(0, 8)];
+    return { result: { result: true }, constant_result: [out ?? ''], energy_used: 92_000 };
+  }
+  if (p === '/wallet/getReward') return { reward: 3_210_000 };
+  if (p === '/wallet/listwitnesses') return { witnesses: [{ address: 'TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH', voteCount: 4890607406, url: 'https://poloniex.com' }] };
+  if (p === '/wallet/getBrokerage') return { brokerage: 20 };
+  if (p === '/wallet/getcandelegatedmaxsize') return { max_size: 5_000_000_000 };
+  if (p === '/wallet/getdelegatedresourceaccountindexv2') return { account: me };
+  return null;
+}
+
 // ---------------------------------------------------------------- router
 const realFetch = globalThis.fetch.bind(globalThis);
 globalThis.fetch = async (input, init = {}) => {
@@ -281,6 +328,7 @@ globalThis.fetch = async (input, init = {}) => {
       details: { timeEstimate: 25, currencyOut: { amount: String(out), minimumAmount: String((out * 99n) / 100n), amountUsd: fromTon ? String(Number(amt) / 1e9 * 3.108) : null } },
       fees: { relayer: { amountUsd: '0.21' }, gas: { amountUsd: '0.04' } } });
   }
+  if (u.host === 'api.trongrid.io') { const r = trongrid(u, init); return r ? json(r) : json({ Error: 'not found' }, 404); }
   if (/blockscout\.com$/.test(u.host) && /\/nft$/.test(u.pathname)) return json(blockscoutNfts());
   { const r = nftPriceMock(u, init); if (r) return r[0] === null ? json({}, r[1]) : json(r[0], r[1] || 200); }
   if (u.host === 'toncenter.com') { const r = toncenter(u); return r ? json(r) : json({ error: 'not found' }, 404); }

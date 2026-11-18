@@ -20,6 +20,8 @@ export const familyOf = (chain) => chain?.kind || 'evm';
 export const driverFor = (chain) => drivers.get(familyOf(chain)) || drivers.get('evm');
 export const driverOf = (kind) => drivers.get(kind) || null;
 export const allDrivers = () => [...drivers.values()];
+/** Screens of a family of its own (driver.ui.screens: { name: Component }), opened with nav(name, params). */
+export const driverScreens = () => Object.assign({}, ...allDrivers().map((d) => d.ui?.screens || {}));
 
 /**
  * The family an account belongs to: accounts from a recovery phrase or an Ethereum key are 'evm' (and have an address

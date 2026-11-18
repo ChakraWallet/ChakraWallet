@@ -183,7 +183,7 @@ export const registerWatchExtra = (fn) => { watchExtras.push(fn); };
 
 export function useBackgroundWatch(state) {
   const enabled = state?.settings?.notifications !== false;
-  const sig = `${state?.initialized}|${state?.unlocked}|${state?.accounts?.length}|${state?.wallets?.length}|${enabled}|${state?.settings?.language}|${state?.settings?.disabledChains}|${state?.settings?.tonCenterKey}|${state?.settings?.heliusKey}`;
+  const sig = `${state?.initialized}|${state?.unlocked}|${state?.accounts?.length}|${state?.wallets?.length}|${enabled}|${state?.settings?.language}|${state?.settings?.disabledChains}|${state?.settings?.tonCenterKey}|${state?.settings?.heliusKey}|${state?.settings?.tronGridKey}`;
   useEffect(() => {
     const n = globalThis.__CK_NOTIFY__;
     if (!n || !state?.initialized) return;

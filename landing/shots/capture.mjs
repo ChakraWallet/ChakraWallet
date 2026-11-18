@@ -76,8 +76,15 @@ const SCENES = {
   },
   async mmcardPayments(page) { await SCENES.mmcard(page); await page.click('.tabs .tab:nth-of-type(2)'); await sleep(1200); },
   async mmcardManage(page) { await SCENES.mmcard(page); await action(page, 3); await sleep(1800); },
+  // Tron: the Resources page (energy and bandwidth), from the card on the home
+  async tron(page) { // after the needle and the battery have settled
+    await page.waitForSelector('.tr-card .tr-row-val', { timeout: 20000 }); await sleep(600); await page.click('.tr-card');
+    await page.waitForSelector('.tr-meters .tr-needle', { timeout: 20000 }); await page.waitForSelector('.tr-box .tr-line', { timeout: 20000 });
+    await page.addStyleTag({ content: '.tr-batt-sheen { display: none; }' }); // the charging sheen moves: in a still it looks like a smudge
+    await sleep(1600);
+  },
 };
-const CHAIN = { mmcard: 59144, mmcardOps: 59144, mmcardPayments: 59144, mmcardManage: 59144 }; // scenes on another network than Ethereum
+const CHAIN = { mmcard: 59144, mmcardOps: 59144, mmcardPayments: 59144, mmcardManage: 59144, tron: -195 }; // scenes on another network than Ethereum
 
 const only = process.argv.slice(2);
 const { server, url } = await serve();

@@ -1283,6 +1283,43 @@ public class DappBrowserPlugin extends Plugin {
         });
     }
 
+    /**
+     * Injects one of the app's own page scripts (only those listed) into a tab, if it still shows the same page:
+     * TronWeb for the Tron sites, too large to be in every page (src/mobile/tronwebPage.js).
+     */
+    @PluginMethod
+    public void injectScript(PluginCall call) {
+        int target = call.getInt("pageId", -1);
+        String name = call.getString("name", "");
+        if (!"tronweb".equals(name)) { call.reject("unknown script"); return; }
+        String js = pageScript(name);
+        if (js.isEmpty()) { call.reject("missing script"); return; }
+        getActivity().runOnUiThread(() -> {
+            Tab t = tabFor(call);
+            if (t == null || t.web == null || target != t.pageId) { call.resolve(); return; }
+            t.web.evaluateJavascript(js, null);
+            call.resolve();
+        });
+    }
+
+    private final java.util.Map<String, String> pageScripts = new java.util.HashMap<>();
+
+    private String pageScript(String name) {
+        synchronized (pageScripts) {
+            String s = pageScripts.get(name);
+            if (s != null) return s;
+            try (InputStream is = getContext().getAssets().open("public/" + name + ".js")) {
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                byte[] buf = new byte[16384];
+                int n;
+                while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+                s = bos.toString(StandardCharsets.UTF_8.name());
+            } catch (Exception e) { s = ""; }
+            pageScripts.put(name, s);
+            return s;
+        }
+    }
+
     /** Block screenshots / screen recording while sensitive data is on screen. */
     @PluginMethod
     public void setSecure(PluginCall call) {

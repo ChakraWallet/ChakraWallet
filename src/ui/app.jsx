@@ -25,7 +25,7 @@ import { Icon } from './components.jsx';
 import { useAuthorizer } from './auth.jsx';
 import { t, setLang } from '../shared/i18n.js';
 import { setDisplayCurrency } from '../shared/fx.js';
-import { accountFamily, familyOf, driverOf, isEvmAccount } from './chains/index.js';
+import { accountFamily, familyOf, driverOf, isEvmAccount, driverScreens } from './chains/index.js';
 import { NftDetail } from './screens/nfts.jsx';
 import { MmCard } from './screens/mmcard.jsx';
 import { ConnectQrHost } from './connectQr.jsx';
@@ -261,7 +261,7 @@ export function App() {
   const top = stack[stack.length - 1];
   // one set of screens for every network: TON (Android app) feeds them through its driver (src/ui/ton/driver.js)
   const C = wrongFamily ? Switching // the account's own network is being selected
-    : SCREENS[top.name] || Home;
+    : SCREENS[top.name] || driverScreens()[top.name] || Home;
   if (!state) body = <div class="screen" style={{ alignItems: 'center', justifyContent: 'center' }}><Spinner lg /></div>;
   else if (!state.initialized || onboarding) body = <Onboarding onActive={setOnboarding} />;
   else if (!state.unlocked) body = <Unlock />;

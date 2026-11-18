@@ -133,7 +133,7 @@ function Hero() {
           <span className="eyebrow"><span className="dot" />Free &amp; open source · iPhone · Android · Chrome · Firefox</span>
           <h1>Your crypto,<br /><span className="ink">beautifully clear.</span></h1>
           <p className="lede">
-            Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON and Solana. Send, swap at the best price,
+            Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON, Solana and Tron. Send, swap at the best price,
             bridge and explore web3 — your keys never leave your device.
           </p>
           <StoreButtons />
@@ -180,13 +180,13 @@ const FEATURES = [
   },
   {
     id: 'nfts', kicker: 'NFTs', title: 'Your collectibles, next to your tokens.',
-    text: 'The NFTs you own on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis, TON and Solana appear right under your tokens, with their artwork, collection and details.',
+    text: 'The NFTs you own on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis, TON, Solana and Tron appear right under your tokens, with their artwork, collection and details.',
     points: ['Scam airdrops and fake brand collections hidden', 'Spam artwork never loaded, so it can’t track you', 'Details and explorer link in one tap'],
     img: 'nfts',
   },
   {
     id: 'swap', kicker: 'Swap & Bridge', title: 'The best price, not the first price.',
-    text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. On Solana, Jupiter compares every exchange for you. Bridges compare LI.FI, Relay, Across and deBridge the same way — Solana included.',
+    text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. On Solana, Jupiter compares every exchange for you; on Tron, SUN.io’s Smart Router. Bridges compare LI.FI, Relay, Across and deBridge the same way — Solana and Tron included.',
     points: ['Approvals for the exact amount — never unlimited', 'MEV protection: Flashbots on Ethereum, Jito on Solana', 'Bridge transfers tracked until they arrive'],
     img: 'swap',
   },
@@ -203,6 +203,12 @@ const FEATURES = [
     img: 'predict',
   },
   {
+    id: 'tron', kicker: 'Tron', title: 'Tron, without the surprises.',
+    text: 'On Tron fees are energy and bandwidth, not gas. Chakra shows what you have and what every send costs before you sign — then lets you stake TRX, rent energy from JustLend, vote for Super Representatives and delegate resources, from one page.',
+    points: ['Energy and bandwidth at a glance, refilling in real time', 'Renting vs burning TRX compared before you pay', 'Account takeovers (permission changes) always blocked'],
+    img: 'tron', // shots/capture.mjs tron
+  },
+  {
     id: 'history', kicker: 'History', title: 'A history you can actually read.',
     text: 'Transactions grouped by day, with clear labels for sends, receives, swaps and bridges, fees paid and explorer links. Address-poisoning fakes and spam never make it to the list.',
     points: ['Filters for sent, received and swaps', 'Bridges recognised, even when made elsewhere', 'Pending transactions shown instantly'],
@@ -210,13 +216,13 @@ const FEATURES = [
   },
   {
     id: 'contracts', kicker: 'Builders', title: 'Deploy contracts from your pocket.',
-    text: 'Create tokens, NFTs and multi-token contracts from templates, write your own in Solidity or Tact, deploy a Solana program you compiled, or open any contract or program by address and call it with a form built from its ABI or IDL.',
+    text: 'Create tokens, NFTs and multi-token contracts from templates, write your own in Solidity or Tact, deploy a Solana program you compiled, deploy Solidity on Tron too, or open any contract or program by address and call it with a form built from its ABI or IDL.',
     points: ['Solidity and Tact compilers on device', 'TON jettons and NFTs, Solana tokens and NFT collections', 'Decode any calldata or transaction before you sign'],
     img: 'contracts',
   },
   {
     id: 'browser', kicker: 'Dapp browser', title: 'All of web3, already connected.',
-    text: 'Multiple tabs, previews and favicons, with Chakra built in. Sites find Chakra by name — and the older ones that only know MetaMask work too — so “Connect wallet” just works — and every connection, signature and transaction waits for your approval.',
+    text: 'Multiple tabs, previews and favicons, with Chakra built in. Sites find Chakra by name — and the older ones that only know MetaMask (or TronLink, on Tron) work too — so “Connect wallet” just works — and every connection, signature and transaction waits for your approval.',
     points: ['Certificate details behind the padlock', 'Disconnect a site and clear its data in a tap', 'Warnings on permits and unlimited approvals'],
     img: 'browser',
   },
@@ -463,7 +469,7 @@ function Security() {
 // [name, id of its mark in chainLogos.jsx (the app's own ids), null: no mark]
 const NETWORKS = [
   ['Ethereum', 1], ['Base', 8453], ['Arbitrum', 42161], ['Optimism', 10], ['Polygon', 137], ['BNB Chain', 56],
-  ['Avalanche', 43114], ['Gnosis', 100], ['Linea', 59144], ['TON', -239], ['Solana', -501], ['+ custom networks', null],
+  ['Avalanche', 43114], ['Gnosis', 100], ['Linea', 59144], ['TON', -239], ['Solana', -501], ['Tron', -195], ['+ custom networks', null],
 ];
 function Networks() {
   return (
@@ -472,7 +478,7 @@ function Networks() {
         <div className="section-head reveal">
           <span className="kicker">Networks</span>
           <h2>One wallet, many chains.</h2>
-          <p>All the major EVM networks built in, TON and Solana in the mobile apps, and any EVM network you add yourself — or that a dapp asks for.</p>
+          <p>All the major EVM networks built in, TON, Solana and Tron in the mobile apps, and any EVM network you add yourself — or that a dapp asks for.</p>
         </div>
         <div className="chips reveal">
           {NETWORKS.map(([n, id]) => (

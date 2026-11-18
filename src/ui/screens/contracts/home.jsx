@@ -18,13 +18,15 @@ import { rawAddress, showAddress } from '../../../shared/ton/contracts.js';
 import { TonCellSheet } from './ton/tools.jsx';
 import { isSolana, SOL_MAINNET } from '../../../shared/solana/api.js';
 import { isAddress as isSolAddress } from '../../../shared/solana/core.js';
+import { isTron } from '../../../shared/tron/api.js';
+import { isAddress as isTronAddress } from '../../../shared/tron/core.js';
 import { parseSolanaPay } from '../../solana/driver.js';
 import { SolToolSheet } from './sol/tools.jsx';
 
 const KINDS = [['erc20', 'coins'], ['erc721', 'sparkle'], ['erc1155', 'grid'], ['empty', 'code']];
 const TON_KINDS = [['jetton', 'coins'], ['nft', 'sparkle'], ['tact', 'code']];
 const SOL_KINDS = [['token', 'coins'], ['nft', 'sparkle'], ['program', 'code']];
-const contractNet = (c) => isEvm(c) || isTon(c) || isSolana(c); // networks of the Contracts tab
+const contractNet = (c) => isEvm(c) || isTon(c) || isSolana(c) || isTron(c); // networks of the Contracts tab
 
 export function ContractsHome({ open }) {
   const { state, chain: active, account } = useApp();
@@ -36,8 +38,8 @@ export function ContractsHome({ open }) {
   const [sheet, setSheet] = useState(null);
   const chain = getChain(chainId, state.customChains) || active;
   const v = addr.trim();
-  const ton = isTon(chain), sol = isSolana(chain);
-  const valid = ton ? !!rawAddress(v) : sol ? isSolAddress(v) : isAddress(v);
+  const ton = isTon(chain), sol = isSolana(chain), tron = isTron(chain);
+  const valid = ton ? !!rawAddress(v) : sol ? isSolAddress(v) : tron ? isTronAddress(v) : isAddress(v);
   const go = () => valid && open({ name: 'contract', chainId: chain.id, address: ton ? rawAddress(v) : v });
   const onQr = (text) => {
     setScan(false);
@@ -83,7 +85,7 @@ export function ContractsHome({ open }) {
             <button class="ct-hero-scan" onClick={() => setScan(true)} title={t('scan.title')}><Icon name="qr" size={18} /></button>
           </div>
           <div class="row between hero-foot">
-            <span class="small ct-hero-note">{v && !valid ? t('contracts.err.badAddress') : ton ? t('tonc.home.hint') : sol ? t('solc.home.hint') : t('contracts.home.hint')}</span>
+            <span class="small ct-hero-note">{v && !valid ? t('contracts.err.badAddress') : ton ? t('tonc.home.hint') : sol ? t('solc.home.hint') : tron ? t('tronc.home.hint') : t('contracts.home.hint')}</span>
             <button class="ct-hero-go" disabled={!valid} onClick={go}>{t('contracts.home.go')} <Icon name="forward" size={14} /></button>
           </div>
         </div>
@@ -92,7 +94,7 @@ export function ContractsHome({ open }) {
         <div class="actions">
           {sol ? SOL_KINDS.map(([k, ic]) => <button class="action" onClick={() => open(k === 'program' ? { name: 'soldeploy', chainId: chain.id } : { name: 'solcreate', kind: k, chainId: chain.id })}><span class="ic"><Icon name={ic} /></span>{t(`solc.tpl.${k}.short`)}</button>)
             : ton ? TON_KINDS.map(([k, ic]) => <button class="action" onClick={() => open(k === 'tact' ? { name: 'tonstudio', newProject: true, chainId: chain.id } : { name: 'toncreate', kind: k, chainId: chain.id })}><span class="ic"><Icon name={ic} /></span>{t(`tonc.tpl.${k}.short`)}</button>)
-            : KINDS.map(([k, ic]) => <button class="action" onClick={() => open({ name: 'create', kind: k })}><span class="ic"><Icon name={ic} /></span>{t(`contracts.tpl.${k}.short`)}</button>)}
+            : KINDS.map(([k, ic]) => <button class="action" onClick={() => open({ name: 'create', kind: k, chainId: tron ? chain.id : undefined })}><span class="ic"><Icon name={ic} /></span>{t(`contracts.tpl.${k}.short`)}</button>)}
         </div>
         {!ton && !sol && <button class="link" onClick={() => setSheet('artifact')}><Icon name="receive" size={14} /> {t('contracts.home.import')}</button>}
 

@@ -18,6 +18,9 @@ import { SolContractView } from './sol/view.jsx';
 import { SolTxReview } from './sol/review.jsx';
 import { SolCreate } from './sol/create.jsx';
 import { SolDeploy } from './sol/deploy.jsx';
+import { isTron } from '../../../shared/tron/api.js';
+import { TronContractView } from './tron/view.jsx';
+import { TronDeploy } from './tron/deploy.jsx';
 
 let seq = 0;
 
@@ -52,6 +55,9 @@ export function Contracts({ visible, onDeep }) {
     if (e.name === 'contract' && isTon(chain)) return <TonContractView chainId={e.chainId} address={e.address} {...common} />;
     // Solana: programs, tokens, NFTs, accounts
     if (e.name === 'contract' && isSolana(chain)) return <SolContractView chainId={e.chainId} address={e.address} {...common} />;
+    // Tron: Solidity contracts with their ABI on chain; deployments from the studio
+    if (e.name === 'contract' && isTron(chain)) return <TronContractView chainId={e.chainId} address={e.address} {...common} />;
+    if (e.name === 'trondeploy') return <TronDeploy {...e} {...common} />;
     if (e.name === 'soltx') {
       return <SolTxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined}
         onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />;
@@ -68,8 +74,8 @@ export function Contracts({ visible, onDeep }) {
     return e.name === 'contract' ? <ContractView chainId={e.chainId} address={e.address} {...common} />
       : e.name === 'tx' ? <TxReview chain={chain} req={e.req} onBack={back} onMined={e.onMined} renderDone={e.renderDone}
         onOpenContract={(a) => open({ name: 'contract', chainId: chain.id, address: a }, { replace: true })} />
-        : e.name === 'create' ? <CreateTemplate kind={e.kind} {...common} />
-          : e.name === 'studio' ? <Studio projectId={e.projectId} draft={e.draft} autoDeploy={e.autoDeploy} {...common} />
+        : e.name === 'create' ? <CreateTemplate kind={e.kind} chainId={e.chainId} {...common} />
+          : e.name === 'studio' ? <Studio projectId={e.projectId} draft={e.draft} autoDeploy={e.autoDeploy} chainId={e.chainId} {...common} />
             : e.name === 'deploy' ? <Deploy artifact={e.artifact} compilation={e.compilation} chainId={e.chainId} {...common} />
               : e.name === 'source' ? <SourceView title={e.title} files={e.files} noProject={e.noProject} {...common} /> : null;
   };

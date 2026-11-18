@@ -397,9 +397,10 @@ export async function getExtraSecret(name) { return (await getSession()).secrets
 /**
  * Where an account's key for a family comes from (background only, never sent to the UI): { phrase, index } for
  * accounts of the recovery phrase, the stored entry ({ secret, ... }) for accounts of that family only, null otherwise
- * (e.g. an imported Ethereum key has no TON key). Only accounts of the active wallet.
+ * (e.g. an imported Ethereum key has no TON key). evmKeys: the family uses Ethereum's curve (Tron), so an imported or
+ * generated Ethereum key is its key too: { evmKey } for those accounts. Only accounts of the active wallet.
  */
-export async function familyKeySource(kind, address) {
+export async function familyKeySource(kind, address, { evmKeys = false } = {}) {
   const s = await getSession();
   const m = await meta();
   const acc = m.accounts.find((a) => lc(a.address) === lc(address) && a.walletId === m.active);
@@ -407,6 +408,7 @@ export async function familyKeySource(kind, address) {
   const w = s.secrets.wallets.find((x) => x.id === acc.walletId);
   if (acc.type === 'hd' && w?.mnemonic) return { phrase: w.mnemonic, index: acc.index };
   if (acc.type === kind) { const x = (w?.[kind] || []).find((k) => lc(k.address) === lc(address)); if (!x) return null; const { address: _, ...rest } = x; return rest; }
+  if (evmKeys && !familyOf(acc.type) && s.keys[lc(address)]) return { evmKey: s.keys[lc(address)] };
   return null;
 }
 

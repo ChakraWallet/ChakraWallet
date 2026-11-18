@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Icon, Spinner, Btn, Sheet, Switch, ChainIcon, useApp } from '../../components.jsx';
 import { getChain, isEvm } from '../../../shared/chains.js';
+import { isTron } from '../../../shared/tron/api.js';
+import { toEvmAddress, isAddress as isTronAddress } from '../../../shared/tron/core.js';
 import {
   TEMPLATES, generate, DEFAULT_EVM, EVM_VERSIONS, MAX_RUNTIME, MAX_INITCODE, pickVersion, collectSources, parseRemappings,
   standardInput, parseOutput, librariesOf, linkBytecode, verifySourcify, OZ_VERSION,
@@ -47,7 +49,7 @@ const OPTS = {
   empty: [],
 };
 
-export function CreateTemplate({ kind, onBack, open }) {
+export function CreateTemplate({ kind, chainId, onBack, open }) {
   const [o, setO] = useState({ ...TEMPLATES[kind] });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setO({ ...o, [k]: v });
@@ -56,7 +58,9 @@ export function CreateTemplate({ kind, onBack, open }) {
   const go = (autoDeploy) => {
     setBusy(true);
     const draft = draftProject({ name: o.name || t(`contracts.tpl.${kind}`), files: { [gen.fileName]: gen.source }, main: gen.fileName, mainContract: gen.contractName });
-    open({ name: 'studio', draft, autoDeploy }, { replace: true });
+    // for Tron: an EVM target its virtual machine runs (no opcodes newer than Paris)
+    if (chainId != null && isTron(getChain(chainId))) draft.settings.evmVersion = 'paris';
+    open({ name: 'studio', draft, autoDeploy, chainId }, { replace: true });
   };
   const text = (k, extra = {}) => (
     <div class="field">
@@ -112,7 +116,7 @@ function CodePreview({ title, file, source }) {
 }
 
 // ------------------------------------------------------------ studio
-export function Studio({ projectId, draft, autoDeploy, onBack, open }) {
+export function Studio({ projectId, draft, autoDeploy, chainId: target, onBack, open }) {
   const { chain: active } = useApp();
   const [p, setP] = useState(null);
   const [file, setFile] = useState(null);
@@ -179,7 +183,7 @@ export function Studio({ projectId, draft, autoDeploy, onBack, open }) {
   const ran = useRef(false);
   useEffect(() => { if (p && autoDeploy && !ran.current) { ran.current = true; run(true); } }, [p]);
 
-  const deploy = (c, b = build) => open({ name: 'deploy', chainId: isEvm(active) ? active.id : 1, artifact: { name: c.name, abi: c.abi, bytecode: c.bytecode, linkReferences: c.linkReferences, runtimeSize: c.runtimeSize, initSize: c.initSize }, compilation: { input: b.input, long: b.long, id: c.id } });
+  const deploy = (c, b = build) => open({ name: 'deploy', chainId: target ?? (isEvm(active) || isTron(active) ? active.id : 1), artifact: { name: c.name, abi: c.abi, bytecode: c.bytecode, linkReferences: c.linkReferences, runtimeSize: c.runtimeSize, initSize: c.initSize }, compilation: { input: b.input, long: b.long, id: c.id } });
 
   const errs = build?.errors || [];
   const diags = useMemo(() => errs.filter((e) => e.file === file && e.start != null)
@@ -327,7 +331,7 @@ function VerifyStatus({ chainId, address, compilation, txHash }) {
 
 export function Deploy({ artifact, compilation, chainId: initialChain, onBack, open }) {
   const { state, chain: active } = useApp();
-  const [chainId, setChainId] = useState(initialChain || (isEvm(active) ? active.id : 1));
+  const [chainId, setChainId] = useState(initialChain || (isEvm(active) || isTron(active) ? active.id : 1));
   const [pick, setPick] = useState(false);
   const chain = getChain(chainId, state.customChains) || active;
   const iface = useMemo(() => safeInterface(artifact.abi), [artifact]);
@@ -345,10 +349,16 @@ export function Deploy({ artifact, compilation, chainId: initialChain, onBack, o
     try {
       const bytecode = libs.length ? linkBytecode(artifact.bytecode, artifact.linkReferences, libAddr) : artifact.bytecode;
       if (!/^0x[0-9a-fA-F]+$/.test(bytecode)) throw new Error(t('contracts.deploy.unlinked'));
-      const args = toArgs(inputs, vals, { units });
+      // Tron: addresses typed as T… are the same 20 bytes for the constructor
+      const vals2 = isTron(chain) ? vals.map((x, i) => (inputs[i]?.type === 'address' && isTronAddress(String(x).trim()) ? toEvmAddress(String(x).trim()) : x)) : vals;
+      const args = toArgs(inputs, vals2, { units });
       const data = bytecode + iface.encodeDeploy(args).slice(2);
       const v = value.trim() ? parseInteger(value, chain.native.decimals) : 0n;
       const name = artifact.name || t('contracts.tx.newContract');
+      if (isTron(chain)) {
+        open({ name: 'trondeploy', chainId: chain.id, bytecode: data, abi: artifact.abi, contractName: name, value: v, runtimeSize: artifact.runtimeSize, initSize });
+        return;
+      }
       open({
         name: 'tx', chainId: chain.id,
         req: { kind: 'deploy', data, value: v, title: t('contracts.tx.deployTitle', { name }), name, iface, args, fn: { inputs, name: 'constructor' } },
@@ -388,7 +398,7 @@ export function Deploy({ artifact, compilation, chainId: initialChain, onBack, o
         {err && <div class="error">{err}</div>}
       </div>
       <div class="footer"><Btn onClick={go}>{t('common.continue')}</Btn></div>
-      {pick && <NetworkSheet current={chainId} onPick={setChainId} only={isEvm} onClose={() => setPick(false)} />}
+      {pick && <NetworkSheet current={chainId} onPick={setChainId} only={(c) => isEvm(c) || isTron(c)} onClose={() => setPick(false)} />}
     </div>
   );
 }

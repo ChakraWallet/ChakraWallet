@@ -4,6 +4,7 @@
 import '../inpage.js';
 import './tonconnectInpage.js'; // window.chakra.tonconnect (TON Connect), through the same channel
 import './solanaInpage.js'; // Solana: Chakra as a Wallet Standard wallet, through the same channel
+import './tronInpage.js'; // Tron: window.tron (TIP-1193 / TIP-6963), window.tronLink and tronWeb, through the same channel
 
 (() => {
   if (window.__chakraBridgeReady) return;
@@ -31,6 +32,7 @@ import './solanaInpage.js'; // Solana: Chakra as a Wallet Standard wallet, throu
     if (d.type === 'hello') toPage({ ready: true });
     else if (d.type === 'config') toNative({ type: 'config' });
     else if (d.type === 'dapp') toNative({ type: 'dapp' });
+    else if (d.type === 'tronweb') toNative({ type: 'tronweb' }); // a Tron site: the app injects TronWeb (tronwebPage.js)
     else if (d.type === 'request') toNative({ type: 'request', id: d.id, method: String(d.method), params: d.params });
   });
   toPage({ ready: true });

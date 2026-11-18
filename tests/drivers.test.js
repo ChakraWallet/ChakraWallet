@@ -15,9 +15,13 @@ import { VERSIONS } from '../src/shared/ton/core.js';
 import { solanaChainDriver } from '../src/ui/solana/index.jsx';
 import { SOL_CHAINS } from '../src/shared/solana/api.js';
 import { keyOfSeed, secretText } from '../src/shared/solana/core.js';
+import { tronChainDriver } from '../src/ui/tron/index.jsx';
+import { TRON_CHAINS, TRC20 } from '../src/shared/tron/api.js';
+import { keyOfPrivate, toBase58 } from '../src/shared/tron/core.js';
 
 registerDriver(tonDriver);
 registerDriver(solanaChainDriver);
+registerDriver(tronChainDriver);
 setTonCenterKey('test'); // TON Center's 10 requests/s pace instead of 1/s
 
 const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
@@ -122,6 +126,54 @@ FIXTURES.solana = {
       ]);
     }
     if (u.host === 'coins.llama.fi') return json({ coins: { 'coingecko:solana': { price: 150, confidence: 0.99 }, [`solana:${USDC_SOL}`]: { price: 1, confidence: 0.99 } } });
+    return json({}, 404);
+  },
+};
+
+// Tron: TRX (some staked for energy), USDT, an airdropped junk token and a fake USDT; one TRX received, a zero-value
+// "transfer" (address poisoning) and a dust TRX payment from a stranger
+const ME_TRON = keyOfPrivate('da146374a75310b9666e834ee4ad0866d6f4035967bfc76217c5a495fff9f0d0').address;
+const OTHER_TRON = 'TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH';
+const USDT_TRON = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', JUNK_TRON = keyOfPrivate('2'.repeat(64)).address, FAKE_USDT = keyOfPrivate('3'.repeat(64)).address;
+const TRON_TOKENS = { [JUNK_TRON]: ['Free Gift', 'GIFT', 6], [FAKE_USDT]: ['Tether USD', 'USDT', 6] };
+FIXTURES.tron = {
+  chain: TRON_CHAINS[-195],
+  me: { address: ME_TRON, raw: ME_TRON }, other: OTHER_TRON, bad: '0x5e83857a7719B6aE2DE17af827140C04323a231C',
+  async fetch(url, init = {}) {
+    const u = new URL(String(url));
+    if (u.host === 'coins.llama.fi') return json({ coins: { 'coingecko:tron': { price: 0.3, confidence: 0.99 }, [`tron:${USDT_TRON}`]: { price: 1, confidence: 0.99 } } });
+    if (u.host !== 'api.trongrid.io') return json({}, 404);
+    if (u.pathname === `/v1/accounts/${ME_TRON}`) {
+      return json({ success: true, data: [{ address: ME_TRON, balance: 25_000_000, create_time: 1, frozenV2: [{ amount: 10_000_000, type: 'ENERGY' }, {}],
+        trc20: [{ [USDT_TRON]: '150000000' }, { [JUNK_TRON]: '5000000' }, { [FAKE_USDT]: '9000000000' }], assetV2: [] }] });
+    }
+    if (u.pathname === `/v1/accounts/${ME_TRON}/transactions`) {
+      return json({ success: true, meta: { page_size: 3 }, data: [
+        { txID: 'aa'.repeat(32), block_timestamp: 1794557759000, ret: [{ contractRet: 'SUCCESS', fee: 0 }],
+          raw_data: { timestamp: 1794557759000, contract: [{ type: 'TransferContract', parameter: { value: { owner_address: OTHER_TRON, to_address: ME_TRON, amount: 1_000_000 } } }] } },
+        { txID: 'bb'.repeat(32), block_timestamp: 1794557700000, ret: [{ contractRet: 'SUCCESS', fee: 0 }],
+          raw_data: { timestamp: 1794557700000, contract: [{ type: 'TransferContract', parameter: { value: { owner_address: OTHER_TRON, to_address: ME_TRON, amount: 1 } } }] } },
+        { txID: 'cc'.repeat(32), block_timestamp: 1794557600000, ret: [{ contractRet: 'SUCCESS', fee: 1100000 }],
+          raw_data: { timestamp: 1794557600000, contract: [{ type: 'FreezeBalanceV2Contract', parameter: { value: { owner_address: ME_TRON, frozen_balance: 10_000_000, resource: 'ENERGY' } } }] } },
+      ] });
+    }
+    if (u.pathname === `/v1/accounts/${ME_TRON}/transactions/trc20`) {
+      return json({ success: true, meta: { page_size: 1 }, data: [
+        { transaction_id: 'dd'.repeat(32), block_timestamp: 1794557500000, from: ME_TRON, to: OTHER_TRON, type: 'Transfer', value: '0', token_info: { address: USDT_TRON, symbol: 'USDT', decimals: 6, name: 'Tether USD' } },
+      ] });
+    }
+    if (u.pathname === '/v1/trc20/info') {
+      const list = u.searchParams.get('contract_list').split(',').filter((a) => TRON_TOKENS[a]);
+      return json({ success: true, data: list.map((a) => ({ contract_address: a, name: TRON_TOKENS[a][0], symbol: TRON_TOKENS[a][1], decimals: String(TRON_TOKENS[a][2]), type: 'trc20' })) });
+    }
+    if (u.pathname === '/wallet/triggerconstantcontract') {
+      const b = JSON.parse(init.body);
+      const meta = TRON_TOKENS[b.contract_address];
+      const fn = TRC20.getFunction(`0x${String(b.data).slice(0, 8)}`)?.name;
+      if (!meta || !fn) return json({ result: { result: false, message: 'REVERT' } });
+      const value = fn === 'name' ? meta[0] : fn === 'symbol' ? meta[1] : fn === 'decimals' ? meta[2] : 0n;
+      return json({ result: { result: true }, energy_used: 0, constant_result: [TRC20.encodeFunctionResult(fn, [value]).slice(2)], transaction: { ret: [{}] } });
+    }
     return json({}, 404);
   },
 };
@@ -251,6 +303,11 @@ test('vault families: TON entries are checked, and the versions match the TON li
   assert.deepEqual(familySpec('solana').clean({ address: k.address, secret: secretText(k.seed) }), { address: k.address, secret: secretText(k.seed) });
   assert.equal(familySpec('solana').clean({ address: keyOfSeed(new Uint8Array(32).fill(8)).address, secret: secretText(k.seed) }), null);
   assert.equal(familySpec('solana').clean({ address: k.address, secret: 'abc' }), null);
+  // Tron: the private key (64 hex characters) must give the address
+  const tk = keyOfPrivate('da146374a75310b9666e834ee4ad0866d6f4035967bfc76217c5a495fff9f0d0');
+  assert.deepEqual(familySpec('tron').clean({ address: tk.address, secret: 'DA146374A75310B9666E834EE4AD0866D6F4035967BFC76217C5A495FFF9F0D0' }), { address: tk.address, secret: 'da146374a75310b9666e834ee4ad0866d6f4035967bfc76217c5a495fff9f0d0' });
+  assert.equal(familySpec('tron').clean({ address: OTHER_TRON, secret: 'da146374a75310b9666e834ee4ad0866d6f4035967bfc76217c5a495fff9f0d0' }), null);
+  assert.equal(familySpec('tron').clean({ address: tk.address, secret: 'abc' }), null);
   registerFamily('demo', { clean: (x) => x });
   assert.ok(familyKinds().includes('demo'));
 });
@@ -268,3 +325,35 @@ test('solana: probable junk is apart (hidden, flagged), out of the list and of t
   assert.deepEqual(p.empty, []);
 });
 
+
+test('tron: junk apart, fake tokens dropped, staked TRX in the total; poisoning in the history is spam', async () => {
+  globalThis.fetch = FIXTURES.tron.fetch;
+  const chain = TRON_CHAINS[-195];
+  const p = await driverOf('tron').loadPortfolio(chain, ME_TRON, {});
+  assert.deepEqual(p.tokens.map((x) => x.symbol), ['USDT']);
+  assert.deepEqual(p.hidden.map((x) => [x.symbol, x.junk, x.hidden]), [['GIFT', true, true]], 'the fake USDT is not even among the hidden ones');
+  assert.equal(p.native.staked, '10000000');
+  assert.ok(Math.abs(p.totalUsd - (25 * 0.3 + 10 * 0.3 + 150)) < 1e-6, 'spendable and staked TRX, USDT');
+  assert.equal(p.tron.activated, true);
+  assert.equal(driverOf('tron').tokenWarning(chain, p.hidden[0]), 'tron.token.junk');
+  const h = await driverOf('tron').loadHistory(chain, ME_TRON, null, {});
+  const byHash = Object.fromEntries(h.items.map((x) => [x.hash, x]));
+  assert.equal(byHash['aa'.repeat(32)].kind, 'receive');
+  assert.equal(byHash['aa'.repeat(32)].spam, false);
+  assert.equal(byHash['bb'.repeat(32)].spam, true, 'dust from a stranger');
+  assert.equal(byHash['dd'.repeat(32)].spam, true, 'zero-value transfer');
+  assert.equal(byHash['cc'.repeat(32)].kind, 'contract');
+  assert.match(byHash['cc'.repeat(32)].label, /tron\.h\.stake|10/);
+  assert.equal(byHash['cc'.repeat(32)].fee, '1100000');
+});
+
+test('tron: payment links and EVM addresses', () => {
+  const chain = TRON_CHAINS[-195];
+  const d = driverOf('tron');
+  const link = d.paymentLink(chain, { address: ME_TRON, token: { address: USDT_TRON, decimals: 6 }, amountRaw: '1500000', ask: true });
+  assert.equal(link, `tron:${ME_TRON}?amount=1.5&token=${USDT_TRON}`);
+  assert.deepEqual(d.parseQr(chain, link), { address: ME_TRON, token: USDT_TRON, amountRaw: null, amountText: '1.5' });
+  assert.equal(d.parseQr(chain, ME_TRON).address, ME_TRON);
+  assert.equal(d.validateAddress(chain, '0x5e83857a7719B6aE2DE17af827140C04323a231C').error, 'tron.send.evmAddress');
+  assert.equal(toBase58(`41${'00'.repeat(20)}`), 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb');
+});

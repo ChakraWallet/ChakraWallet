@@ -54,6 +54,15 @@ function hit(h, checks) {
  * Returns { found: { privateKey, address } | null, sample: last address tried (lowercase, no 0x) }.
  */
 export function scan(checks, k0 = randomScalar(), count = BATCH) {
+  const r = scanWith((h) => hit(h, checks), k0, count);
+  return { found: r.found ? { privateKey: r.found.privateKey, address: hexOf(r.found.hash, 12, 32) } : null, sample: hexOf(r.last, 12, 32) };
+}
+
+/**
+ * The same scan with a test of its own on each keccak hash (the address is its bytes 12..31): e.g. Tron, whose
+ * addresses are those 20 bytes in base58. -> { found: { privateKey, hash } | null, last: the last hash }.
+ */
+export function scanWith(test, k0 = randomScalar(), count = BATCH) {
   const pts = new Array(count);
   let p = G.multiply(k0);
   for (let i = 0; i < count; i++) { pts[i] = p; p = p.add(G); }
@@ -64,11 +73,9 @@ export function scan(checks, k0 = randomScalar(), count = BATCH) {
     put32(buf, 0, Fp.mul(pts[i].px, inv[i]));
     put32(buf, 32, Fp.mul(pts[i].py, inv[i]));
     h = keccak_256(buf);
-    if (hit(h, checks)) {
-      return { found: { privateKey: '0x' + (k0 + BigInt(i)).toString(16).padStart(64, '0'), address: hexOf(h, 12, 32) }, sample: hexOf(h, 12, 32) };
-    }
+    if (test(h)) return { found: { privateKey: '0x' + (k0 + BigInt(i)).toString(16).padStart(64, '0'), hash: h }, last: h };
   }
-  return { found: null, sample: hexOf(h, 12, 32) };
+  return { found: null, last: h };
 }
 
 /** Attempts per second of this thread, measured for about `ms` milliseconds. */

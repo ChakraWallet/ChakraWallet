@@ -21,7 +21,7 @@ asked for (noted below), which the screen translates.
 | `parseQr(chain, text)` | `{ address, chainId?, token?, amountRaw?, amountText?, memo? } \| null` | `token`: an address, or NATIVE; `amountText`: an amount already in the token's units, when its decimals aren't known yet (Solana Pay) |
 | `paymentLink(chain, { address, token, amountRaw, ask })` | string | what the receive QR shows; `parseQr` must read it back |
 | `loadPortfolio(chain, raw, { hiddenTokens, customTokens, … })` | `{ native: { balance, amount, price, usd }, tokens: [{ address, symbol, name, decimals, balance, amount, price, usd, icon, priceKey? }], hidden: [tokens the user hid, with `hidden: true`; also those put apart automatically as probable junk, with `junk: true` too: shown again, they become the user's custom tokens], totalUsd, updated, … }` | JSON-serialisable (cached on the device); hidden tokens apart (to be shown again), out of `tokens` and of the total |
-| `loadHistory(chain, raw, cursor, { localLog, etherscanKey })` | `{ items, next, error, unsupported, limitUntil? }` | items as `classify()` in `src/shared/history.js`: `{ hash, time, kind, transfers: [{ dir, symbol, decimals, amount, icon, token, native, counterparty }], status, from, to, fee, sentByMe, spam }`; optional `via` (provider), `comment`, `label` (title), `loadFee()` (fee read when the details open). `limitUntil`: the indexer's shared free pool ran out until then (ms; -1 when it doesn't say) |
+| `loadHistory(chain, raw, cursor, { localLog, etherscanKey })` | `{ items, next, error, unsupported, limitUntil? }` | items as `classify()` in `src/shared/history.js`: `{ hash, time, kind, transfers: [{ dir, symbol, decimals, amount, icon, token, native, counterparty }], status, from, to, fee, sentByMe, spam }`; optional `via` (provider), `comment`, `label` (title), `glyph` (`{ icon, tone }`: an icon of the operation's own, tone `amber` / `green` / `red` / `primary`, e.g. Tron's stake), `loadFee()` (fee read when the details open). `limitUntil`: the indexer's shared free pool ran out until then (ms; -1 when it doesn't say) |
 | `prepareSend(chain, { wallet, account, token, to, amountRaw, isMax, memo, portfolio })` | review (below) | `wallet` = the resolved address of the account |
 | `confirmSend(chain, review, { wallet, account, speed, authorize, title })` | `{ hash?, wait?: Promise<{ hash \| txHash }> }` | `authorize(fn, title)` asks the password and calls `fn(password)`; `wait` when the network confirms in seconds |
 
@@ -77,7 +77,8 @@ One bridge per pair of networks: `bridgeFor(from, to)` picks the driver whose `s
 ## Accounts and settings (optional): `driver.ui`
 
 `HomeExtra` (component: `{ chain, data (the portfolio), reload }`, shown on the home under its notice: e.g. Solana's
-empty token accounts to close), `addOptions` (more ways to add an account, e.g. Solana's vanity address: `[{ key, icon, label, sub (i18n keys),
+empty token accounts to close, Tron's energy and bandwidth), `screens` (`{ name: Component }`: screens of the family's
+own, opened with `nav(name, params)`, e.g. Tron's `tronResources`), `addOptions` (more ways to add an account, e.g. Solana's vanity address: `[{ key, icon, label, sub (i18n keys),
 Component: { onBack, onDone(account) } }]`), `ImportAccount` (component: `{ onBack, onDone(account) }`), `importLabel`, `importSub`, `typeLabel`, `typeShort`,
 `addressLabel` (i18n keys), `useSummaries()` → `{ per: { [account.address]: { chain, p, pending } }, busy, reload }`
 (balances in the accounts' summary), `settings: [{ key, label, hint }]` (Settings > Data, e.g. API keys).

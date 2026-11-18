@@ -9,6 +9,7 @@
 // knowing anything else about the family. Validation is plain data checks (no network library): it is registered in the
 // browser extension too, so a backup made by the app keeps its TON accounts after a round trip through the extension.
 import * as b58 from '../shared/solana/base58.js';
+import { keyOfPrivate } from '../shared/tron/core.js';
 
 const families = new Map();
 
@@ -37,6 +38,18 @@ registerFamily('solana', {
       const a = String(x?.address || ''), s = String(x?.secret || '');
       const pub = b58.decode(a), key = b58.decode(s);
       return pub.length === 32 && key.length === 64 && key.slice(32).every((v, i) => v === pub[i]) ? { address: a, secret: s } : null;
+    } catch { return null; }
+  },
+});
+
+// ---------------------------------------------------------------- Tron (wallets imported from other Tron apps)
+// w.tron = [{ address (T…), secret: the private key, 64 hex characters as TronLink exports it }], type 'tron'. The key
+// must give the address. (Accounts of the phrase and Ethereum keys need no entry: they have their Tron key already.)
+registerFamily('tron', {
+  clean(x) {
+    try {
+      const a = String(x?.address || ''), s = String(x?.secret || '').toLowerCase().replace(/^0x/, '');
+      return /^[0-9a-f]{64}$/.test(s) && keyOfPrivate(s).address === a ? { address: a, secret: s } : null;
     } catch { return null; }
   },
 });

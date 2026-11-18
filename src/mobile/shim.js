@@ -144,6 +144,8 @@ const dropPage = (tabId) => {
 DappBrowser.addListener('pageMessage', (e) => {
   let data;
   try { data = JSON.parse(e.data); } catch { return; }
+  // a Tron site asks for TronWeb (src/mobile/tronInpage.js): the app injects it into that page only
+  if (data?.type === 'tronweb') { DappBrowser.injectScript({ tabId: e.tabId, pageId: e.pageId, name: 'tronweb' }).catch(() => {}); return; }
   let page = pages.get(e.tabId);
   if (!page || page.pageId !== e.pageId) {
     dropPage(e.tabId);

@@ -96,6 +96,19 @@ const LOGOS = {
       <path fill={W} fill-opacity=".5" d="M10.4 19.4h14.2l-3 3H7.4z" />
     </>
   ),
+  // Tron: the faceted triangle, white on red
+  [-195]: (
+    <>
+      <circle cx="16" cy="16" r="16" fill="#EB0029" />
+      <path fill="none" stroke={W} stroke-width="1.6" stroke-linejoin="round" d="M8.2 8.6l16.9 3.9-10.6 13zM8.2 8.6l10.4 6.2 6.5-2.3M18.6 14.8l-4.1 10.7" />
+    </>
+  ),
+  [-196]: (
+    <>
+      <circle cx="16" cy="16" r="16" fill="#9CA3AF" />
+      <path fill="none" stroke={W} stroke-width="1.6" stroke-linejoin="round" d="M8.2 8.6l16.9 3.9-10.6 13zM8.2 8.6l10.4 6.2 6.5-2.3M18.6 14.8l-4.1 10.7" />
+    </>
+  ),
   // TON (coin: GRAM)
   [-239]: (
     <>
@@ -121,7 +134,7 @@ const LOGOS = {
 };
 
 // Native coins / common tokens -> logo of the chain they belong to
-const SYMBOL_LOGO = { GRAM: -239, TON: -239, SOL: -501, WSOL: -501, ETH: 1, WETH: 1, POL: 137, MATIC: 137, WPOL: 137, BNB: 56, WBNB: 56, AVAX: 43114, WAVAX: 43114, XDAI: 100, WXDAI: 100, OP: 10, ARB: 42161, LINEA: 59144 };
+const SYMBOL_LOGO = { GRAM: -239, TON: -239, SOL: -501, WSOL: -501, TRX: -195, WTRX: -195, ETH: 1, WETH: 1, POL: 137, MATIC: 137, WPOL: 137, BNB: 56, WBNB: 56, AVAX: 43114, WAVAX: 43114, XDAI: 100, WXDAI: 100, OP: 10, ARB: 42161, LINEA: 59144 };
 
 export function hasChainLogo(id) { return !!LOGOS[id]; }
 export function symbolLogoId(symbol = '') { return SYMBOL_LOGO[symbol.toUpperCase()]; }

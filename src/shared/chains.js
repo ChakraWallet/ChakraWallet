@@ -119,7 +119,7 @@ export const builtinNetworks = () => allChains([]);
 /** Networks that can't be switched off: Ethereum. */
 export const ALWAYS_ON = new Set([1]);
 /** Networks that start switched on in the first setup (the others are added by the user): Ethereum, and TON in the app. */
-export const DEFAULT_ON = new Set([1, -239, -501]);
+export const DEFAULT_ON = new Set([1, -239, -501, -195]);
 /** Networks switched off in Settings (settings.disabledChains). */
 export const isChainEnabled = (id, settings) => ALWAYS_ON.has(Number(id)) || !(settings?.disabledChains || []).includes(Number(id));
 

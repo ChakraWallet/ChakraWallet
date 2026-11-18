@@ -180,7 +180,9 @@ async function buildAndroid() {
     entryPoints: {
       app: path.join(SRC, 'mobile', 'index.jsx'), inject: path.join(SRC, 'mobile', 'inject.js'), 'vanity-worker': path.join(SRC, 'ui', 'vanityWorker.js'),
       'sol-vanity-worker': path.join(SRC, 'ui', 'solana', 'vanityWorker.js'), // Solana vanity search (Android app only)
+      'tron-vanity-worker': path.join(SRC, 'ui', 'tron', 'vanityWorker.js'), // Tron vanity search (Android app only)
       'solc-worker': path.join(SRC, 'ui', 'solcWorker.js'), // Solidity compiler (Contracts tab), downloads soljson on first use
+      tronweb: path.join(SRC, 'mobile', 'tronwebPage.js'), // TronWeb for Tron dapps: injected only into the pages that use Tron
     },
     bundle: true, outdir, format: 'iife', target: ['chrome100'],
     jsx: 'automatic', jsxImportSource: 'preact', loader: { '.css': 'css', '.woff2': 'file', '.svg': 'dataurl' }, assetNames: 'fonts/[name]', minify: true,

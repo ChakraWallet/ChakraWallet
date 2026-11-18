@@ -1,10 +1,13 @@
-# Adding a family of networks (e.g. Tron)
+# Adding a family of networks
 
 The screens never need to change: a new family is a **driver** for the UI, a **module** for keys and signing in the
 background, its **networks** and its **data**. TON and Solana are complete examples (Android app only): TON in
 `src/ui/ton/driver.js`, `src/background/ton.js`, `src/shared/ton/*`, registered by `src/mobile/tonPlugin.js`; Solana in
 `src/ui/solana/*`, `src/background/solana.js` (+ `solanaDapp.js`, Wallet Standard dapps), `src/shared/solana/*`,
-registered by `src/mobile/solanaPlugin.js`.
+registered by `src/mobile/solanaPlugin.js`; Tron in `src/ui/tron/*`, `src/background/tron.js` (+ `tronDapp.js`: window.tron,
+tronLink and tronWeb), `src/shared/tron/*`, registered by `src/mobile/tronPlugin.js` - also an example of a family with
+screens of its own (`driver.ui.screens`: its Resources page) and of a large page script loaded only when a site needs it
+(TronWeb, `src/mobile/tronwebPage.js`, injected by `DappBrowserPlugin.injectScript`).
 
 ## Checklist
 

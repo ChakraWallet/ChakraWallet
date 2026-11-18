@@ -46,6 +46,11 @@ const P = {
   key: 'M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4zM16.5 7.5h.01', // Lucide key-round (ISC)
   phrase: 'M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1',
   wifiOff: 'M12 20h.01M8.5 16.429a5 5 0 0 1 7 0M5 12.859a10 10 0 0 1 5.17-2.69M19 12.859a10 10 0 0 0-2.007-1.523M2 8.82a15 15 0 0 1 4.177-2.643M22 8.82a15 15 0 0 0-11.288-3.764M2 2l20 20', // Lucide wifi-off (ISC)
+  signal: 'M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16', // Lucide signal (ISC): Tron's bandwidth
+  timer: 'M10 2h4M12 14l3-3M20 14a8 8 0 1 1-16 0 8 8 0 0 1 16 0', // Lucide timer (ISC)
+  vote: 'M9 12l2 2 4-4M5 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12H5zM22 19H2', // Lucide vote (ISC)
+  shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1zM9 12l2 2 4-4', // Lucide shield-check (ISC)
+  share: 'M21 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0M9 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0M21 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8.59 13.51l6.83 3.98M15.41 7.51l-6.82 3.98', // Lucide share-2 (ISC)
   flash: 'M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z', // Lucide zap (ISC)
   camera: 'M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4zM9 13a3 3 0 1 0 6 0a3 3 0 1 0-6 0', // Lucide camera (ISC)
   mic: 'M12 19v3M19 10v2a7 7 0 0 1-14 0v-2M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0z', // Lucide mic (ISC)
@@ -520,7 +525,7 @@ export const rich = (key, vars) => richText(t(key), vars);
 
 export function Empty({ children }) { return <div class="empty">{children}</div>; }
 
-// networks whose explorer differs: explorerAddress (the path of an address, e.g. Solscan's "account"), explorerQuery
-// (e.g. "?cluster=devnet")
-export function explorerTx(chain, hash) { return chain.explorer ? `${chain.explorer}/tx/${hash}${chain.explorerQuery || ''}` : null; }
+// networks whose explorer differs: explorerAddress (the path of an address, e.g. Solscan's "account"), explorerTxPath
+// (of a transaction, e.g. Tronscan's "transaction"), explorerQuery (e.g. "?cluster=devnet")
+export function explorerTx(chain, hash) { return chain.explorer ? `${chain.explorer}/${chain.explorerTxPath || 'tx'}/${hash}${chain.explorerQuery || ''}` : null; }
 export function explorerAddr(chain, a) { return chain.explorer ? `${chain.explorer}/${chain.explorerAddress || 'address'}/${a}${chain.explorerQuery || ''}` : null; }

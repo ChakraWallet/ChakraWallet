@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit;
  *    request a second without a key); tiny GRAM credits (the ads of spam transfers) aren't notified;
  *  - Solana: SOL and the watched tokens of each account's Solana address, from a Solana node (the first of the list
  *    that answers); tiny SOL credits (the dust of address poisoning) aren't notified;
+ *  - Tron: TRX and the watched TRC-20 tokens of each account's Tron address, from TronGrid (one request per account;
+ *    a few a second without a key); tiny TRX credits (the dust of address poisoning) aren't notified;
  *  - bridges still in transit: asks Relay / LI.FI / Across / deBridge -> "Bridge arrived / refunded / failed".
  * Nothing is notified while the app is in the foreground (the app shows its own toasts there).
  */
@@ -87,6 +89,7 @@ public class WatchWorker extends Worker {
             checkBalances(c, lc, cfg);
             try { checkTon(c, lc, cfg.optJSONObject("ton")); } catch (Exception ignored) { }
             try { checkSolana(c, lc, cfg.optJSONObject("solana")); } catch (Exception ignored) { }
+            try { checkTron(c, lc, cfg.optJSONObject("tron")); } catch (Exception ignored) { }
             checkBridges(c, lc, store.getString("ew_local:bridges", "[]"));
         } catch (Exception ignored) { }
         return Result.success();
@@ -280,6 +283,54 @@ public class WatchWorker extends Worker {
         ed.apply();
     }
 
+    // ------------------------------------------------------------------ Tron
+    private static final BigInteger TRX_DUST = BigInteger.valueOf(100_000L); // 0.1 TRX: below it, a credit is poisoning dust
+
+    /** tron: { name, symbol, decimals, api, key, accounts: [{ id, address (T…), name }], tokens: [{ address, symbol, decimals }] } */
+    private void checkTron(Context c, Context lc, JSONObject tr) throws Exception {
+        if (tr == null) return;
+        JSONArray accounts = tr.optJSONArray("accounts");
+        if (accounts == null || accounts.length() == 0) return;
+        String api = tr.optString("api", "https://api.trongrid.io"), key = tr.optString("key", "");
+        long gap = key.isEmpty() ? 1200 : 200; // TronGrid: few requests a second without a key
+        JSONArray tokens = tr.optJSONArray("tokens");
+        JSONObject ch = new JSONObject().put("id", -195).put("name", tr.optString("name", "Tron"));
+        SharedPreferences st = c.getSharedPreferences(STATE, Context.MODE_PRIVATE);
+        SharedPreferences.Editor ed = st.edit();
+        for (int ai = 0; ai < accounts.length(); ai++) {
+            JSONObject acc = accounts.getJSONObject(ai);
+            String a = acc.getString("address"); // base58: case matters
+            try {
+                JSONObject j = new JSONObject(http(api + "/v1/accounts/" + enc(a), null, key));
+                JSONArray data = j.optJSONArray("data");
+                if (data == null || !j.optBoolean("success", true)) continue; // no answer: leave the balances alone
+                BigInteger trx = BigInteger.ZERO;
+                java.util.Map<String, BigInteger> held = new java.util.HashMap<>();
+                if (data.length() > 0) {
+                    JSONObject d = data.getJSONObject(0);
+                    String b = d.optString("balance", "0");
+                    if (b.matches("\\d+")) trx = new BigInteger(b);
+                    JSONArray trc20 = d.optJSONArray("trc20");
+                    for (int i = 0; trc20 != null && i < trc20.length(); i++) {
+                        JSONObject o = trc20.getJSONObject(i);
+                        for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) {
+                            String t = it.next(), v = o.optString(t, "");
+                            if (v.matches("\\d+")) held.put(t, new BigInteger(v));
+                        }
+                    }
+                }
+                compareAmount(c, lc, ed, st, ch, acc, a, "native", tr.optString("symbol", "TRX"), tr.optInt("decimals", 6), trx, true, TRX_DUST);
+                for (int ti = 0; tokens != null && ti < tokens.length(); ti++) {
+                    JSONObject tk = tokens.getJSONObject(ti);
+                    String t = tk.getString("address");
+                    compareAmount(c, lc, ed, st, ch, acc, a, t, tk.getString("symbol"), tk.getInt("decimals"), held.containsKey(t) ? held.get(t) : BigInteger.ZERO, false, BigInteger.ZERO);
+                }
+            } catch (Exception ignored) { }
+            Thread.sleep(gap);
+        }
+        ed.apply();
+    }
+
     private static String enc(String s) throws Exception { return java.net.URLEncoder.encode(s, "UTF-8"); }
 
     private static Locale locale = Locale.ENGLISH;
@@ -324,7 +375,10 @@ public class WatchWorker extends Worker {
                 return "success".equals(s) ? "done" : "refund".equals(s) ? "refunded" : "failure".equals(s) ? "failed" : "pending";
             }
             if ("LI.FI".equals(p)) {
-                JSONObject r = new JSONObject(get("https://li.quest/v1/status?txHash=" + tx + "&fromChain=" + b.optInt("fromChainId") + "&toChain=" + b.optInt("toChainId")));
+                // networks LI.FI knows by an id of its own (Solana, Tron): the route's reference carries them
+                long from = ref != null && ref.has("lifiFrom") ? ref.optLong("lifiFrom") : b.optLong("fromChainId");
+                long to = ref != null && ref.has("lifiTo") ? ref.optLong("lifiTo") : b.optLong("toChainId");
+                JSONObject r = new JSONObject(get("https://li.quest/v1/status?txHash=" + tx + "&fromChain=" + from + "&toChain=" + to));
                 String s = r.optString("status");
                 return "DONE".equals(s) ? ("REFUNDED".equals(r.optString("substatus")) ? "refunded" : "done") : "FAILED".equals(s) ? "failed" : "pending";
             }
@@ -383,14 +437,16 @@ public class WatchWorker extends Worker {
     }
 
     // ------------------------------------------------------------------ http
-    private static String get(String url) throws Exception { return http(url, null); }
-    private static String post(String url, String json) throws Exception { return http(url, json); }
+    private static String get(String url) throws Exception { return http(url, null, null); }
+    private static String post(String url, String json) throws Exception { return http(url, json, null); }
 
-    private static String http(String url, String body) throws Exception {
+    /** tronGridKey: TronGrid's optional key (its own header). */
+    private static String http(String url, String body, String tronGridKey) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(10000);
         c.setReadTimeout(15000);
         c.setRequestProperty("Accept", "application/json");
+        if (tronGridKey != null && !tronGridKey.isEmpty()) c.setRequestProperty("TRON-PRO-API-KEY", tronGridKey);
         if (body != null) {
             c.setRequestMethod("POST");
             c.setDoOutput(true);

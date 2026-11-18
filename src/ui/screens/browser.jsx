@@ -20,6 +20,8 @@ const FEATURED = [ // cat: i18n keys
   { name: 'Lido', url: 'https://stake.lido.fi', color: '#00A3FF', cat: 'browser.cat.staking' },
   { name: 'Jumper', url: 'https://jumper.exchange', color: '#5B4CF0', cat: 'browser.cat.bridge' },
   { name: 'Curve', url: 'https://curve.fi', color: '#E1352B', cat: 'browser.cat.exchange' },
+  { name: 'SUN.io', url: 'https://sun.io', color: '#F2A93B', cat: 'browser.cat.exchange' }, // Tron (SunSwap)
+  { name: 'JustLend', url: 'https://app.justlend.org', color: '#16B98B', cat: 'browser.cat.lending' }, // Tron
   { name: 'OpenSea', url: 'https://opensea.io', color: '#2081E2', cat: 'browser.cat.nft' },
   { name: 'Revoke', url: 'https://revoke.cash', color: '#111827', cat: 'browser.cat.security' },
   { name: 'DefiLlama', url: 'https://defillama.com', color: '#2172E5', cat: 'browser.cat.analytics' },
@@ -563,10 +565,10 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
   const saveBookmarks = async (next) => { await local.set('bookmarks', next); setBookmarks(next); };
   const toggleBookmark = () => saveBookmarks(isBookmarked ? bookmarks.filter((b) => b.url !== tab.url) : [{ url: tab.url, title: tab.title || hostOf(tab.url), favicon: tab.favicon || '' }, ...bookmarks]);
   const clearHistory = async () => { await local.set('browserHistory', []); setRecent([]); toast(t('browser.historyCleared')); };
-  const connected = opened && (state.permissions?.[originOf(tab.url)] || state.tonSites?.[originOf(tab.url)] || state.solSites?.[originOf(tab.url)]);
+  const connected = opened && (state.permissions?.[originOf(tab.url)] || state.tonSites?.[originOf(tab.url)] || state.solSites?.[originOf(tab.url)] || state.tronSites?.[originOf(tab.url)]);
   const secure = opened && tab.url.startsWith('https://') && !tab.flagged;
   // sites connected to Ethereum accounts and to TON (TON Connect)
-  const connectedOrigins = useMemo(() => new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {}), ...Object.keys(state.solSites || {})]), [state.permissions, state.tonSites, state.solSites]);
+  const connectedOrigins = useMemo(() => new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {}), ...Object.keys(state.solSites || {}), ...Object.keys(state.tronSites || {})]), [state.permissions, state.tonSites, state.solSites, state.tronSites]);
 
   const suggestions = useMemo(() => {
     const q = input.trim().toLowerCase();
@@ -794,6 +796,8 @@ function CertSheet({ tab, onClose }) {
   const tonAcc = ton && state.accounts.find((x) => x.address === ton.account);
   const sol = state.solSites?.[origin]; // Solana session (Wallet Standard)
   const solAcc = sol && state.accounts.find((x) => x.address === sol.account);
+  const tron = state.tronSites?.[origin]; // Tron session (window.tron / tronLink)
+  const tronAcc = tron && state.accounts.find((x) => x.address === tron.account);
   const now = Date.now();
   const expired = cert?.validTo && cert.validTo < now;
   const name = (x) => [x?.cn, x?.o].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || '—';
@@ -836,7 +840,7 @@ function CertSheet({ tab, onClose }) {
         </>
       )}
       <div class="section-title">{t('browser.wallet')}</div>
-      {perm || ton || sol ? (
+      {perm || ton || sol || tron ? (
         <div class="card col" style={{ gap: '0.5rem' }}>
           {perm && <div class="small">{tn('browser.seesAccounts', perm.accounts.length)}</div>}
           {perm?.accounts.map((a) => {
@@ -847,6 +851,8 @@ function CertSheet({ tab, onClose }) {
           {ton && <div class="row"><Avatar address={ton.account} /><span class="bold ellipsis grow">{tonAcc?.name || shortAddr(ton.display, 6)}</span><span class="tiny muted">{shortAddr(ton.display, 6)}</span></div>}
           {sol && <div class="small">{t('solapp.site.sees')}</div>}
           {sol && <div class="row"><Avatar address={sol.account} /><span class="bold ellipsis grow">{solAcc?.name || shortAddr(sol.address, 6)}</span><span class="tiny muted">{shortAddr(sol.address, 6)}</span></div>}
+          {tron && <div class="small">{t('tronapp.site.sees')}</div>}
+          {tron && <div class="row"><Avatar address={tron.account} /><span class="bold ellipsis grow">{tronAcc?.name || shortAddr(tron.address, 6)}</span><span class="tiny muted">{shortAddr(tron.address, 6)}{tron.node === 'nile' ? ' · Nile' : ''}</span></div>}
           <Btn kind="secondary" onClick={disconnect}>{t('browser.disconnect')}</Btn>
         </div>
       ) : <div class="small muted">{t('browser.notConnectedInfo')}</div>}

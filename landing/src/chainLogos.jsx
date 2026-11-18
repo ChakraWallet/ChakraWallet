@@ -95,6 +95,13 @@ const LOGOS = {
       <path fill="#9945FF" d="M10.4 19.4h14.2l-3 3H7.4z" />
     </>
   ),
+  // Tron
+  [-195]: (
+    <>
+      <circle cx="16" cy="16" r="16" fill="#EB0029" />
+      <path fill="none" stroke={W} strokeWidth="1.6" strokeLinejoin="round" d="M8.2 8.6l16.9 3.9-10.6 13zM8.2 8.6l10.4 6.2 6.5-2.3M18.6 14.8l-4.1 10.7" />
+    </>
+  ),
 };
 
 /** A network's mark (32x32 drawing), or nothing for a network without one. */
