@@ -9,9 +9,12 @@ import { t } from '../shared/i18n.js';
 
 const EVENT = 'ck-connect-qr';
 
-/** The button (nothing when no protocol is registered). children: an optional label next to the icon. */
-export function ConnectQrButton({ class: cls = 'iconbtn hero-btn', size = 15, children }) {
-  if (!hasConnectors()) return null;
+/**
+ * The button (nothing when no protocol is registered). family: only when a protocol connects that family's networks
+ * (the wallet card: TON Connect on TON, not on the others). children: an optional label next to the icon.
+ */
+export function ConnectQrButton({ class: cls = 'iconbtn hero-btn', size = 15, family, children }) {
+  if (!hasConnectors(family)) return null;
   return (
     <button class={cls} title={t('connect.qr.title')} onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new Event(EVENT)); }}>
       <Icon name="qr" size={size} />{children}

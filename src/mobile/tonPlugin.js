@@ -48,6 +48,7 @@ function told(r) {
 
 // "Connect with QR" (wallet card, Settings): a tc:// code shown by a dapp on another screen
 registerConnector({
+  family: 'ton',
   match: (text) => parseConnectLink(text)?.kind === 'connect',
   open: async (text) => told(await bg('tonConnectLink', { url: text })),
 });

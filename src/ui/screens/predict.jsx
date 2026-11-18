@@ -119,10 +119,15 @@ export function Predict({ visible, onDeep, openReq }) {
           <ForYou onBack={back} backRef={fyBack} active={visible && top.name === 'foryou'} onOpen={(ev) => open({ name: 'event', slug: ev.slug, event: ev })} />
         </div>
       )}
-      {top && top.name !== 'foryou' && (
+      {/* the portfolio too: back from a market opened from it, same tab, filter and place in the list (no reload) */}
+      {stack.some((x) => x.name === 'portfolio') && (
+        <div class={`screen ${top.name === 'portfolio' ? dir : ''}`} style={{ display: top.name === 'portfolio' ? 'flex' : 'none' }}>
+          <Portfolio onBack={back} onOpen={(slug) => open({ name: 'event', slug })} />
+        </div>
+      )}
+      {top?.name === 'event' && (
         <div class={`screen ${dir}`} key={stack.length + top.name + (top.slug || '')}>
-          {top.name === 'event' ? <EventView slug={top.slug} initial={top.event} onBack={back} active={visible} />
-            : <Portfolio onBack={back} onOpen={(slug) => open({ name: 'event', slug })} />}
+          <EventView slug={top.slug} initial={top.event} onBack={back} active={visible} />
         </div>
       )}
     </div>

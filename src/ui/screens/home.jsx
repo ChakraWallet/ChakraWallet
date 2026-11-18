@@ -206,7 +206,7 @@ export function Home() {
             <Guilloche seed={account.address} draw key={account.address} />
             <div class="row between">
               <span class="label">{t('home.totalBalance', { network: chain.name })}</span>
-              <span class="hero-tools"><ConnectQrButton /><PrivacyBtn />
+              <span class="hero-tools"><ConnectQrButton family={familyOf(chain)} /><PrivacyBtn />
               <button class="iconbtn hero-btn" title={t('home.refresh')} onClick={reloadAll}>
                 {loading ? <Spinner /> : <Icon name="refresh" size={15} />}
               </button></span>

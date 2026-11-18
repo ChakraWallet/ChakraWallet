@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
 import { shortAddr, fmtNum, fmtUsd } from '../../shared/format.js';
+import { getChain } from '../../shared/chains.js';
 import { TopBar, Avatar, Icon, Btn, Sheet, QR, CopyBtn, useApp, explorerAddr, TokenIcon, Spinner, SecureScreen, ChainIcon, usePrivacy, PrivacyBtn } from '../components.jsx';
 import { useMultichainPortfolios, summarize } from '../hooks.js';
 import { allDrivers, driverOf, accountFamily, isEvmAccount } from '../chains/index.js';
@@ -20,6 +21,17 @@ const useFamilySummaries = () => allDrivers().filter((d) => d.ui?.useSummaries).
 /** An account of one family shows its address the way that family does (TON: UQ…). */
 const shownAddress = (a) => driverOf(accountFamily(a))?.displayAddress?.(a) || a.address;
 
+/** A row of the "Add account" sheet: an icon (or a network's logo), the label and its line; more: a next step follows. */
+function Row({ icon, tone = 'primary', chain, label, sub, more, onClick }) {
+  return (
+    <button class="item" onClick={onClick}>
+      {chain ? <ChainIcon chain={chain} /> : <div class="tx-icon" style={{ background: `var(--${tone}-soft)`, color: `var(--${tone})` }}><Icon name={icon} /></div>}
+      <div class="grow" style={{ minWidth: 0 }}><div class="bold">{label}</div><div class="small muted">{sub}</div></div>
+      {more && <span class="muted"><Icon name="forward" size={14} /></span>}
+    </button>
+  );
+}
+
 function AddSheet({ onClose }) {
   const { refresh, toast, back, state } = useApp();
   const wallet = state.wallets.find((w) => w.id === state.activeWallet);
@@ -36,47 +48,78 @@ function AddSheet({ onClose }) {
     } catch (e) { setErr(e.message); }
     setLoading(false);
   };
+  const done = (acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); };
+
+  // custom address and import: one row each, then the network (Ethereum and EVM networks, TON, Solana...).
+  // With one network only (the browser extension) the row goes straight to it.
+  const evm = getChain(1);
+  const familyChain = (kind) => getChain(driverOf(kind)?.defaultChainId);
+  const others = addOptions().filter((o) => o.key !== 'vanity'); // other ways of a family to add an account
+  const vanities = [
+    { mode: 'vanity', chain: evm, label: 'accounts.add.net.evm', sub: 'accounts.add.vanity.sub' },
+    ...addOptions().filter((o) => o.key === 'vanity').map((o) => ({ mode: `option:${o.id}`, chain: familyChain(o.id.split(':')[0]), sub: o.sub })),
+  ];
+  const imports = [
+    { mode: 'import', chain: evm, label: 'accounts.add.net.evm', sub: 'accounts.add.import.evmSub' },
+    ...importers().map((d) => ({ mode: `import:${d.kind}`, chain: familyChain(d.kind), sub: d.ui.importSub })),
+  ];
+  const multi = imports.length > 1; // other families than Ethereum's (Android app)
+  const pick = (list, pickMode) => (list.length > 1 ? pickMode : list[0].mode);
+  // "back" from a form: to the list of networks it was picked from, or to the start
+  const backTo = () => setMode(vanities.length > 1 && vanities.some((v) => v.mode === mode) ? 'pick:vanity'
+    : multi && imports.some((v) => v.mode === mode) ? 'pick:import' : null);
+
   const option = mode?.startsWith('option:') ? addOptions().find((o) => `option:${o.id}` === mode) : null;
   if (option) {
     const C = option.Component;
     return (
       <Sheet title={t(option.label)} onClose={onClose}>
-        <C onBack={() => setMode(null)} onDone={(acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />
+        <C onBack={backTo} onDone={done} />
       </Sheet>
     );
   }
   if (mode === 'vanity') {
     return (
       <Sheet title={t('vanity.title')} onClose={onClose}>
-        <VanityAccount onBack={() => setMode(null)} onCreated={async (acc) => { await refresh(); toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />
+        <VanityAccount onBack={backTo} onCreated={async (acc) => { await refresh(); done(acc); }} />
       </Sheet>
     );
   }
+
+  const networks = (list) => (
+    <>
+      <div class="list">
+        {list.map((v) => <Row chain={v.chain} label={v.label ? t(v.label) : v.chain?.name} sub={t(v.sub)} more onClick={() => setMode(v.mode)} />)}
+      </div>
+      <Btn kind="secondary" onClick={() => setMode(null)}>{t('common.back')}</Btn>
+    </>
+  );
+  if (mode === 'pick:vanity') return <Sheet title={t('accounts.add.vanity')} onClose={onClose}>{networks(vanities)}</Sheet>;
+  if (mode === 'pick:import') return <Sheet title={t('accounts.add.importFrom')} onClose={onClose}>{networks(imports)}</Sheet>;
+
   return (
     <Sheet title={t('accounts.add.title', { name: wallet?.name })} onClose={onClose}>
       {!mode && (
-        <div class="list">
-          {wallet?.hasSeed && <button class="item" onClick={() => setMode('hd')}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="plus" /></div>
-            <div><div class="bold">{t('accounts.add.hd')}</div><div class="small muted">{t('accounts.add.hd.sub')}</div></div></button>}
-          <button class="item" onClick={() => setMode('random')}><div class="tx-icon" style={{ background: 'var(--green-soft)', color: 'var(--green)' }}><Icon name="key" /></div>
-            <div><div class="bold">{t('accounts.add.random')}</div><div class="small muted">{t('accounts.add.random.sub')}</div></div></button>
-          <button class="item" onClick={() => setMode('vanity')}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="sparkle" /></div>
-            <div><div class="bold">{t('accounts.add.vanity')}</div><div class="small muted">{t('accounts.add.vanity.sub')}</div></div></button>
-          <button class="item" onClick={() => setMode('import')}><div class="tx-icon" style={{ background: 'var(--amber-soft)', color: 'var(--amber)' }}><Icon name="receive" /></div>
-            <div><div class="bold">{t('accounts.add.import')}</div><div class="small muted">{t('accounts.add.import.sub')}</div></div></button>
-          {addOptions().map((o) => ( // e.g. Android: a Solana vanity address
-            <button class="item" onClick={() => setMode(`option:${o.id}`)}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name={o.icon} /></div>
-              <div><div class="bold">{t(o.label)}</div><div class="small muted">{t(o.sub)}</div></div></button>
-          ))}
-          {importers().map((d) => ( // e.g. Android: a wallet from another TON app
-            <button class="item" onClick={() => setMode(`import:${d.kind}`)}><div class="tx-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Icon name="wallet" /></div>
-              <div><div class="bold">{t(d.ui.importLabel)}</div><div class="small muted">{t(d.ui.importSub)}</div></div></button>
-          ))}
-        </div>
+        <>
+          <div class="group-title">{t('accounts.add.sec.create')}</div>
+          <div class="list">
+            {wallet?.hasSeed && <Row icon="plus" label={t('accounts.add.hd')} sub={t('accounts.add.hd.sub')} onClick={() => setMode('hd')} />}
+            <Row icon="sparkle" label={t('accounts.add.vanity')} sub={t(vanities.length > 1 ? 'accounts.add.vanity.subAny' : 'accounts.add.vanity.sub')} more={vanities.length > 1} onClick={() => setMode(pick(vanities, 'pick:vanity'))} />
+            {others.map((o) => <Row icon={o.icon} label={t(o.label)} sub={t(o.sub)} onClick={() => setMode(`option:${o.id}`)} />)}
+          </div>
+          <div class="group-title">{t('accounts.add.sec.import')}</div>
+          <div class="list">
+            <Row icon="receive" tone="amber" label={t(multi ? 'accounts.add.importFrom' : 'accounts.add.import')} sub={t(multi ? 'accounts.add.importFrom.sub' : 'accounts.add.import.sub')} more={multi} onClick={() => setMode(pick(imports, 'pick:import'))} />
+          </div>
+          <div class="group-title">{t('accounts.add.sec.advanced')}</div>
+          <div class="list">
+            <Row icon="key" tone="green" label={t('accounts.add.random')} sub={t(multi ? 'accounts.add.random.subEvm' : 'accounts.add.random.sub')} onClick={() => setMode('random')} />
+          </div>
+        </>
       )}
       {mode?.startsWith('import:') && (() => {
         const C = driverOf(mode.slice(7))?.ui.ImportAccount;
-        return C && <C onBack={() => setMode(null)} onDone={(acc) => { toast(t('accounts.created', { name: acc.name })); onClose(); back(); }} />;
+        return C && <C onBack={backTo} onDone={done} />;
       })()}
       {mode && !mode.startsWith('import:') && !mode.startsWith('option:') && (
         <>
@@ -84,7 +127,7 @@ function AddSheet({ onClose }) {
           {mode === 'import' && <div class="field"><label>{t('accounts.privateKey')}</label><input class="input mono" type="password" value={pk} onInput={(e) => setPk(e.target.value)} placeholder="0x…" /></div>}
           {mode === 'random' && <div class="warn small">{t('accounts.add.randomWarn')}</div>}
           {err && <div class="error">{err}</div>}
-          <div class="row"><Btn kind="secondary" class="grow" onClick={() => setMode(null)}>{t('common.back')}</Btn><Btn class="grow" loading={loading} disabled={mode === 'import' && !pk} onClick={() => go(mode)}>{t('common.create')}</Btn></div>
+          <div class="row"><Btn kind="secondary" class="grow" onClick={backTo}>{t('common.back')}</Btn><Btn class="grow" loading={loading} disabled={mode === 'import' && !pk} onClick={() => go(mode)}>{t('common.create')}</Btn></div>
         </>
       )}
     </Sheet>
