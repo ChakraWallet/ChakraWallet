@@ -248,12 +248,20 @@ for (const [kind, fx] of Object.entries(FIXTURES)) {
     for (const it of r.items) {
       assert.equal(typeof it.hash, 'string'); assert.equal(typeof it.time, 'number');
       assert.ok(KINDS.includes(it.kind), `kind ${it.kind}`);
-      assert.ok(['ok', 'failed', 'pending'].includes(it.status));
+      assert.ok(['ok', 'failed', 'pending', 'replaced', 'cancelled', 'dropped'].includes(it.status));
       for (const x of it.transfers) {
         assert.ok(['in', 'out'].includes(x.dir)); assert.equal(typeof x.symbol, 'string');
         assert.equal(typeof x.decimals, 'number'); assert.equal(typeof x.amount, 'string');
       }
     }
+  });
+
+  test(`${kind}: speed up / cancel, when offered`, () => {
+    const r = d().replace;
+    if (!r) return;
+    for (const k of ['options', 'prepare', 'confirm']) assert.equal(typeof r[k], 'function', `replace.${k}`);
+    // a row received from someone else is never replaceable
+    assert.equal(r.options(fx.chain, { hash: '0x01', status: 'pending', sentByMe: false, transfers: [] }), null);
   });
 
   test(`${kind}: bridge description`, () => {

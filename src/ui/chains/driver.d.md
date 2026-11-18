@@ -74,6 +74,23 @@ One bridge per pair of networks: `bridgeFor(from, to)` picks the driver whose `s
 - A quote with `twoStep` is an operation in two transactions (TON: jetton → GRAM, then GRAM → the other network):
   the screen marks it and explains both before anything is signed.
 
+## Speed up / cancel (optional): `driver.replace`
+
+For networks where a transaction can wait in a queue ordered by its fee (EVM; Bitcoin: RBF): a transaction still
+waiting is sent again, in its place, with a higher fee - the same one ("speed up") or nothing ("cancel").
+
+- `options(chain, item)` → `{ speedUp, cancel } | null`: what a history row allows now (sync, from the row only).
+- `prepare(chain, item, { mode: 'speedUp' | 'cancel', wallet, account, nativePrice })` → a review, as `prepareSend`'s
+  (`rows`, `notes`, `fee`, `amount(speed)`, `problem(speed)`).
+- `confirm(chain, review, { wallet, account, speed, authorize, title })` → `{ hash, wait? }`.
+
+The history rows say what became of a transaction: `status` may also be `'replaced'` (another one took its place),
+`'cancelled'`, `'dropped'` (never included, and nobody holds it any more: `options` may offer `speedUp` to send it
+again); a row that is itself a replacement has `replacement: 'speedUp' | 'cancel'` and `replaces` (the hash it
+replaced). One row per operation: the transactions that replaced each other show as one. Screen:
+`src/ui/screens/replaceTx.jsx`. EVM: `src/ui/chains/evm.js` (the background rebuilds the transaction from what it kept
+when it sent it, and takes only the fees from the screen).
+
 ## Accounts and settings (optional): `driver.ui`
 
 `HomeExtra` (component: `{ chain, data (the portfolio), reload }`, shown on the home under its notice: e.g. Solana's

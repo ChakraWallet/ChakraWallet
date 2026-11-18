@@ -534,6 +534,11 @@ body.mobile.kb-open .toast { bottom: 1rem; }
 .tx-row + .tx-row { border-top: 1px solid var(--border); }
 .tx-row .k { color: var(--muted); flex: none; }
 .tx-row .v { display: flex; align-items: center; justify-content: flex-end; gap: .375rem; min-width: 0; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+/* a transaction still waiting (history details): speed it up or cancel it */
+.tx-replace { display: flex; flex-direction: column; gap: .625rem; padding: .875rem; border-radius: 1rem; background: var(--card-2); }
+.tx-replace > .small { line-height: 1.45; }
+.tx-replace-btns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .5rem; }
+.tx-replace-btns .btn { white-space: nowrap; }
 .tx-row .v.col-v { flex-direction: column; align-items: flex-end; gap: 0; }
 .tx-sub { font-size: .6875rem; color: var(--muted); font-weight: 400; }
 .tx-row .iconbtn { width: 1.75rem; height: 1.75rem; margin: -.25rem -.375rem -.25rem 0; }

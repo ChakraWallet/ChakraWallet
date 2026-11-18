@@ -8,6 +8,7 @@ import { t } from './i18n.js';
 const big = (v, d = 0n) => (v === undefined || v === null || v === '' ? d : BigInt(v));
 const mean = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0n) / BigInt(arr.length) : 0n);
 const maxB = (a, b) => (a > b ? a : b);
+const minB = (a, b) => (a < b ? a : b);
 
 export const SPEEDS = {
   slow: { label: 'speed.slow', hint: 'speed.slow.hint' }, // i18n keys
@@ -55,7 +56,7 @@ export async function getFeeData(chain) {
 const oracle = new Interface(['function getL1Fee(bytes) view returns (uint256)']);
 const OP_ORACLE = '0x420000000000000000000000000000000000000F';
 
-async function getL1Fee(chain, tx) {
+export async function getL1Fee(chain, tx) {
   if (!chain.opStack) return 0n;
   try {
     const unsigned = Transaction.from({
@@ -130,4 +131,74 @@ export function finalizeTx(prepared, speed = 'normal') {
     tx.type = 0; tx.gasPrice = s.gasPrice;
   }
   return tx;
+}
+
+// ---------------------------------------------------------------- replacing a transaction still waiting
+// A transaction not mined yet is replaced by another one with the same nonce and higher fees: the nodes keep the one
+// that pays more - at least 10% more on every fee field, and strictly more (geth's rule, which the other clients
+// follow) - and only one of them is ever mined. "Speed up": the same transaction again; "cancel": nothing in its
+// place (0 to oneself, no data), which uses the nonce up. `pending`: what the background kept of a transaction it
+// sent (src/background/index.js, txpending): { hash, chainId, from, nonce, type (0 | 2), to, value, data, gas,
+// maxFeePerGas, maxPriorityFeePerGas | gasPrice, private }.
+
+/** The lowest fees a replacement may offer: 10% above the highest of the transactions sent with that nonce. */
+export function replacementFloor(sent) {
+  const up = (b) => { const c = b + (b + 9n) / 10n; return c > b ? c : b + 1n; };
+  const most = (k) => sent.reduce((m, x) => maxB(m, big(x[k])), 0n);
+  return sent[0].type === 2
+    ? { maxFeePerGas: up(most('maxFeePerGas')), maxPriorityFeePerGas: up(most('maxPriorityFeePerGas')) }
+    : { gasPrice: up(most('gasPrice')) };
+}
+/** Do these fees (hex or bigint) reach the floor? */
+export const meetsFloor = (fees, floor) => Object.keys(floor).every((k) => fees[k] != null && big(fees[k]) >= floor[k]);
+
+/** What the replacement does: the same call (speed up), or 0 to oneself with no data (cancel). */
+export const replacementCall = (pending, mode) => (mode === 'cancel'
+  ? { to: pending.from, value: '0x0', data: '0x' }
+  : { to: pending.to || null, value: pending.value || '0x0', data: pending.data || '0x' });
+
+/**
+ * A replacement ready for the fee screen, in prepareTx's shape (speeds with fees, estCost, maxCost; tx; l1Fee), every
+ * speed lifted to the floor when the network's own fee is lower. `sent`: every transaction sent with that nonce (the
+ * floor is above all of them). Also `before`: what the transaction offered, at today's base fee (to compare).
+ */
+export async function prepareReplacement(chain, pending, mode, sent = [pending]) {
+  const call = replacementCall(pending, mode);
+  const floor = replacementFloor(sent);
+  const [fee, estimate] = await Promise.all([
+    getFeeData(chain),
+    rpc(chain, 'eth_estimateGas', [{ from: pending.from, ...(call.to ? { to: call.to } : {}), value: call.value, data: call.data }]).then((g) => BigInt(g), () => null),
+  ]);
+  // speed up: the gas limit it was signed with (the call may not be estimable any more: a swap past its deadline...);
+  // cancel: what a transfer to oneself takes on this network (more than 21,000 on some L2s)
+  let gasLimit, gasEstimate;
+  if (mode === 'cancel') {
+    gasEstimate = estimate ?? 21000n;
+    gasLimit = gasEstimate <= 21000n ? 21000n : (gasEstimate * 125n) / 100n;
+  } else {
+    gasLimit = big(pending.gas);
+    gasEstimate = estimate && estimate < gasLimit ? estimate : gasLimit;
+  }
+  const l1Fee = await getL1Fee(chain, { ...call, gas: gasLimit, nonce: pending.nonce });
+  const base = fee.eip1559 ? fee.baseFee : null;
+  const speeds = {};
+  for (const [k, s] of Object.entries(fee.speeds)) {
+    if (pending.type === 2) {
+      const priority = maxB(fee.eip1559 ? s.priority : s.gasPrice, floor.maxPriorityFeePerGas);
+      const maxFee = maxB(maxB(fee.eip1559 ? s.maxFee : s.gasPrice, floor.maxFeePerGas), priority);
+      const effective = base != null ? minB(maxFee, base + priority) : maxFee;
+      speeds[k] = { maxFeePerGas: toHex(maxFee), maxPriorityFeePerGas: toHex(priority), estCost: toHex(gasEstimate * effective + l1Fee), maxCost: toHex(gasLimit * maxFee + l1Fee) };
+    } else {
+      const gasPrice = maxB(fee.eip1559 ? s.effective : s.gasPrice, floor.gasPrice);
+      speeds[k] = { gasPrice: toHex(gasPrice), estCost: toHex(gasEstimate * gasPrice + l1Fee), maxCost: toHex(gasLimit * gasPrice + l1Fee) };
+    }
+  }
+  const was = pending.type === 2
+    ? (base != null ? minB(big(pending.maxFeePerGas), base + big(pending.maxPriorityFeePerGas)) : big(pending.maxFeePerGas))
+    : big(pending.gasPrice);
+  return {
+    chainId: chain.id, eip1559: pending.type === 2, mode, hash: pending.hash,
+    tx: { from: pending.from, ...call, nonce: pending.nonce, gas: toHex(gasLimit) },
+    gasEstimate: toHex(gasEstimate), l1Fee: toHex(l1Fee), speeds, before: toHex(gasEstimate * was + l1Fee), estimateError: null,
+  };
 }

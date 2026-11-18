@@ -28,12 +28,13 @@ import { setDisplayCurrency } from '../shared/fx.js';
 import { accountFamily, familyOf, driverOf, isEvmAccount, driverScreens } from './chains/index.js';
 import { NftDetail } from './screens/nfts.jsx';
 import { MmCard } from './screens/mmcard.jsx';
+import { ReplaceTx } from './screens/replaceTx.jsx';
 import { ConnectQrHost } from './connectQr.jsx';
 
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
 const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions', 'tonConnect']);
 
-const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail, mmcard: MmCard };
+const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail, mmcard: MmCard, replaceTx: ReplaceTx };
 
 const scanStart = location.hash === '#full-scan'; // extension: QR scanning continues in a tab (camera)
 const mode = globalThis.__CK_MOBILE__ ? 'mobile' : scanStart ? 'full' : location.hash.replace('#', '') || 'popup';

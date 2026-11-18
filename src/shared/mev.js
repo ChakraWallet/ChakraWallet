@@ -5,6 +5,7 @@
 // the network's usual nodes, as without protection. Settings > Security: on by default.
 import { rpc, RpcError } from './rpc.js';
 import { ENDPOINTS } from './endpoints.js';
+import { getJson } from './http.js';
 
 /** Private channel of a network, or null (L2s have no public mempool: their sequencer orders transactions). */
 export const mevRpc = (chainId) => (Number(chainId) === 1 ? ENDPOINTS.mevEth || null : null);
@@ -25,6 +26,19 @@ async function sendPrivate(url, signed) {
     if (j?.error && res.status !== 429 && res.status < 500 && j.error.code !== -32005) throw new RpcError(j.error.message, j.error.code, j.error.data);
     return null;
   } catch (e) { if (e instanceof RpcError) throw e; return null; } finally { clearTimeout(timer); }
+}
+
+/**
+ * What the private channel did with a transaction it received: 'PENDING', 'INCLUDED', 'FAILED' (given up after 25
+ * blocks: never mined), 'CANCELLED' (by a cancellation of the sender), 'UNKNOWN'; null when it can't be asked.
+ */
+export async function privateStatus(chainId, hash) {
+  const base = mevRpc(chainId) && ENDPOINTS.mevStatus;
+  if (!base) return null;
+  try {
+    const j = await getJson(`${base}/${hash}`, { timeout: 8000, retries: 0, label: 'Flashbots' });
+    return typeof j?.status === 'string' ? j.status.toUpperCase() : null;
+  } catch { return null; }
 }
 
 /** Sends a signed transaction: through the private channel when protected, else (or if unreachable) the nodes (Alchemy first, when set). */

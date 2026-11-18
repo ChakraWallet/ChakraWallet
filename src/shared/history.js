@@ -5,6 +5,7 @@ import { alchemyUrl } from './alchemy.js';
 import { rpc, getTokenInfo } from './rpc.js';
 import { POPULAR_TOKENS } from './tokens.js';
 import { markCardRecords } from './mmcard.js';
+import { privateStatus } from './mev.js';
 
 const lc = (a) => String(a || '').toLowerCase();
 
@@ -39,7 +40,8 @@ async function blockscoutPage(chain, address, cursor) {
     Object.assign(r, {
       time: Date.parse(t.timestamp) || Date.now(),
       from: lc(t.from?.hash), to: lc(t.to?.hash || t.created_contract?.hash), value: t.value || '0',
-      fee: t.fee?.value ?? null, status: t.status === 'error' ? 'failed' : t.status ? 'ok' : 'pending',
+      // (a transaction replaced by another one with its nonce: never mined, "dropped/replaced")
+      fee: t.fee?.value ?? null, status: t.result === 'dropped/replaced' ? 'replaced' : t.status === 'error' ? 'failed' : t.status ? 'ok' : 'pending',
       method: t.method || t.decoded_input?.method_call?.split('(')[0] || null,
       toName: t.to?.name || null,
       isTx: true,
@@ -185,6 +187,62 @@ export function classify(r, address, chain) {
   };
 }
 
+// ---------------------------------------------------------------- sped up and cancelled transactions
+/**
+ * What the txlog knows of a transaction sent from here: its nonce, its channel, whether the background kept what it
+ * takes to send it again (replaceable), the one it replaces (speed up / cancel).
+ */
+const sentFields = (l) => ({ nonce: l.nonce ?? null, private: !!l.private, replaceable: !!l.replaceable, replaces: l.replaces || null, replacement: l.mode || null });
+
+/**
+ * A transaction sent from here that has no receipt: still waiting, 'replaced' (another one took its nonce), or - sent
+ * through the private channel (MEV protection) - 'cancelled' by a cancellation, or 'dropped' (the channel gave up).
+ * done: the account's mined transaction count, asked before the receipt (null: unknown).
+ */
+async function unminedStatus(chain, l, done) {
+  const used = done != null && done > l.nonce;
+  if (l.private) {
+    const s = await privateStatus(chain.id, l.hash);
+    if (s === 'CANCELLED') return 'cancelled';
+    if (s === 'INCLUDED') return 'pending'; // its receipt is on the way
+    if (used) return 'replaced';
+    if (s === 'FAILED') return 'dropped';
+    return 'pending';
+  }
+  return used ? 'replaced' : 'pending';
+}
+
+const RANK = { ok: 4, failed: 4, cancelled: 3, pending: 2, dropped: 1, replaced: 0 };
+/**
+ * The transactions sent with one nonce (each one `replaces` the one before: speed ups, a cancellation) are one
+ * operation: one row, the one mined, else the one the private channel cancelled, else the latest still waiting (else
+ * the latest). A cancellation shows as what it cancelled: 'cancelled' (also when the nonce went to another transaction
+ * after the cancellation was asked).
+ */
+export function oneRowPerOperation(records, localLog) {
+  const byHash = new Map(localLog.map((l) => [lc(l.hash), l]));
+  if (![...byHash.values()].some((l) => l.replaces)) return records;
+  const rootOf = (h) => { let cur = h; for (let i = 0; i < 20; i++) { const up = byHash.get(cur)?.replaces; if (!up) break; cur = lc(up); } return cur; };
+  const groups = new Map();
+  for (const r of records) {
+    const h = lc(r.hash);
+    if (!byHash.has(h)) continue;
+    const root = rootOf(h);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(r);
+  }
+  const drop = new Set();
+  for (const list of groups.values()) {
+    if (!list.some((r) => r.replacement)) continue; // never sped up nor cancelled
+    list.sort((a, b) => (RANK[b.status] ?? 0) - (RANK[a.status] ?? 0) || b.time - a.time);
+    const [keep, ...rest] = list;
+    for (const r of rest) drop.add(r);
+    if (keep.replacement === 'cancel' && keep.status === 'ok') keep.status = 'cancelled';
+    else if (keep.status === 'replaced' && list.some((r) => r.replacement === 'cancel')) keep.status = 'cancelled';
+  }
+  return drop.size ? records.filter((r) => !drop.has(r)) : records;
+}
+
 /**
  * Loads one page of history. Returns {items, next, error, unsupported}.
  * `localLog`: transactions sent from this wallet (to show pending ones immediately).
@@ -243,27 +301,32 @@ export async function loadHistory(chain, address, cursor, { etherscanKey = '', n
   const logOf = new Map(localLog.map((l) => [l.hash.toLowerCase(), l]));
   for (const r of records) {
     const l = logOf.get(r.hash.toLowerCase());
-    if (l) { r.origin = l.origin; r.appTitle = l.title || null; }
+    if (l) Object.assign(r, { origin: l.origin, appTitle: l.title || null, ...sentFields(l) });
   }
   if (!cursor) {
     // add locally-sent transactions not yet seen by the indexer (it can lag minutes or more behind the chain):
     // their token transfers come from the receipt, so they look the same as when the indexer has them
     const known = new Set(records.map((r) => r.hash.toLowerCase()));
-    const local = localLog.filter((l) => !known.has(l.hash.toLowerCase()));
+    const local = localLog.filter((l) => !known.has(l.hash.toLowerCase())).slice(0, 30);
     const me = lc(address);
-    const localRecs = await Promise.all(local.slice(0, 30).map(async (l) => {
+    // the account's transactions mined so far, asked before the receipts: a transaction with no receipt whose nonce
+    // is below it was never mined (another one took its nonce)
+    const done = local.some((l) => l.nonce != null)
+      ? await rpc(chain, 'eth_getTransactionCount', [me, 'latest']).then((n) => Number(BigInt(n)), () => null) : null;
+    const localRecs = await Promise.all(local.map(async (l) => {
       let status = l.status, transfers = [], fee = null;
-      const rc = await rpc(chain, 'eth_getTransactionReceipt', [l.hash]).catch(() => null);
+      const rc = await rpc(chain, 'eth_getTransactionReceipt', [l.hash]).catch(() => undefined);
       if (rc) {
         status = rc.status === '0x1' ? 'ok' : 'failed';
         transfers = await receiptTransfers(chain, rc, me).catch(() => []);
         if (rc.gasUsed && rc.effectiveGasPrice) fee = (BigInt(rc.gasUsed) * BigInt(rc.effectiveGasPrice)).toString();
-      }
+      } else if (rc === null && l.nonce != null) status = await unminedStatus(chain, l, done);
       return { hash: l.hash, time: l.time, from: l.from, to: l.to, value: l.value, fee, status, method: l.title || null, appTitle: l.title || null,
-        selector: l.data, transfers, isTx: true, local: true, origin: l.origin };
+        selector: l.data, transfers, isTx: true, local: true, origin: l.origin, ...sentFields(l) };
     }));
     records = [...records, ...localRecs];
   }
+  records = oneRowPerOperation(records, localLog);
   await markCardRecords(chain, address, records).catch(() => {}); // MetaMask Card payments (Linea)
   const items = records.map((r) => classify(r, address, chain)).sort((a, b) => b.time - a.time);
   return { items, next: page.next, error, unsupported, limitUntil };

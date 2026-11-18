@@ -1,10 +1,11 @@
 // EVM driver: Ethereum and every EVM network (Base, Arbitrum, Polygon, custom networks...). Interface: driver.d.md.
 import { isAddress, getAddress } from 'ethers';
-import { bg } from '../../shared/ext.js';
+import { bg, local } from '../../shared/ext.js';
 import { NATIVE, getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
-import { erc20, getTokenInfo, getAllowance, waitForReceipt } from '../../shared/rpc.js';
-import { prepareTx, finalizeTx, getFeeData } from '../../shared/tx.js';
+import { rpc, erc20, getTokenInfo, getAllowance, waitForReceipt } from '../../shared/rpc.js';
+import { prepareTx, finalizeTx, getFeeData, prepareReplacement } from '../../shared/tx.js';
+import { fmtAmount, fmtUsd, toFloat } from '../../shared/format.js';
 import { loadPortfolio } from '../../shared/portfolio.js';
 import { loadHistory } from '../../shared/history.js';
 import { loadEvmNfts } from '../../shared/nft.js';
@@ -133,6 +134,50 @@ export const evmDriver = {
     const hash = await authorize((password) => bg('sendTransaction', { from, tx: finalizeTx(p, speed), title, password }), t('send.confirmTitle'));
     rememberRecipient(review.recipient).catch(() => {});
     return { hash };
+  },
+
+  // ---------------------------------------------------------------- speed up / cancel (history)
+  // A transaction sent from Chakra still waiting is sent again with its nonce and higher fees (src/shared/tx.js); the
+  // background rebuilds it from what it kept when it was sent (txpending) and takes from here only the fees.
+  replace: {
+    /** Transactions sent from Chakra (their nonce is in the txlog) still waiting, or given up by the private channel. */
+    options(chain, it) {
+      if (!it.sentByMe || !it.replaceable || it.nonce == null) return null;
+      if (it.status === 'pending') return { speedUp: true, cancel: it.replacement !== 'cancel' }; // a cancellation: only faster
+      if (it.status === 'dropped') return { speedUp: true, cancel: false }; // nothing waits any more: send it again
+      return null;
+    },
+    async prepare(chain, it, { mode, wallet, nativePrice }) {
+      const all = await local.get('txpending', {});
+      const p = all[lc(it.hash)];
+      if (!p || p.from !== lc(wallet.raw)) throw new Error(t('replace.err.unknown'));
+      const sent = Object.values(all).filter((x) => x.chainId === p.chainId && x.from === p.from && x.nonce === p.nonce && x.type === p.type);
+      const [prepared, balance] = await Promise.all([
+        prepareReplacement(chain, p, mode, sent),
+        rpc(chain, 'eth_getBalance', [p.from, 'latest']).then((b) => BigInt(b)),
+      ]);
+      const value = mode === 'cancel' ? 0n : BigInt(p.value || 0);
+      const dec = chain.native.decimals, sym = chain.native.symbol, before = BigInt(prepared.before);
+      const note = mode === 'cancel' ? (p.private ? 'replace.cancelPrivateNote' : 'replace.cancelNote') : it.status === 'dropped' ? 'replace.resendNote' : 'replace.speedUpNote';
+      return {
+        recipient: mode === 'cancel' ? p.from : p.to, rows: [], notes: [t(note, { symbol: sym })],
+        amount: () => value,
+        fee: marketFee(prepared, {
+          valueWei: () => value,
+          extraRows: [{ k: t('replace.oldFee'), v: `≈ ${fmtAmount(before, dec, 8)} ${sym}${nativePrice != null ? ` · ${fmtUsd(toFloat(before, dec) * nativePrice)}` : ''}`, sub: t('replace.floorSub') }],
+        }),
+        // the node checks the balance against the most the replacement can cost (the original's is not spent yet)
+        problem: (speed) => (BigInt(prepared.speeds[speed].maxCost) + value > balance ? t('send.insufficientNative', { symbol: sym }) : null),
+        _replace: { prepared, mode },
+      };
+    },
+    async confirm(chain, review, { wallet, speed, authorize, title }) {
+      const { prepared, mode } = review._replace;
+      const s = prepared.speeds[speed];
+      const fees = prepared.eip1559 ? { maxFeePerGas: s.maxFeePerGas, maxPriorityFeePerGas: s.maxPriorityFeePerGas } : { gasPrice: s.gasPrice };
+      const hash = await authorize((password) => bg('replaceTransaction', { from: wallet.raw, hash: prepared.hash, mode, fees, gas: prepared.tx.gas, password }), title);
+      return { hash };
+    },
   },
 
   // ---------------------------------------------------------------- swap

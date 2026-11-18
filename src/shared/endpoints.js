@@ -27,6 +27,7 @@ const DEFAULTS = {
   // MEV protection (Ethereum): signed transactions go to Flashbots Protect, a private channel to the block builders,
   // instead of the public mempool where bots can see a swap and trade around it ("sandwich")
   mevEth: 'https://rpc.flashbots.net/fast',
+  mevStatus: 'https://protect.flashbots.net/tx', // what Flashbots Protect did with a transaction (/<hash>)
 };
 
 export const ENDPOINTS = { ...DEFAULTS, ...(globalThis.__CK_ENDPOINTS__ || {}) };

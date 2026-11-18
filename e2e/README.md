@@ -29,7 +29,9 @@ The wallet under test is the public test phrase `test test … junk` (Anvil's): 
 Proved: our code end to end - reading quotes, allowance checks, approvals of the exact amount, one password for the
 steps of an operation, transactions and TON messages built and signed correctly (the nodes and the TON contracts
 reject anything wrong), fees, the first TON send deploying the wallet, jetton transfers, waiting for confirmation,
-balances, history, bridge tracking until arrival. Bridges with TON: GRAM both ways, any EVM token to TON, GRAM to an
+balances, history, bridge tracking until arrival. Speed up and cancel (`replace.test.mjs`, Anvil with automatic
+mining off): a transfer left waiting is replaced from the history's details, the next block holds only the
+replacement, and the history shows the operation once ("Sped up" / "Cancelled"). Bridges with TON: GRAM both ways, any EVM token to TON, GRAM to an
 EVM token for another address with gas on arrival, a jetton in two steps (swap to GRAM, then the bridge), the warning
 about the memo when the recipient is outside the wallet. TON Connect: a dapp page of the in-app browser (played by the
 test through the stand-in of the native plugin, `app/stubs/capacitor-core.js`) signs in (`ton_proof`), sends GRAM and

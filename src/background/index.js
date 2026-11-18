@@ -5,6 +5,7 @@ import { getChain, chainFromEip3085, toHex, BUILTIN_CHAINS, isChainEnabled } fro
 import { rpc } from '../shared/rpc.js';
 import { setAlchemy } from '../shared/alchemy.js';
 import { sendRaw } from '../shared/mev.js';
+import { replacementFloor, meetsFloor, replacementCall } from '../shared/tx.js';
 import * as vault from './vault.js';
 import { setLang, i18nError, tEn } from '../shared/i18n.js';
 import { C as PM, CHAIN_ID as PM_CHAIN, ORDER_DOMAIN_NAME, AUTH_DOMAIN_NAME, DW_DOMAIN_NAME, iface as PMI } from '../shared/polytrade.js';
@@ -329,15 +330,82 @@ async function signAndSend(from, txIn, meta = {}) {
   const sent = await sendRaw(chain, signed, { protect: (await settings()).mevProtect !== false }); // MEV protection (Ethereum)
   const { hash } = sent;
   if (sent.protected) privateNonces.set(nk, { n: tx.nonce, t: Date.now() });
+  await logSent(chain, from, { hash, tx, origin: meta.origin || 'Chakra', title: meta.title || '', private: sent.protected });
+  return hash;
+}
+
+// ------------------------------------------------------------ transactions still waiting: speed up, cancel
+// What a transaction needs to be sent again with the same nonce (speed up / cancel, src/shared/tx.js), kept by hash
+// until it is mined or replaced (at most PENDING_DAYS), apart from the txlog that every history reads: calldata can
+// be large.
+const PENDING_KEY = 'txpending', PENDING_MAX = 40, PENDING_MS = 14 * 864e5, PENDING_DATA_MAX = 256 * 1024;
+
+/** A transaction just sent from here: in the txlog (history, origin, title) and, while it waits, in txpending. */
+async function logSent(chain, from, { hash, tx, origin, title, private: priv, replaces = null, mode = null }) {
+  const me = lc(from), to = tx.to ? lc(tx.to) : '';
+  const replaceable = (tx.type === 0 || tx.type === 2) && (tx.data || '').length <= PENDING_DATA_MAX;
   await local.update('txlog', {}, (log) => {
-    const key = `${chain.id}:${lc(from)}`;
+    const key = `${chain.id}:${me}`;
     const entry = {
-      hash, time: Date.now(), from: lc(from), to: lc(txIn.to), value: toHex(BigInt(txIn.value || 0)),
-      data: (txIn.data || '0x').slice(0, 10), origin: meta.origin || 'Chakra', title: meta.title || '', status: 'pending',
+      hash, time: Date.now(), from: me, to, value: toHex(tx.value || 0n), data: (tx.data || '0x').slice(0, 10),
+      origin, title, status: 'pending', nonce: tx.nonce, private: !!priv, replaceable, ...(replaces ? { replaces, mode } : {}),
     };
     return { ...log, [key]: [entry, ...(log[key] || [])].slice(0, 200) };
   });
-  return hash;
+  if (!replaceable) return;
+  const fees = tx.type === 2 ? { maxFeePerGas: toHex(tx.maxFeePerGas), maxPriorityFeePerGas: toHex(tx.maxPriorityFeePerGas) } : { gasPrice: toHex(tx.gasPrice) };
+  const entry = {
+    hash: lc(hash), chainId: chain.id, from: me, nonce: tx.nonce, type: tx.type, to: to || null, value: toHex(tx.value || 0n),
+    data: tx.data || '0x', gas: toHex(tx.gasLimit), ...fees, private: !!priv, time: Date.now(),
+  };
+  // the account's transactions mined so far: the ones kept below that nonce are done (mined or replaced)
+  const done = await rpc(chain, 'eth_getTransactionCount', [from, 'latest']).then((n) => Number(BigInt(n)), () => null);
+  await local.update(PENDING_KEY, {}, (all) => {
+    const now = Date.now();
+    const keep = Object.values(all).filter((x) => x.hash !== entry.hash && now - x.time < PENDING_MS
+      && !(done != null && x.chainId === entry.chainId && x.from === me && x.nonce < done));
+    return Object.fromEntries([entry, ...keep.sort((a, b) => b.time - a.time)].slice(0, PENDING_MAX).map((x) => [x.hash, x]));
+  });
+}
+
+/**
+ * Sends again a transaction still waiting, with the same nonce and higher fees: the same one (mode 'speedUp') or 0 to
+ * the account itself with no data ('cancel'). The transaction is rebuilt from what was kept when it was sent: from the
+ * screen come only the fees (and, to cancel, the gas of a transfer to oneself). Through the same channel as the
+ * original: a cancellation sent to Flashbots Protect, as it asks (same nonce, to oneself, no data), never goes on-chain.
+ */
+async function replaceTransaction(from, { hash, mode, fees, gas }) {
+  if (mode !== 'speedUp' && mode !== 'cancel') throw E.invalid('mode');
+  const all = await local.get(PENDING_KEY, {});
+  const p = all[lc(hash)];
+  if (!p || p.from !== lc(from)) throw i18nError('replace.err.unknown');
+  const chain = getChain(p.chainId, await customChains());
+  if (!chain) throw E.unknownChain();
+  const done = Number(BigInt(await rpc(chain, 'eth_getTransactionCount', [from, 'latest'])));
+  if (done > p.nonce) throw i18nError('replace.err.done');
+  const sent = Object.values(all).filter((x) => x.chainId === p.chainId && x.from === p.from && x.nonce === p.nonce && x.type === p.type);
+  const pick = p.type === 2 ? { maxFeePerGas: fees?.maxFeePerGas, maxPriorityFeePerGas: fees?.maxPriorityFeePerGas } : { gasPrice: fees?.gasPrice };
+  if (!meetsFloor(pick, replacementFloor(sent))) throw i18nError('replace.err.lowFee');
+  const call = replacementCall(p, mode);
+  const gasLimit = mode === 'cancel' ? BigInt(gas || 21000) : BigInt(p.gas);
+  if (gasLimit < 21000n || gasLimit > 2_000_000n) throw E.invalid('gas');
+  const signer = await vault.getSigner(from);
+  const tx = Transaction.from({
+    type: p.type, chainId: chain.id, to: call.to, value: BigInt(call.value), data: call.data, nonce: p.nonce, gasLimit,
+    ...(p.type === 2 ? { maxFeePerGas: BigInt(pick.maxFeePerGas), maxPriorityFeePerGas: BigInt(pick.maxPriorityFeePerGas) } : { gasPrice: BigInt(pick.gasPrice) }),
+  });
+  const signed = await signer.signTransaction(tx);
+  const r = await sendRaw(chain, signed, { protect: !!p.private });
+  const nk = `${chain.id}:${lc(from)}`, last = privateNonces.get(nk);
+  // a private cancellation frees the nonce: the next transaction takes it again
+  if (r.protected && mode === 'cancel') { if (last && last.n === p.nonce) privateNonces.delete(nk); }
+  else if (r.protected) privateNonces.set(nk, { n: Math.max(last?.n ?? -1, p.nonce), t: Date.now() });
+  const orig = ((await local.get('txlog', {}))[nk] || []).find((l) => lc(l.hash) === lc(hash));
+  await logSent(chain, from, {
+    hash: r.hash, tx, origin: orig?.origin || 'Chakra', title: orig?.title || '', private: r.protected,
+    replaces: lc(hash), mode,
+  });
+  return r.hash;
 }
 
 // ============================================================ dapp request handler
@@ -658,6 +726,12 @@ const uiHandlers = {
     await vault.verifyPassword(password);
     await touchAutoLock();
     return signAndSend(from, tx, { title });
+  },
+  /** Speeds up or cancels a transaction still waiting (history): mode 'speedUp' | 'cancel', the fees chosen. */
+  async replaceTransaction({ from, hash, mode, fees, gas, password }) {
+    await vault.verifyPassword(password);
+    await touchAutoLock();
+    return replaceTransaction(from, { hash, mode, fees, gas });
   },
   listPending: () => listPending(),
   resolveApproval: ({ id, approved, data }) => resolveApproval(id, approved, data).then(() => true),

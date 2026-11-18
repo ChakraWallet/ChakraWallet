@@ -154,6 +154,7 @@ async function purgeAddresses(addresses) {
     return out;
   });
   await local.update('txlog', {}, (log) => Object.fromEntries(Object.entries(log).filter(([k]) => !set.has(k.split(':')[1]))));
+  await local.update('txpending', {}, (all) => Object.fromEntries(Object.entries(all).filter(([, x]) => !set.has(lc(x.from)))));
   await local.update('lastSelected', {}, (m) => Object.fromEntries(Object.entries(m).filter(([, a]) => !set.has(lc(a)))));
 }
 

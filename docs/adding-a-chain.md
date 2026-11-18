@@ -26,6 +26,8 @@ screens of its own (`driver.ui.screens`: its Resources page) and of a large page
 3. **Driver** (UI) — `src/ui/<family>/driver.js`, implementing `src/ui/chains/driver.d.md`. Start from the skeleton
    below; reuse the shapes, not the code, of `src/shared/portfolio.js` / `history.js`. Prices: DefiLlama keys
    (`coingecko:<id>`, `<chain>:<token address>`), so the price chart works too.
+   A network where transactions wait in a queue ordered by their fee (EVM, Bitcoin) can also offer `driver.replace`:
+   speed up / cancel from the history (one shared screen, `src/ui/screens/replaceTx.jsx`).
 4. **Register** — in the platform module: `registerChains(...)`, `registerUiHandlers(...)`, `registerDriver(driver)`
    (browser extension: `src/ui/index.jsx`; Android app: `src/mobile/index.jsx` + a plugin file like `tonPlugin.js`).
 5. **Words** — the family's i18n keys in `src/shared/locales/{en,it}/<family>.js` (+ `index.js`); `npm test` lists

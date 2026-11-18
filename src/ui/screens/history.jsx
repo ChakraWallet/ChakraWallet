@@ -3,7 +3,7 @@ import { local } from '../../shared/ext.js';
 import { reportScanError, useChainAddress, indexerKeys, indexerKeyField } from '../hooks.js';
 import { driverFor } from '../chains/index.js';
 import { fmtAmount, fmtUsd, toFloat, fmtDateGroup, fmtTime, fmtDateTime, shortAddr, fmtBackAt } from '../../shared/format.js';
-import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx, useApp, Avatar, ChainIcon, TokenIcon, usePrivacy, MASK } from '../components.jsx';
+import { TopBar, Icon, Spinner, Sheet, Empty, AddressLabel, CopyBtn, explorerTx, useApp, Avatar, ChainIcon, TokenIcon, usePrivacy, MASK, Btn } from '../components.jsx';
 import { BUILTIN_CHAINS, getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { lookupBridge } from '../../shared/bridge.js';
@@ -46,6 +46,7 @@ function title(it, bridge, short = false) {
     return to ? t('history.titleBridge', { from, to }) : t('history.titleBridgeFrom', { from });
   }
   if (it.label) return it.label; // e.g. a TON action with a name of its own (contract deploy, NFT transfer...)
+  if (it.replacement === 'cancel') return it.appTitle || t('history.titleCancelled'); // a cancellation: what it cancelled
   if (it.kind === 'swap' && short) return t('history.titleSwapShort');
   if (it.kind === 'swap') return t('history.titleSwap', { from: outs[0].symbol, to: ins[0].symbol });
   if (it.kind === 'card') return t('history.titleCard');
@@ -110,11 +111,25 @@ function HistoryItem({ it, onOpen, bridge }) {
       <div class="right hist-amts">
         {outs.map((x) => <div class={`small bold ellipsis ${it.kind === 'swap' ? 'muted' : ''}`}>−{amt(x)}</div>)}
         {ins.map((x) => <div class="small bold green ellipsis">+{amt(x)}</div>)}
-        {it.status === 'failed' && <span class="badge red">{t('history.failed')}</span>}
-        {it.status === 'pending' && <span class="badge amber">{t('history.pending')}</span>}
+        <StatusBadges it={it} />
         {it.spam && <span class="badge red">{t('history.spam')}</span>}
       </div>
     </button>
+  );
+}
+
+/**
+ * What became of a transaction, when it isn't simply mined: failed, waiting (or its cancellation waiting), sped up,
+ * cancelled, replaced by another one with its nonce, never included.
+ */
+function StatusBadges({ it }) {
+  return (
+    <>
+      {it.status === 'failed' && <span class="badge red">{t('history.failed')}</span>}
+      {it.status === 'pending' && <span class="badge amber">{t(it.replacement === 'cancel' ? 'history.cancelling' : 'history.pending')}</span>}
+      {['cancelled', 'replaced', 'dropped'].includes(it.status) && <span class="badge">{t(`history.${it.status}`)}</span>}
+      {it.replacement === 'speedUp' && (it.status === 'pending' || it.status === 'ok') && <span class="badge primary">{t('history.spedUp')}</span>}
+    </>
   );
 }
 
@@ -161,15 +176,18 @@ function TxHead({ it, k, bridge, chain, status }) {
       <div class="row" style={{ gap: '0.375rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         {!bridge && <span class="badge" style={{ background: k.bg, color: k.color }}>{t(k.label)}</span>}
         {bridge && bridge.status !== 'unknown' && <span class={`badge ${{ pending: 'amber', done: 'green', refunded: 'primary', failed: 'red' }[bridge.status]}`}>{t(`bridge.badge.${bridge.status}`)}</span>}
-        {status && <span class={`badge ${status[0]}`}>{t(status[1])}</span>}
+        {status ? <span class={`badge ${status[0]}`}>{t(status[1])}</span> : <StatusBadges it={it} />}
+        {status && it.replacement === 'speedUp' && <span class="badge primary">{t('history.spedUp')}</span>}
       </div>
       <div class="small muted">{fmtDateTime(it.time)}</div>
     </div>
   );
 }
 
-function Detail({ it, onClose, nativePrice, bridge }) {
+function Detail({ it, onClose, nativePrice, bridge, onReplace }) {
   const { chain, account } = useApp();
+  // still waiting: speed it up or cancel it, when the network's driver can (driver.replace)
+  const can = driverFor(chain).replace?.options(chain, it) || null;
   const addr = useChainAddress();
   const k = KIND[it.kind];
   // TON: the fee is read from the action's whole trace, only when the details are opened
@@ -178,7 +196,7 @@ function Detail({ it, onClose, nativePrice, bridge }) {
   const fee = it.fee ?? lazyFee;
   const feeUsd = fee != null && nativePrice != null ? toFloat(fee, chain.native.decimals) * nativePrice : null;
   const link = explorerTx(chain, it.hash);
-  const status = it.status === 'ok' ? ['green', 'history.confirmed'] : it.status === 'failed' ? ['red', 'history.failed'] : it.status === 'pending' ? ['amber', 'history.pending'] : null;
+  const status = it.status === 'ok' ? ['green', 'history.confirmed'] : it.status === 'failed' ? ['red', 'history.failed'] : it.status === 'pending' && !it.replacement ? ['amber', 'history.pending'] : null;
   // my own address on this network (TON: the account's TON wallet) shows as the account
   const mine = (a) => a && (String(a).toLowerCase() === account.address.toLowerCase() || (addr.address && String(a) === addr.address));
   const Who = ({ address }) => (!address ? '—' : mine(address)
@@ -205,7 +223,18 @@ function Detail({ it, onClose, nativePrice, bridge }) {
           <span class="v col-v">{fee === undefined ? <Spinner /> : fee != null ? <><span>{fmtAmount(fee, chain.native.decimals, 8)} {chain.native.symbol}</span>{feeUsd != null && <span class="tx-sub">≈ {fmtUsd(feeUsd)}</span>}</> : <span class="muted">{it.sentByMe ? '—' : t('history.feeBySender')}</span>}</span>
         </div>
         <div class="tx-row"><span class="k">{t('history.hash')}</span><span class="v"><span class="mono-s">{shortAddr(it.hash, 6)}</span><CopyBtn text={it.hash} /></span></div>
+        {it.replaces && <div class="tx-row"><span class="k">{t('history.replaces')}</span><span class="v"><span class="mono-s">{shortAddr(it.replaces, 6)}</span><CopyBtn text={it.replaces} /></span></div>}
       </div>
+
+      {can && (can.speedUp || can.cancel) && (
+        <div class="tx-replace">
+          <div class="small muted">{t(it.status === 'dropped' ? 'replace.droppedHint' : it.replacement === 'cancel' ? 'replace.cancellingHint' : 'replace.pendingHint')}</div>
+          <div class="tx-replace-btns">
+            {can.cancel && <Btn kind="secondary" onClick={() => onReplace(it, 'cancel', title({ ...it, chainId: chain.id }, bridge))}>{t('replace.cancel')}</Btn>}
+            {can.speedUp && <Btn onClick={() => onReplace(it, 'speedUp', title({ ...it, chainId: chain.id }, bridge))}>{t(it.status === 'dropped' ? 'replace.resend' : 'replace.speedUp')}</Btn>}
+          </div>
+        </div>
+      )}
 
       {link && <a class="btn secondary block" href={link} target="_blank"><Icon name="external" size={16} /> {t('history.viewExplorer')}</a>}
       {bridge?.destTxHash && BRIDGE_CHAIN(bridge.toChainId) && explorerTx(BRIDGE_CHAIN(bridge.toChainId), bridge.destTxHash) && (
@@ -274,6 +303,8 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
     return limit ? l.slice(0, limit) : l;
   }, [items, filter, limit, showSpam]);
   const spamCount = (items || []).filter((x) => x.spam).length;
+  // speed up / cancel (src/ui/screens/replaceTx.jsx); from the home's short list, it ends on the whole history
+  const replace = (it, mode, label) => { setOpen(null); nav('replaceTx', { item: it, mode, label, toHistory: !!limit }); };
 
   const groups = useMemo(() => {
     const g = [];
@@ -308,7 +339,7 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
           {loading ? <Spinner /> : <span class="link">{t('history.loadMore')}</span>}
         </button>
       )}
-      {open && <Detail it={open} onClose={() => setOpen(null)} nativePrice={nativePrice} bridge={bridges.get(open.hash.toLowerCase()) || (open.bridgeLike ? { fromChainId: chain.id, status: 'unknown' } : null)} />}
+      {open && <Detail it={open} onClose={() => setOpen(null)} onReplace={replace} nativePrice={nativePrice} bridge={bridges.get(open.hash.toLowerCase()) || (open.bridgeLike ? { fromChainId: chain.id, status: 'unknown' } : null)} />}
     </div>
   );
 }
