@@ -968,7 +968,7 @@ function Portfolio({ onBack, onOpen }) {
             <div class="pm-win-row">
               <span class="pm-win-ic"><Icon name="receive" size={20} /></span>
               <span class="grow">
-                <small>{wins.length === 1 ? t('predict.win.one') : t('predict.win.many', { n: wins.length })}</small>
+                <small>{tn('predict.win', wins.length)}</small>
                 <b>{usd(wins.reduce((x, p) => x + p.value, 0))}</b>
               </span>
               {/* with auto-redeem the button stays as a fallback (small winnings may be left out) */}

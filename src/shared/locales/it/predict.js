@@ -50,7 +50,7 @@ export default {
   'predict.pos.positions': "Posizioni",
   'predict.pos.history': "Storico",
   'predict.win.one': "1 posizione da riscattare",
-  'predict.win.many': "{n} posizioni da riscattare",
+  'predict.win.other': "{n} posizioni da riscattare",
   'predict.win.title': "Da riscattare",
   'predict.win.auto': "Riscatto automatico: si incassa da solo in pochi minuti",
   'predict.win.now': "Riscatta ora",

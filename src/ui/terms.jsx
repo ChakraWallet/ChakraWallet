@@ -4,7 +4,7 @@
 import { useState } from 'preact/hooks';
 import { Sheet, Btn, TopBar, useApp } from './components.jsx';
 import { bg } from '../shared/ext.js';
-import { t } from '../shared/i18n.js';
+import { t, getLang } from '../shared/i18n.js';
 
 export const TERMS_VERSION = 1;
 const SECTIONS = 10;
@@ -17,6 +17,7 @@ function TermsBody() {
   return (
     <div class="terms">
       <p class="tiny muted">{t('terms.updated')}</p>
+      {getLang() !== 'en' && <p class="tiny muted">{t('terms.translated')}</p>}
       <p class="small">{t('terms.intro')}</p>
       {Array.from({ length: SECTIONS }, (_, i) => (
         <section>

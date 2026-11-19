@@ -23,7 +23,7 @@ import { Donate } from './screens/donate.jsx';
 import { useBridgeTracker, useBackgroundWatch } from './hooks.js';
 import { Icon } from './components.jsx';
 import { useAuthorizer } from './auth.jsx';
-import { t, setLang } from '../shared/i18n.js';
+import { t, setLang, locale } from '../shared/i18n.js';
 import { setDisplayCurrency } from '../shared/fx.js';
 import { accountFamily, familyOf, driverOf, isEvmAccount, driverScreens } from './chains/index.js';
 import { NftDetail } from './screens/nfts.jsx';
@@ -189,7 +189,7 @@ export function App() {
 
   // language: follows the setting; a settings change re-renders the whole app (t() reads the current language)
   const lang = setLang(state?.settings?.language || 'system');
-  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  useEffect(() => { document.documentElement.lang = locale(); }, [lang]); // zh-CN: the Simplified Chinese glyphs
 
   // display currency: re-render once its exchange rate is known
   const currency = state?.settings?.currency || 'USD';

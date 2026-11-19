@@ -2,6 +2,7 @@
 export default {
   'terms.title': 'Terms of use',
   'terms.updated': 'Version 1 · November 2026',
+  'terms.translated': 'This is a translation of the terms of use: if it differs from the English version, the English version prevails.', // shown only in the other languages
   'terms.intro': 'Chakra is free, open-source software: a wallet that keeps your keys on your device. By using it you accept these terms. If you don\'t accept them, don\'t use the app.',
   'terms.1.t': 'Software, not a service',
   'terms.1.b': 'Chakra is software you run on your own device. Nobody operates it for you: there is no account, no company holding your funds and no customer service that can act on your wallet.',

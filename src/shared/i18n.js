@@ -1,17 +1,30 @@
 // Localisation: key-based dictionaries, English is the base and the fallback for any missing key.
 //   t('send.title')                       -> string
 //   t('send.sent', { amount: '1 ETH' })   -> placeholders {name}
-//   tn('accounts.count', 3)               -> picks 'accounts.count.one' / 'accounts.count.other', with {n}
+//   tn('accounts.count', 3)               -> picks the plural form of the language ('accounts.count.one' / '.few' /
+//                                            '.many' / '.other', by Intl.PluralRules; '.other' if missing), with {n}
 // Language preference: 'system' (the device/browser language when the app has it, otherwise English) or a code of LANGUAGES.
 import en from './locales/en/index.js';
 import it from './locales/it/index.js';
+import es from './locales/es/index.js';
+import fr from './locales/fr/index.js';
+import de from './locales/de/index.js';
+import ru from './locales/ru/index.js';
+import zh from './locales/zh/index.js';
 
-const DICTS = { en, it };
-/** Languages of the interface: code, name in the language itself, flag (country code of flag-icons, see ui/language.jsx). */
+/** Languages of the interface: code, name in the language itself, flag (country code of flag-icons, see
+ *  ui/language.jsx), BCP 47 locale for numbers, dates and plural rules, dictionary. A language is listed only when
+ *  its dictionary is complete (scripts/i18n-check.mjs fails otherwise). */
 export const LANGUAGES = [
-  { code: 'en', name: 'English', flag: 'gb' },
-  { code: 'it', name: 'Italiano', flag: 'it' },
+  { code: 'en', name: 'English', flag: 'gb', locale: 'en-US', dict: en },
+  { code: 'it', name: 'Italiano', flag: 'it', locale: 'it-IT', dict: it },
+  { code: 'es', name: 'Español', flag: 'es', locale: 'es-ES', dict: es },
+  { code: 'fr', name: 'Français', flag: 'fr', locale: 'fr-FR', dict: fr },
+  { code: 'de', name: 'Deutsch', flag: 'de', locale: 'de-DE', dict: de },
+  { code: 'ru', name: 'Русский', flag: 'ru', locale: 'ru-RU', dict: ru },
+  { code: 'zh', name: '简体中文', flag: 'cn', locale: 'zh-CN', dict: zh },
 ];
+const DICTS = Object.fromEntries(LANGUAGES.map((l) => [l.code, l.dict]));
 export const LANGS = LANGUAGES.map((l) => l.code);
 let lang = resolveLang('system');
 const subs = new Set();
@@ -30,7 +43,7 @@ export function setLang(pref) {
 export const getLang = () => lang;
 export const onLangChange = (f) => { subs.add(f); return () => subs.delete(f); };
 /** BCP 47 locale for numbers and dates */
-export const locale = () => (lang === 'it' ? 'it-IT' : 'en-US');
+export const locale = () => LANGUAGES.find((l) => l.code === lang)?.locale || 'en-US';
 
 export function t(key, vars) {
   let s = DICTS[lang]?.[key] ?? en[key];
@@ -38,7 +51,18 @@ export function t(key, vars) {
   if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m));
   return s;
 }
-export const tn = (key, n, vars) => t(`${key}.${n === 1 ? 'one' : 'other'}`, { n, ...vars });
+const rules = new Map(); // language -> Intl.PluralRules
+const pluralOf = (n) => {
+  if (!rules.has(lang)) rules.set(lang, new Intl.PluralRules(locale()));
+  return rules.get(lang).select(n);
+};
+/** Plural: the form of the current language for n ('one', 'few', 'many', 'other'), else '.other'; a key the language
+ *  doesn't have at all falls back to English (one / other). */
+export function tn(key, n, vars) {
+  const d = DICTS[lang] || en;
+  const k = [`${key}.${pluralOf(n)}`, `${key}.other`].find((x) => d[x] != null) || `${key}.${n === 1 ? 'one' : 'other'}`;
+  return t(k, { n, ...vars });
+}
 /** Always English: for messages sent to websites (dapps expect English, like MetaMask). */
 export function tEn(key, vars) {
   let s = en[key];

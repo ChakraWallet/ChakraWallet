@@ -1,13 +1,18 @@
 // Interface language: a round flag of the language in use (chosen, or detected from the device) and the sheet to
-// pick it. Flags are the square SVGs of flag-icons (MIT), cut to a circle; adding a language = a row in
-// shared/i18n.js LANGUAGES + its flag here.
+// pick it. Flags are the square SVGs of flag-icons (MIT), cut to a circle; adding a language = its dictionary and a
+// row in shared/i18n.js LANGUAGES + its flag here.
 import { useState } from 'preact/hooks';
 import { Icon, Sheet } from './components.jsx';
 import { t, LANGUAGES, resolveLang, locale } from '../shared/i18n.js';
 import gb from 'flag-icons/flags/1x1/gb.svg';
 import it from 'flag-icons/flags/1x1/it.svg';
+import es from 'flag-icons/flags/1x1/es.svg';
+import fr from 'flag-icons/flags/1x1/fr.svg';
+import de from 'flag-icons/flags/1x1/de.svg';
+import ru from 'flag-icons/flags/1x1/ru.svg';
+import cn from 'flag-icons/flags/1x1/cn.svg';
 
-const FLAGS = { gb, it };
+const FLAGS = { gb, it, es, fr, de, ru, cn };
 const SEARCH_FROM = 8; // a search field once the list gets long
 
 export const langInfo = (code) => LANGUAGES.find((l) => l.code === code) || LANGUAGES[0];

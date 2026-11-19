@@ -1,0 +1,43 @@
+// TON Connect (Android app): TON dapps of the in-app browser, QR codes and links - connection, sign-in, transactions, signatures
+export default {
+  'tonconnect.connect.title': '连接 TON 账户',
+  'tonconnect.connect.titleProof': '使用 TON 账户登录',
+  'tonconnect.connect.choose': '选择该网站可以看到的账户。在你断开连接之前，它将保持不变。',
+  'tonconnect.connect.loading': '正在读取 TON 账户…',
+  'tonconnect.connect.mismatch': '此网站自称是 {name}（{host}），但其地址是 {site}。只有在你信任它时才连接。',
+  'tonconnect.connect.testnet': '该网站请求使用 TON 测试网：仅限没有价值的测试币。',
+  'tonconnect.connect.noTon': '此钱包中没有任何账户拥有 TON 地址。请在“账户”中导入一个 TON 钱包。',
+  'tonconnect.connect.proofInfo': '登录：一个链下签名，用于向 {domain} 证明该账户属于你。它不产生任何费用，也不会转移资金。',
+  'tonconnect.connect.info': '该网站可以看到此账户的地址和余额。每笔交易都需要你确认。',
+  'tonconnect.connect.button': '连接',
+  'tonconnect.connect.signIn': '登录',
+  'tonconnect.auth.proof': '授权登录',
+
+  'tonconnect.tx.title': '{name} 请求的交易',
+  'tonconnect.tx.leaving': '可能从你的钱包转出',
+  'tonconnect.tx.nfts.other': '{n} 个 NFT',
+  'tonconnect.tx.message': '消息 {n}',
+  'tonconnect.tx.comment': '备注',
+  'tonconnect.tx.call': '合约调用',
+  'tonconnect.tx.deploy': '部署合约',
+
+  'tonconnect.sign.title': '{name} 请求的签名',
+  'tonconnect.sign.text': '待签名文本',
+  'tonconnect.sign.unreadable': '内容无法以可读形式显示：只有在你信任该网站并清楚自己在签名什么时才签名。',
+  'tonconnect.sign.cellWarn': '合约可以验证此签名：它可能会授权链上操作。',
+  'tonconnect.sign.schema': '结构（TL-B）和数据',
+  'tonconnect.sign.bytes.other': '数据（{n} 字节）',
+  'tonconnect.sign.domain': '目标网站',
+  'tonconnect.sign.info': '签名不产生任何费用，也不会发送交易。网站可以将其作为你已签名的证明进行展示。',
+  'tonconnect.sign.ack': '我已了解，仍然签名',
+  'tonconnect.sign.button': '签名',
+
+  'tonconnect.site.sees': '它可以看到此 TON 账户（TON Connect）：',
+  'tonconnect.err.expired': '请求已过期：请在网站上重试。',
+  'tonconnect.err.notLink': '这不是 TON Connect 链接。',
+
+  'tonconnect.remote.badge': '二维码 / 链接',
+  'tonconnect.remote.unverified': 'Chakra 无法得知你正在访问哪个网站：{host} 是该 DApp 自己声明的。只有当它是你亲自打开的网站时才连接。',
+  'tonconnect.link.connected': '已连接到 {name}',
+  'tonconnect.link.failed': '连接失败：{reason}',
+};

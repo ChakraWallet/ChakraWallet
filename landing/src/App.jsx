@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { rosette } from './guilloche.js';
 import { ChainLogo } from './chainLogos.jsx';
+import gb from 'flag-icons/flags/1x1/gb.svg';
+import it from 'flag-icons/flags/1x1/it.svg';
+import es from 'flag-icons/flags/1x1/es.svg';
+import fr from 'flag-icons/flags/1x1/fr.svg';
+import de from 'flag-icons/flags/1x1/de.svg';
+import ru from 'flag-icons/flags/1x1/ru.svg';
+import cn from 'flag-icons/flags/1x1/cn.svg';
 
 // Store / download links: replace with the real ones before publishing.
 const LINKS = {
@@ -510,6 +517,33 @@ function Networks() {
   );
 }
 
+// The languages of the app, as in src/shared/i18n.js LANGUAGES: [code, name in the language itself, English name, flag]
+const LANGUAGES = [
+  ['en', 'English', 'English', gb], ['es', 'Español', 'Spanish', es], ['fr', 'Français', 'French', fr], ['it', 'Italiano', 'Italian', it],
+  ['de', 'Deutsch', 'German', de], ['ru', 'Русский', 'Russian', ru], ['zh-CN', '简体中文', 'Chinese', cn],
+];
+function Languages() {
+  return (
+    <section className="langs" id="languages">
+      <div className="wrap">
+        <div className="section-head reveal">
+          <span className="kicker">Languages</span>
+          <h2>Speaks your language.</h2>
+          <p>Chakra is translated into {LANGUAGES.length} languages. It follows your phone’s language on its own — or pick another one in Settings, any time.</p>
+        </div>
+        <ul className="lang-row reveal">
+          {LANGUAGES.map(([code, name, en, flag]) => (
+            <li key={code} className="lang-chip">
+              <img src={flag} alt="" width="40" height="40" />
+              <span><b lang={code}>{name}</b>{name !== en && <small>{en}</small>}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function OpenSource() {
   return (
     <section className="oss" id="open-source">
@@ -597,6 +631,7 @@ export default function App() {
         <Gallery />
         <Security />
         <Networks />
+        <Languages />
         <OpenSource />
         <Download />
       </main>

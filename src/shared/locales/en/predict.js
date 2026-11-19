@@ -50,7 +50,7 @@ export default {
   'predict.pos.positions': "Positions",
   'predict.pos.history': "History",
   'predict.win.one': "1 position to redeem",
-  'predict.win.many': "{n} positions to redeem",
+  'predict.win.other': "{n} positions to redeem",
   'predict.win.title': "To redeem",
   'predict.win.auto': "Auto-redeem: paid out by itself within minutes",
   'predict.win.now': "Redeem now",
