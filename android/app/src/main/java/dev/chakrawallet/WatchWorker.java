@@ -48,6 +48,8 @@ import java.util.concurrent.TimeUnit;
  *    that answers); tiny SOL credits (the dust of address poisoning) aren't notified;
  *  - Tron: TRX and the watched TRC-20 tokens of each account's Tron address, from TronGrid (one request per account;
  *    a few a second without a key); tiny TRX credits (the dust of address poisoning) aren't notified;
+ *  - Bitcoin: BTC of each account, summed over its addresses (the used ones and the next ones it will be paid on), from
+ *    mempool.space (one request per address, spaced); payments still in the mempool count already; dust isn't notified;
  *  - bridges still in transit: asks Relay / LI.FI / Across / deBridge -> "Bridge arrived / refunded / failed".
  * Nothing is notified while the app is in the foreground (the app shows its own toasts there).
  */
@@ -90,6 +92,7 @@ public class WatchWorker extends Worker {
             try { checkTon(c, lc, cfg.optJSONObject("ton")); } catch (Exception ignored) { }
             try { checkSolana(c, lc, cfg.optJSONObject("solana")); } catch (Exception ignored) { }
             try { checkTron(c, lc, cfg.optJSONObject("tron")); } catch (Exception ignored) { }
+            try { checkBitcoin(c, lc, cfg.optJSONObject("bitcoin")); } catch (Exception ignored) { }
             checkBridges(c, lc, store.getString("ew_local:bridges", "[]"));
         } catch (Exception ignored) { }
         return Result.success();
@@ -327,6 +330,38 @@ public class WatchWorker extends Worker {
                 }
             } catch (Exception ignored) { }
             Thread.sleep(gap);
+        }
+        ed.apply();
+    }
+
+    // ------------------------------------------------------------------ Bitcoin
+    private static final BigInteger BTC_DUST = BigInteger.valueOf(1_000L); // sats: below it, a credit is dust (tracking, poisoning)
+
+    /** bitcoin: { name, symbol, decimals, api, accounts: [{ id, name, addresses: [bc1…, …] }] } */
+    private void checkBitcoin(Context c, Context lc, JSONObject btc) throws Exception {
+        if (btc == null) return;
+        JSONArray accounts = btc.optJSONArray("accounts");
+        if (accounts == null || accounts.length() == 0) return;
+        String api = btc.optString("api", "https://mempool.space/api");
+        JSONObject ch = new JSONObject().put("id", -8333).put("name", btc.optString("name", "Bitcoin"));
+        SharedPreferences st = c.getSharedPreferences(STATE, Context.MODE_PRIVATE);
+        SharedPreferences.Editor ed = st.edit();
+        for (int ai = 0; ai < accounts.length(); ai++) {
+            JSONObject acc = accounts.getJSONObject(ai);
+            JSONArray addrs = acc.optJSONArray("addresses");
+            if (addrs == null || addrs.length() == 0) continue;
+            BigInteger total = BigInteger.ZERO;
+            boolean complete = true;
+            for (int i = 0; i < addrs.length() && i < 60; i++) {
+                try {
+                    JSONObject j = new JSONObject(get(api + "/address/" + enc(addrs.getString(i))));
+                    JSONObject cs = j.getJSONObject("chain_stats"), ms = j.optJSONObject("mempool_stats");
+                    total = total.add(BigInteger.valueOf(cs.optLong("funded_txo_sum")).subtract(BigInteger.valueOf(cs.optLong("spent_txo_sum"))));
+                    if (ms != null) total = total.add(BigInteger.valueOf(ms.optLong("funded_txo_sum")).subtract(BigInteger.valueOf(ms.optLong("spent_txo_sum"))));
+                } catch (Exception e) { complete = false; break; } // no answer: leave the balance alone
+                Thread.sleep(250);
+            }
+            if (complete) compareAmount(c, lc, ed, st, ch, acc, acc.getString("id"), "native", btc.optString("symbol", "BTC"), btc.optInt("decimals", 8), total, true, BTC_DUST);
         }
         ed.apply();
     }

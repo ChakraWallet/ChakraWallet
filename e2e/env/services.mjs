@@ -13,7 +13,7 @@ const NATIVE = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 const ZERO = '0x0000000000000000000000000000000000000000';
 const TRANSFER = keccakId('Transfer(address,address,uint256)');
 const lc = (a) => String(a || '').toLowerCase();
-export const PRICES = { 'coingecko:ethereum': 3000, 'coingecko:the-open-network': 3 };
+export const PRICES = { 'coingecko:ethereum': 3000, 'coingecko:the-open-network': 3, 'coingecko:bitcoin': 100000 };
 
 /** Starts the services. evm: startEvm()'s result. Returns { url, port, close(), relayer, requests }. */
 export async function startServices(evm, { port = 9100, extra = {} } = {}) {

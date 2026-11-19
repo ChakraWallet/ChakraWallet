@@ -133,7 +133,7 @@ function Hero() {
           <span className="eyebrow"><span className="dot" />Free &amp; open source · iPhone · Android · Chrome · Firefox</span>
           <h1>Your crypto,<br /><span className="ink">beautifully clear.</span></h1>
           <p className="lede">
-            Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON, Solana and Tron. Send, swap at the best price,
+            Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON, Solana, Tron and Bitcoin. Send, swap at the best price,
             bridge and explore web3 — your keys never leave your device.
           </p>
           <StoreButtons />
@@ -186,7 +186,7 @@ const FEATURES = [
   },
   {
     id: 'swap', kicker: 'Swap & Bridge', title: 'The best price, not the first price.',
-    text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. On Solana, Jupiter compares every exchange for you; on Tron, SUN.io’s Smart Router. Bridges compare LI.FI, Relay, Across and deBridge the same way — Solana and Tron included.',
+    text: 'Chakra asks KyberSwap, Velora, OpenOcean and LI.FI at the same time and ranks routes by what you actually receive after network fees. On Solana, Jupiter compares every exchange for you; on Tron, SUN.io’s Smart Router. Bridges compare LI.FI, Relay, Across and deBridge the same way — Solana, Tron and Bitcoin included.',
     points: ['Approvals for the exact amount — never unlimited', 'MEV protection: Flashbots on Ethereum, Jito on Solana', 'Bridge transfers tracked until they arrive'],
     img: 'swap',
   },
@@ -207,6 +207,12 @@ const FEATURES = [
     text: 'On Tron fees are energy and bandwidth, not gas. Chakra shows what you have and what every send costs before you sign — then lets you stake TRX, rent energy from JustLend, vote for Super Representatives and delegate resources, from one page.',
     points: ['Energy and bandwidth at a glance, refilling in real time', 'Renting vs burning TRX compared before you pay', 'Account takeovers (permission changes) always blocked'],
     img: 'tron', // shots/capture.mjs tron
+  },
+  {
+    id: 'bitcoin', kicker: 'Bitcoin', title: 'Bitcoin, the whole wallet.',
+    text: 'Every account is a complete Bitcoin wallet: Native SegWit and Taproot addresses, a fresh one for every payment and change kept apart — restore the phrase in Sparrow or BlueWallet and the same funds are there. Coins that may carry an Ordinals inscription or Runes are kept out of ordinary sends.',
+    points: ['Fees in sat/vB, or a rate of your own', 'Speed up or cancel a stuck payment — or one on its way in', 'Coin control, and watch-only export for other wallets'],
+    img: 'bitcoin', // shots/capture.mjs bitcoin
   },
   {
     id: 'history', kicker: 'History', title: 'A history you can actually read.',
@@ -466,11 +472,24 @@ function Security() {
   );
 }
 
-// [name, id of its mark in chainLogos.jsx (the app's own ids), null: no mark]
-const NETWORKS = [
-  ['Ethereum', 1], ['Base', 8453], ['Arbitrum', 42161], ['Optimism', 10], ['Polygon', 137], ['BNB Chain', 56],
-  ['Avalanche', 43114], ['Gnosis', 100], ['Linea', 59144], ['TON', -239], ['Solana', -501], ['Tron', -195], ['+ custom networks', null],
-];
+// The wheel of networks: [name, id of its mark in chainLogos.jsx (the app's own ids), null: no mark]. Inner orbit: the
+// EVM networks, everywhere; outer orbit: the other families (mobile apps) and the networks you add.
+const INNER = [['Ethereum', 1], ['Base', 8453], ['Arbitrum', 42161], ['Optimism', 10], ['Polygon', 137], ['BNB Chain', 56], ['Avalanche', 43114], ['Gnosis', 100], ['Linea', 59144]];
+const OUTER = [['TON', -239], ['Solana', -501], ['Tron', -195], ['Bitcoin', -8333], ['Your networks', null]];
+function Orbit({ list, kind }) {
+  return (
+    <div className={`orbit ${kind}`} style={{ '--n': list.length }}>
+      {list.map(([n, id], i) => (
+        <div key={n} className="sat" style={{ '--i': i }}>
+          <div className="sat-in">
+            <span className={`sat-mark ${id == null ? 'ghost' : ''}`}>{id != null ? <ChainLogo id={id} size={56} /> : <span className="sat-plus" aria-hidden="true">+</span>}</span>
+            <span className="sat-name">{n}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 function Networks() {
   return (
     <section className="networks" id="networks">
@@ -478,12 +497,13 @@ function Networks() {
         <div className="section-head reveal">
           <span className="kicker">Networks</span>
           <h2>One wallet, many chains.</h2>
-          <p>All the major EVM networks built in, TON, Solana and Tron in the mobile apps, and any EVM network you add yourself — or that a dapp asks for.</p>
+          <p>All the major EVM networks built in, TON, Solana, Tron and Bitcoin in the mobile apps, and any EVM network you add yourself — or that a dapp asks for.</p>
         </div>
-        <div className="chips reveal">
-          {NETWORKS.map(([n, id]) => (
-            <span key={n} className={`chip ${id != null ? '' : 'ghost'}`}>{id != null && <ChainLogo id={id} size={22} />}{n}</span>
-          ))}
+        <div className="wheel reveal" role="img" aria-label={[...INNER, ...OUTER].map(([n]) => n).join(', ')}>
+          <Guilloche className="wheel-rosette" />
+          <div className="wheel-hub"><img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width="104" height="104" /></div>
+          <Orbit list={INNER} kind="inner" />
+          <Orbit list={OUTER} kind="outer" />
         </div>
       </div>
     </section>

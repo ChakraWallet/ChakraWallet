@@ -106,9 +106,9 @@ export function Onboarding({ onActive }) {
     return [...idx].sort((a, b) => a - b);
   }, [mnemonic]);
 
-  const finish = async (phrase) => {
+  const finish = async (phrase, generated = false) => {
     setLoading(true); setErr('');
-    try { await bg('createVault', { password: pw, mnemonic: phrase }); go('done'); } catch (e) { setErr(e.message); }
+    try { await bg('createVault', { password: pw, mnemonic: phrase, generated }); go('done'); } catch (e) { setErr(e.message); }
     setLoading(false);
   };
   const restore = async () => {
@@ -283,7 +283,7 @@ export function Onboarding({ onActive }) {
     const ok = quiz.every((i) => (answers[i] || '').trim().toLowerCase() === words[i]);
     body = (
       <Step title={t('onboarding.verify.title')} sub={t('onboarding.verify.prompt')}
-        foot={<Btn disabled={!ok} loading={loading} onClick={() => finish(mnemonic)}>{t('onboarding.verify.create')}</Btn>}>
+        foot={<Btn disabled={!ok} loading={loading} onClick={() => finish(mnemonic, true)}>{t('onboarding.verify.create')}</Btn>}>
         {quiz.map((i) => (
           <div class="field">
             <label>{t('onboarding.verify.word', { n: i + 1 })}</label>

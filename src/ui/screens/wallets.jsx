@@ -111,7 +111,7 @@ function AddWallet({ onClose }) {
   const create = async () => {
     setLoading(true); setErr('');
     try {
-      const w = await bg('createWallet', { name: name.trim() || undefined, mnemonic: mode === 'new' ? mnemonic : mode === 'seed' ? phrase : undefined, privateKey: mode === 'key' ? pk : undefined });
+      const w = await bg('createWallet', { name: name.trim() || undefined, mnemonic: mode === 'new' ? mnemonic : mode === 'seed' ? phrase : undefined, privateKey: mode === 'key' ? pk : undefined, generated: mode === 'new' });
       await refresh(); toast(t('wallets.created', { name: w.name })); onClose(); reset('home');
     } catch (e) { setErr(e.message); setLoading(false); }
   };

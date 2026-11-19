@@ -20,9 +20,10 @@ try {
   const evm = await startEvm(); stops.push(evm.stop);
   const ton = await import('./env/ton.mjs').then((m) => m.startTon()).catch((e) => { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e; return null; });
   if (ton) stops.push(ton.stop);
+  const btc = await import('./env/btc.mjs').then((m) => m.startBtc()); stops.push(btc.stop); // Bitcoin Local (Esplora API)
   const svc = await startServices(evm, { extra: ton?.services || {} }); stops.push(svc.close);
   const tcb = await startTcBridge(); stops.push(tcb.close); // TON Connect bridge
-  const state = { services: svc.url, omniston: ton?.omniston || null, tcbridge: tcb.url, evm: evm.networks.map(({ abi, ...n }) => n), ton: ton?.state || null };
+  const state = { services: svc.url, omniston: ton?.omniston || null, tcbridge: tcb.url, evm: evm.networks.map(({ abi, ...n }) => n), ton: ton?.state || null, btc: btc.state };
   await buildApp(state);
   fs.writeFileSync(path.join(OUT, 'state.json'), JSON.stringify({ ...state, abi: evm.networks[0].abi }));
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.json': 'application/json' };

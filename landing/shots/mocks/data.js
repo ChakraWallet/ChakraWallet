@@ -8,6 +8,7 @@ export const PRICES = {
   'coingecko:avalanche-2': 31.86,
   'coingecko:xdai': 1,
   'coingecko:the-open-network': 3.12,
+  'coingecko:bitcoin': 97240.15, // Bitcoin (shots: the account's coins)
   'coingecko:tron': 0.31, 'tron:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t': 1.0, // Tron (shots: the Resources page)
   // Linea: the MetaMask Card's tokens
   'linea:0x176211869ca2b568f2a7d4ee941e073a821ee1ff': 1.0001,

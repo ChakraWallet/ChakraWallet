@@ -5,4 +5,5 @@ import './contractsTab.js'; // before the UI: the tab bar is built when app.jsx 
 import './tonPlugin.js'; // TON (GRAM): networks, background handlers, screens - before the UI too
 import './solanaPlugin.js'; // Solana (SOL): networks, background handlers, screens - before the UI too
 import './tronPlugin.js'; // Tron (TRX): networks, background handlers, screens - before the UI too
+import './btcPlugin.js'; // Bitcoin (BTC): networks, background handlers, screens - before the UI too
 import '../ui/index.jsx';

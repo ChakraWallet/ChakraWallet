@@ -17,6 +17,7 @@ are attached to the run (`e2e/.artifacts/`).
 | --- | --- |
 | `env/evm.mjs` | two Anvil nodes, **Local A** (31337) and **Local B** (31338), the test accounts funded at genesis; contracts compiled from `env/contracts/` (solc + OpenZeppelin): a USDC-like token on each, a DEX on A, a bridge deposit contract on each |
 | `env/ton.mjs` | **TON Local**: `@ton/sandbox` (real wallet v5r1 and jetton contracts, signatures and seqno checked) behind a TON Center v3-compatible API; a USD₮-like jetton; the TON side of swaps (Omniston over WebSocket) and bridges |
+| `env/btc.mjs` | **Bitcoin Local**: an Esplora-compatible API (mempool.space's endpoints) over a UTXO set in memory, regtest addresses (`bcrt1…`); every signature is verified (SegWit ECDSA, Taproot Schnorr), replacements follow BIP125; the wallet's first SegWit and Taproot addresses funded at start |
 | `env/tcbridge.mjs` | a **TON Connect bridge** in the real one's format (SSE + POST), for dapps outside the app |
 | `env/services.mjs` | the public services, simulated in their real formats: prices (DefiLlama), a swap aggregator (KyberSwap) for the local DEX, a bridge (Relay) with a relayer that pays on the other network, an Etherscan-compatible indexer built from the local nodes |
 | `app/` | the Android app's code built for a browser (as the landing screenshots): `setup.js` points the services at the local ones (`src/shared/endpoints.js`), `networks.js` adds the local networks like any other |
@@ -37,7 +38,10 @@ about the memo when the recipient is outside the wallet. TON Connect: a dapp pag
 test through the stand-in of the native plugin, `app/stubs/capacitor-core.js`) signs in (`ton_proof`), sends GRAM and
 asks a text signature through the real approval screens, then Chakra disconnects it. TON Connect through the bridge: a
 `tc://` link opens the app, and a dapp played by the test (with tweetnacl, as the SDK) connects and sends GRAM only
-through the local bridge, sealed end to end. (The local USD₮ has another address than the real one: for
+through the local bridge, sealed end to end. Bitcoin (`btc.test.mjs`): the balance summed over the account's addresses,
+receiving on the next unused SegWit and Taproot addresses and a new one, a send with the fee in sat/vB accepted by the
+local node, then sped up from the history (same recipient, more fee: the node's replacement rules), the account's
+addresses, coins and export page. (The local USD₮ has another address than the real one: for
 the app it is "another jetton", which is what the two-step test uses.)
 
 Not covered here: the real contracts of STON.fi, Uniswap and the bridges, the routes real aggregators choose, changes

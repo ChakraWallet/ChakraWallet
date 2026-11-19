@@ -7,7 +7,10 @@ background, its **networks** and its **data**. TON and Solana are complete examp
 registered by `src/mobile/solanaPlugin.js`; Tron in `src/ui/tron/*`, `src/background/tron.js` (+ `tronDapp.js`: window.tron,
 tronLink and tronWeb), `src/shared/tron/*`, registered by `src/mobile/tronPlugin.js` - also an example of a family with
 screens of its own (`driver.ui.screens`: its Resources page) and of a large page script loaded only when a site needs it
-(TronWeb, `src/mobile/tronwebPage.js`, injected by `DappBrowserPlugin.injectScript`).
+(TronWeb, `src/mobile/tronwebPage.js`, injected by `DappBrowserPlugin.injectScript`). Bitcoin in `src/ui/btc/*`,
+`src/background/btc.js`, `src/shared/btc/*`, registered by `src/mobile/btcPlugin.js` - an example of a family whose account is
+many addresses (an HD wallet: its `raw` is the account's public side), with a fee of its own (`fee.View`), its own receive
+screen (`ui.Receive`) and coins that need protecting (Ordinals, Runes).
 
 ## Checklist
 
@@ -27,7 +30,8 @@ screens of its own (`driver.ui.screens`: its Resources page) and of a large page
    below; reuse the shapes, not the code, of `src/shared/portfolio.js` / `history.js`. Prices: DefiLlama keys
    (`coingecko:<id>`, `<chain>:<token address>`), so the price chart works too.
    A network where transactions wait in a queue ordered by their fee (EVM, Bitcoin) can also offer `driver.replace`:
-   speed up / cancel from the history (one shared screen, `src/ui/screens/replaceTx.jsx`).
+   speed up / cancel from the history (one shared screen, `src/ui/screens/replaceTx.jsx`). Bitcoin's also speeds up a payment on its
+   way in (CPFP).
 4. **Register** — in the platform module: `registerChains(...)`, `registerUiHandlers(...)`, `registerDriver(driver)`
    (browser extension: `src/ui/index.jsx`; Android app: `src/mobile/index.jsx` + a plugin file like `tonPlugin.js`).
 5. **Words** — the family's i18n keys in `src/shared/locales/{en,it}/<family>.js` (+ `index.js`); `npm test` lists

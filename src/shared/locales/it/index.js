@@ -13,7 +13,8 @@ import tonconnect from './tonconnect.js';
 import solana from './solana.js';
 import solcontracts from './solcontracts.js';
 import tron from './tron.js';
+import bitcoin from './bitcoin.js';
 import legal from './legal.js';
 import mmcard from './mmcard.js';
 
-export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...tonconnect, ...solana, ...solcontracts, ...tron, ...legal, ...mmcard };
+export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...tonconnect, ...solana, ...solcontracts, ...tron, ...bitcoin, ...legal, ...mmcard };

@@ -488,10 +488,12 @@ export function FeeBox({ chain, prepared, speed, setSpeed, nativePrice, valueWei
  * The network fee of a review, in the shape its chain driver gives (src/ui/chains/driver.d.md):
  *   { kind: 'market', prepared, valueWei(speed), valueUsd, extraRows } - a fee market with Slow / Normal / Fast (EVM)
  *   { kind: 'fixed', amount (raw | null), decimals, symbol, label?, unknownText?, extraRows } - one estimate (TON)
+ *   { View, … } - drawn by the family's own component (Bitcoin: speeds in sat/vB, a rate of one's own)
  * fee null: still being prepared.
  */
 export function FeeView({ chain, fee, speed, setSpeed, nativePrice }) {
   if (!fee) return <div class="fee-box"><div class="fee-row"><span class="k">{t('fee.network')}</span><span class="v"><Spinner /></span></div></div>;
+  if (fee.View) return <fee.View chain={chain} fee={fee} speed={speed} setSpeed={setSpeed} nativePrice={nativePrice} />; // a family's own (Bitcoin: sat/vB)
   if (fee.kind === 'market') {
     return <FeeBox chain={chain} prepared={fee.prepared} speed={speed} setSpeed={setSpeed} nativePrice={nativePrice}
       valueWei={fee.valueWei ? fee.valueWei(speed) : 0n} valueUsd={fee.valueUsd ?? null} extraRows={fee.extraRows || []} />;

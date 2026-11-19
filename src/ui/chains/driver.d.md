@@ -16,7 +16,7 @@ asked for (noted below), which the screen translates.
 | --- | --- | --- |
 | `kind` | `'evm' \| 'ton' \| …` | |
 | `features` | `{ memo, feeMarket, customTokens, customNfts, poisonCheck, approvals, dapps, contracts, predictions }` | missing = false |
-| `resolveAddresses(chain, accounts)` | `{ [account.address]: { address, raw, …extra } \| null }` (may be a Promise) | null: the account has no key for this family. `resolveAddressesSync` (optional) when known at once |
+| `resolveAddresses(chain, accounts)` | `{ [account.address]: { address, raw, …extra } \| null }` (may be a Promise) | null: the account has no key for this family. `resolveAddressesSync` (optional) when known at once. `raw` may be more than an address: Bitcoin's is the whole account (its extended public keys, JSON), `address` its next receive address |
 | `validateAddress(chain, text, ownAddress)` | `{ ok, normalized, toSelf, warnings: [{ key }] }` or `{ ok: false, error }` | `error`, `warnings[].key`: i18n keys |
 | `parseQr(chain, text)` | `{ address, chainId?, token?, amountRaw?, amountText?, memo? } \| null` | `token`: an address, or NATIVE; `amountText`: an amount already in the token's units, when its decimals aren't known yet (Solana Pay) |
 | `paymentLink(chain, { address, token, amountRaw, ask })` | string | what the receive QR shows; `parseQr` must read it back |
@@ -28,7 +28,8 @@ asked for (noted below), which the screen translates.
 **Review** (what the confirm screens show): `{ recipient, rows: [{ k, v }], notes: [text], amount(speed) → bigint,
 problem(speed) → text | null, fee }`. **Fee**: `{ kind: 'market', prepared, valueWei(speed), valueUsd, extraRows }`
 (Slow / Normal / Fast, `src/shared/tx.js`) or `{ kind: 'fixed', amount, decimals, symbol, label?, unknownText?, extraRows }`.
-Both are drawn by `FeeView` (`components.jsx`).
+Both are drawn by `FeeView` (`components.jsx`). A fee with `View` (a component: `{ chain, fee, speed, setSpeed, nativePrice }`)
+is drawn by the family itself (Bitcoin: speeds in sat/vB and a rate of one's own, `speed` = `'custom:<rate>'`).
 
 ## Also used by the screens
 
@@ -98,4 +99,6 @@ empty token accounts to close, Tron's energy and bandwidth), `screens` (`{ name:
 own, opened with `nav(name, params)`, e.g. Tron's `tronResources`), `addOptions` (more ways to add an account, e.g. Solana's vanity address: `[{ key, icon, label, sub (i18n keys),
 Component: { onBack, onDone(account) } }]`), `ImportAccount` (component: `{ onBack, onDone(account) }`), `importLabel`, `importSub`, `typeLabel`, `typeShort`,
 `addressLabel` (i18n keys), `useSummaries()` → `{ per: { [account.address]: { chain, p, pending } }, busy, reload }`
-(balances in the accounts' summary), `settings: [{ key, label, hint }]` (Settings > Data, e.g. API keys).
+(balances in the accounts' summary), `settings: [{ key, label, hint }]` (Settings > Data, e.g. API keys), `Receive` (component: the family's own receive screen, built
+on `ReceiveView` of `screens/receive.jsx`: Bitcoin's choice of address type and new addresses), `NftActions` (component:
+`{ chain, nft }`, on an NFT's page: e.g. sending a Bitcoin inscription).

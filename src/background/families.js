@@ -53,3 +53,22 @@ registerFamily('tron', {
     } catch { return null; }
   },
 });
+
+// ---------------------------------------------------------------- Bitcoin (wallets imported from other Bitcoin apps)
+// w.bitcoin = [{ address (its first receive address on mainnet: the account's id), secret, scheme, index }], type
+// 'bitcoin'. scheme 'wif': a private key (WIF, compressed: K…/L…, c… on test networks); 'bip39': a phrase of another
+// app, `index` its account; 'electrum': an Electrum seed. Accounts of the phrase and Ethereum keys need no entry.
+// Format checks only (the extension has no Bitcoin library): the app derives the addresses from the secret.
+registerFamily('bitcoin', {
+  clean(x) {
+    const scheme = String(x?.scheme || ''), address = String(x?.address || '').trim();
+    const secret = scheme === 'wif' ? String(x?.secret || '').trim() : String(x?.secret || '').trim().toLowerCase().split(/\s+/).join(' ');
+    const index = Number(x?.index || 0);
+    if (!/^(bc1[02-9ac-hj-np-z]{11,87}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/.test(address)) return null;
+    if (!Number.isInteger(index) || index < 0 || index > 1000) return null;
+    if (scheme === 'wif' && !/^[KLc][1-9A-HJ-NP-Za-km-z]{51}$/.test(secret)) return null;
+    if ((scheme === 'bip39' || scheme === 'electrum') && !/^[a-z]+( [a-z]+){11,23}$/.test(secret)) return null;
+    if (!['wif', 'bip39', 'electrum'].includes(scheme)) return null;
+    return { address, secret, scheme, index };
+  },
+});

@@ -83,8 +83,15 @@ const SCENES = {
     await page.addStyleTag({ content: '.tr-batt-sheen { display: none; }' }); // the charging sheen moves: in a still it looks like a smudge
     await sleep(1600);
   },
+  // Bitcoin: the account's coins (from the card on the home), the ones that may carry an inscription or runes protected
+  async bitcoin(page) {
+    await page.waitForSelector('.btc-card', { timeout: 30000 }); await sleep(600); await page.click('.btc-card');
+    await page.click('.seg-full button:nth-of-type(2)'); // Coins
+    await page.waitForSelector('.item input[type=checkbox]', { timeout: 30000 });
+    await sleep(1200);
+  },
 };
-const CHAIN = { mmcard: 59144, mmcardOps: 59144, mmcardPayments: 59144, mmcardManage: 59144, tron: -195 }; // scenes on another network than Ethereum
+const CHAIN = { mmcard: 59144, mmcardOps: 59144, mmcardPayments: 59144, mmcardManage: 59144, tron: -195, bitcoin: -8333 }; // scenes on another network than Ethereum
 
 const only = process.argv.slice(2);
 const { server, url } = await serve();

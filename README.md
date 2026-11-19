@@ -22,6 +22,7 @@ The interface is in English, with Italian available (Settings → General → La
 - **Dapp browser in the Android app**: multiple tabs (up to 10, reopened after a restart and loaded only when you open them), tab previews, favicons, "open in new window" links in a new tab. Tapping the padlock shows the site certificate (issued to/by, validity, SHA-256 fingerprint) and the connected accounts, lets you disconnect the site and clear its data (cookies, storage, service workers). Invalid certificates are always refused.
 - **Built-in networks**: Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Gnosis, Sepolia, plus custom networks.
 - **Tron in the Android app** (and Nile, its test network): TRX, TRC-20 and TRC-10 balances, history with address-poisoning filters, sends with their cost in energy, bandwidth and burnt TRX shown before signing; a Resources page to stake TRX (Stake 2.0), rent energy from JustLend, vote for Super Representatives and claim rewards, delegate resources, and check who controls the account; swaps through SUN.io's Smart Router, bridges with Relay, deBridge and LI.FI; Tron dapps in the in-app browser (`window.tron` with TIP-6963, `window.tronLink`, a real `tronWeb` loaded only on Tron sites), where a change of the account's permissions is always refused; Solidity contracts read, called and deployed; custom `T…` addresses. Accounts of the recovery phrase use TronLink's path (`m/44'/195'/0'/0/i`); an imported Ethereum key has its own Tron address (the same key).
+- **Bitcoin in the Android app** (and Testnet4): every account of the recovery phrase is a full HD wallet with Native SegWit (`bc1q…`, BIP84 `m/84'/0'/n'`) and Taproot (`bc1p…`, BIP86 `m/86'/0'/n'`) addresses — a new receive address after each payment, change addresses, the standard 20-address gap limit, so Sparrow, BlueWallet or Electrum restore the same funds; older `1…`/`3…` addresses of imported wallets are found and spent too. Coin selection with Slow/Normal/Fast or a custom rate in sat/vB, "send all", coin control (freeze, choose the coins), speed up and cancel (RBF) and speeding up an incoming payment (CPFP). Coins that may carry Ordinals inscriptions or Runes are protected from plain sends without any service (the transaction that created them is read: runestones, inscription envelopes, small "postage" coins); with a free UniSat key inscriptions show as NFTs and can be sent, runes as tokens (sent with a runestone) and BRC-20 balances are shown. Watch-only export (output descriptors, xpub), import from other Bitcoin wallets (BIP39 phrase, Electrum seed, WIF key), bridges to and from EVM networks with Relay (deposit address) and LI.FI. Data from mempool.space's public API; the background signs only after checking that every coin is the account's, the change really comes back to it and the fee is sane. An imported Ethereum key has its own Bitcoin addresses (the same key).
 
 ## Build
 Requirements: Node.js 22+.
@@ -82,13 +83,13 @@ src/mobile/         Android runtime (Capacitor): extension API shim, in-app brow
 src/shared/         networks, RPC, fees, balances, history, prices, swaps, i18n
 src/shared/locales/ dictionaries (en = base and fallback, it)
 src/ui/             interface (Preact): popup, screens, approvals
-src/ui/chains/      chain drivers: the screens' interface to each family of networks (EVM here, TON in src/ui/ton, Solana in src/ui/solana, Tron in src/ui/tron)
+src/ui/chains/      chain drivers: the screens' interface to each family of networks (EVM here, TON in src/ui/ton, Solana in src/ui/solana, Tron in src/ui/tron, Bitcoin in src/ui/btc)
 scripts/            Android build, icon renderer, i18n checker
 android/            Capacitor Android project (native plugins: dapp browser, fingerprint, system bars)
 build.mjs           build for Chrome, Firefox and Android + icons + zip
 ```
 
-The wallet screens are the same for every network: each family of networks (EVM, TON, Solana, Tron…) plugs in through a chain
+The wallet screens are the same for every network: each family of networks (EVM, TON, Solana, Tron, Bitcoin…) plugs in through a chain
 driver (`src/ui/chains/driver.d.md`) and, for keys, a family module in the background (`src/background/families.js`).
 Adding one: [docs/adding-a-chain.md](docs/adding-a-chain.md). `npm test` checks every driver
 against the interface (`tests/drivers.test.js`).

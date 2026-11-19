@@ -201,6 +201,7 @@ export function NftDetail({ nft: item, price: given }) {
             {price.usd != null && <span class="usd">≈ {fmtUsd(price.usd)}</span>}
           </div>
         )}
+        {drv.ui?.NftActions && !nft.spam && <drv.ui.NftActions chain={chain} nft={nft} />}
         {nft.spam && <div class="warn small">{choice === 'hide' ? t('nft.hiddenByYou') : t('nft.spamHint')}</div>}
         {!nft.spam && choice === 'show' && auto && <div class="info small">{t('nft.shownByYou')}</div>}
         {item.custom && <div class="tiny muted">{t('nft.add.byYou')}</div>}

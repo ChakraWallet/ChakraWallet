@@ -618,11 +618,11 @@ const uiHandlers = {
     return { initialized, unlocked, ...v, chainId, customChains: custom, settings: s, permissions, ...Object.assign({}, ...extra), pending: pending.size };
   },
   generateMnemonic: () => vault.generateMnemonic(),
-  async createVault({ password, mnemonic, name }) { const a = await vault.createVault(password, mnemonic, name); await touchAutoLock(); return a; },
+  async createVault({ password, mnemonic, name, generated }) { const a = await vault.createVault(password, mnemonic, name, { generated }); await touchAutoLock(); return a; },
   async restoreBackup({ password, backup, backupPassword }) { const n = await vault.restoreVault(password, backup, backupPassword); await touchAutoLock(); await broadcastAccounts(); return n; },
   exportBackup: ({ password, backupPassword }) => vault.exportBackup(password, backupPassword),
   async importBackup({ backup, backupPassword }) { const r = await vault.importBackup(backup, backupPassword); if (r.added) await broadcastAccounts(); return r; },
-  async createWallet({ name, mnemonic, privateKey }) { const w = await vault.createWallet({ name, mnemonic, privateKey }); await broadcastAccounts(); return w; },
+  async createWallet({ name, mnemonic, privateKey, generated }) { const w = await vault.createWallet({ name, mnemonic, privateKey, generated }); await broadcastAccounts(); return w; },
   async switchWallet({ id }) { await vault.switchWallet(id); await broadcastAccounts(); return true; },
   renameWallet: ({ id, name }) => vault.renameWallet(id, name).then(() => true),
   async removeWallet({ id, password }) {

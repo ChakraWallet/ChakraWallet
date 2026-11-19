@@ -18,10 +18,19 @@ import { keyOfSeed, secretText } from '../src/shared/solana/core.js';
 import { tronChainDriver } from '../src/ui/tron/index.jsx';
 import { TRON_CHAINS, TRC20 } from '../src/shared/tron/api.js';
 import { keyOfPrivate, toBase58 } from '../src/shared/tron/core.js';
+import { btcChainDriver } from '../src/ui/btc/index.jsx';
+import { BTC_CHAINS } from '../src/shared/btc/networks.js';
+import { seedOfPhrase, hdAccountPublic, branchAddress, RECEIVE_TYPES } from '../src/shared/btc/keys.js';
+import { encodeAccount } from '../src/shared/btc/account.js';
+import { setEsploraPace } from '../src/shared/btc/esplora.js';
+import { setUnisatKey, setUnisatPace } from '../src/shared/btc/unisat.js';
+import { bitcoinNet, esploraTx } from './helpers/btcnet.js';
 
 registerDriver(tonDriver);
 registerDriver(solanaChainDriver);
 registerDriver(tronChainDriver);
+registerDriver(btcChainDriver);
+setEsploraPace(0); setUnisatPace(0); setUnisatKey('test'); // Bitcoin: no pauses; runes from UniSat (the key)
 setTonCenterKey('test'); // TON Center's 10 requests/s pace instead of 1/s
 
 const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
@@ -176,6 +185,21 @@ FIXTURES.tron = {
     }
     return json({}, 404);
   },
+};
+
+// Bitcoin: an HD account (the BIP84/BIP86 test phrase), BTC on its first address, a rune; one payment received
+const BTC_ACC = { id: 'btc-acc', kind: 'hd', ...hdAccountPublic(seedOfPhrase('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'), 0, 0), receive: RECEIVE_TYPES };
+const ME_BTC = branchAddress(BTC_ACC.branches[0], 0, 0, BTC_CHAINS[-8333].net);
+const OTHER_BTC = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+FIXTURES.bitcoin = {
+  chain: BTC_CHAINS[-8333],
+  me: { address: ME_BTC, raw: encodeAccount(BTC_ACC) }, other: OTHER_BTC, bad: '0x5e83857a7719B6aE2DE17af827140C04323a231C',
+  fetch: (url, init) => bitcoinNet({
+    utxos: { [ME_BTC]: [{ txid: 'ab'.repeat(32), vout: 0, value: 150_000 }] },
+    txs: { ['ab'.repeat(32)]: esploraTx('ab'.repeat(32), { vin: [{ address: OTHER_BTC, value: 200_000 }], vout: [{ address: ME_BTC, value: 150_000 }, { address: OTHER_BTC, value: 49_000 }] }) },
+    addrTxs: { [ME_BTC]: ['ab'.repeat(32)] },
+    runes: { [ME_BTC]: [{ runeid: '840000:3', rune: 'DOGGOTOTHEMOON', spacedRune: 'DOG•GO•TO•THE•MOON', amount: '500', divisibility: 0, symbol: '🐕' }] },
+  }).fetch(url, init),
 };
 
 const KINDS = ['send', 'receive', 'swap', 'approve', 'contract', 'self'];

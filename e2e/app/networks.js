@@ -5,6 +5,7 @@ import { POPULAR_TOKENS } from '../../src/shared/tokens.js';
 import { KYBER_CHAINS } from '../../src/shared/swap.js';
 import { BRIDGE_CHAINS } from '../../src/shared/bridge.js';
 import { TON_CHAINS } from '../../src/shared/ton/api.js';
+import { BTC_CHAINS } from '../../src/shared/btc/networks.js';
 
 const S = __E2E__;
 registerChains(S.evm.map((n) => ({
@@ -29,5 +30,17 @@ if (S.ton) {
     tonapi: S.ton.api, // TonAPI's routes the app uses here (names): served by the same local API
   };
   TON_CHAINS[c.id] = c;
+  registerChains([c]);
+}
+
+// Bitcoin: the local Esplora API (e2e/env/btc.mjs), regtest addresses (bcrt1…). In BTC_CHAINS too: the background signs for it.
+if (S.btc) {
+  const c = {
+    id: S.btc.id, kind: 'bitcoin', name: 'Bitcoin Local', short: 'BTCL', color: '#F7931A',
+    native: { symbol: 'BTC', name: 'Bitcoin', decimals: 8, priceId: 'coingecko:bitcoin' },
+    esplora: [S.btc.api], explorer: `${S.btc.api}/explorer`, coin: 1,
+    net: { bech32: 'bcrt', pubKeyHash: 0x6f, scriptHash: 0xc4, wif: 0xef }, unisat: null, swap: false,
+  };
+  BTC_CHAINS[c.id] = c;
   registerChains([c]);
 }

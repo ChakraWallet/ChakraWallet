@@ -1,6 +1,8 @@
 // Demo network: every fetch() of the app is answered here with invented data (JSON-RPC, prices, Polymarket);
 // anything else fails like an offline request. Loaded before the app.
-import { Interface } from 'ethers';
+import { Interface, Mnemonic } from 'ethers';
+import { sha256 } from '@noble/hashes/sha256';
+import { seedOfPhrase, hdAccountPublic, branchAddress } from '../../../src/shared/btc/keys.js';
 import { PRICES, HOLDINGS, CARD, accountIndex } from './data.js';
 import { MULTICALL3 } from '../../../src/shared/rpc.js';
 
@@ -306,6 +308,69 @@ function trongrid(u, init) {
   return null;
 }
 
+// ---------------------------------------------------------------- Bitcoin (mempool.space): the demo account's coins
+// The first account of the demo phrase (capture.mjs): its SegWit and Taproot addresses, derived here the same way. Coins
+// on several addresses, a payment sent (with its change), one on its way in, a small coin, an inscription and runes
+// (recognised from the transactions that created them: the protection without services).
+let btcDemo = null;
+function btcWorld() {
+  if (btcDemo) return btcDemo;
+  const entropy = sha256(new TextEncoder().encode('chakra-landing-demo-v1')).subarray(0, 16);
+  const acc = hdAccountPublic(seedOfPhrase(Mnemonic.fromEntropy(entropy).phrase), 0, 0, ['p2wpkh', 'p2tr', 'p2sh-p2wpkh', 'p2pkh']);
+  const NET = { bech32: 'bc', pubKeyHash: 0, scriptHash: 5, wif: 128 };
+  const S = (c, i) => branchAddress(acc.branches[0], c, i, NET), T = (i) => branchAddress(acc.branches[1], 0, i, NET);
+  const PEER = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', SHOP = 'bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l';
+  const now = Math.floor(Date.now() / 1000), h = (n) => now - n * 3600;
+  const id = (k) => k.repeat(32);
+  const tx = (k, { vin, vout, time, fee = 1420, witness = [] }) => ({
+    txid: id(k), fee, weight: 564, status: time ? { confirmed: true, block_height: 870000, block_time: time } : { confirmed: false },
+    vin: vin.map(([txid, vout, address, value]) => ({ txid, vout, prevout: { scriptpubkey_address: address, value }, witness })),
+    vout: vout.map(([address, value, script]) => ({ scriptpubkey_address: address, scriptpubkey: script || '0014' + '11'.repeat(20), value })),
+  });
+  const txs = [
+    tx('a1', { vin: [[id('f1'), 0, PEER, 5_100_000]], vout: [[S(0, 0), 5_000_000], [PEER, 98_200]], time: h(400) }),
+    tx('a2', { vin: [[id('f2'), 1, PEER, 3_500_000]], vout: [[S(0, 0), 3_420_000], [PEER, 78_400]], time: h(260) }),
+    tx('a3', { vin: [[id('f3'), 0, PEER, 3_000_000]], vout: [[S(0, 1), 3_000_000]], time: h(190), fee: 1100 }),
+    tx('a4', { vin: [[id('a3'), 0, S(0, 1), 3_000_000]], vout: [[SHOP, 2_670_000], [S(1, 0), 318_200]], time: h(150), fee: 11_800 }), // a payment, its change
+    tx('a5', { vin: [[id('f4'), 0, PEER, 1_250_000]], vout: [[S(0, 2), 1_200_000], [PEER, 48_600]], time: h(70) }),
+    tx('a6', { vin: [[id('f5'), 2, PEER, 20_000]], vout: [[T(0), 546]], time: h(48), witness: ['aa'.repeat(32), '20' + '11'.repeat(32) + 'ac0063036f7264010118'] }), // an inscription
+    tx('a7', { vin: [[id('f6'), 0, PEER, 15_000]], vout: [['', 0, '6a5d09160200c0a233036401'], [T(1), 546]], time: h(30) }), // runes
+    tx('a8', { vin: [[id('f7'), 1, PEER, 9_000]], vout: [[S(0, 2), 2_100]], time: h(20) }), // a small coin
+    tx('a9', { vin: [[id('f8'), 0, PEER, 420_000]], vout: [[S(0, 3), 400_000], [PEER, 18_900]] }), // on its way in
+  ];
+  btcDemo = { txs, byId: Object.fromEntries(txs.map((t) => [t.txid, t])) };
+  return btcDemo;
+}
+function esplora(u) {
+  const { txs, byId } = btcWorld();
+  const p = u.pathname.replace(/^\/api/, '');
+  const spent = (txid, vout) => txs.some((t) => t.vin.some((v) => v.txid === txid && v.vout === vout));
+  const touches = (t, a) => t.vout.some((o) => o.scriptpubkey_address === a) || t.vin.some((v) => v.prevout.scriptpubkey_address === a);
+  let m;
+  if (p === '/v1/fees/recommended') return { fastestFee: 9, halfHourFee: 5, hourFee: 3, economyFee: 2, minimumFee: 1 };
+  if ((m = /^\/address\/([^/]+)$/.exec(p))) {
+    const s = { chain_stats: { funded_txo_sum: 0, spent_txo_sum: 0, tx_count: 0 }, mempool_stats: { funded_txo_sum: 0, spent_txo_sum: 0, tx_count: 0 } };
+    for (const t of txs) {
+      if (!touches(t, m[1])) continue;
+      const k = t.status.confirmed ? s.chain_stats : s.mempool_stats;
+      k.tx_count++;
+      for (const o of t.vout) if (o.scriptpubkey_address === m[1]) k.funded_txo_sum += o.value;
+      for (const v of t.vin) if (v.prevout.scriptpubkey_address === m[1]) k.spent_txo_sum += v.prevout.value;
+    }
+    return { address: m[1], ...s };
+  }
+  if ((m = /^\/address\/([^/]+)\/utxo$/.exec(p))) {
+    const out = [];
+    for (const t of txs) t.vout.forEach((o, i) => { if (o.scriptpubkey_address === m[1] && !spent(t.txid, i)) out.push({ txid: t.txid, vout: i, value: o.value, status: t.status }); });
+    return out;
+  }
+  if ((m = /^\/address\/([^/]+)\/txs$/.exec(p))) return txs.filter((t) => touches(t, m[1])).sort((a, b) => (b.status.block_time || 9e9) - (a.status.block_time || 9e9));
+  if (/^\/address\/[^/]+\/txs\/chain\//.test(p)) return [];
+  if ((m = /^\/tx\/([0-9a-f]{64})$/.exec(p))) return byId[m[1]] || null;
+  if ((m = /^\/v1\/tx\/([0-9a-f]{64})\/rbf$/.exec(p))) return { replacements: null, replaces: null };
+  return null;
+}
+
 // ---------------------------------------------------------------- router
 const realFetch = globalThis.fetch.bind(globalThis);
 globalThis.fetch = async (input, init = {}) => {
@@ -329,6 +394,7 @@ globalThis.fetch = async (input, init = {}) => {
       fees: { relayer: { amountUsd: '0.21' }, gas: { amountUsd: '0.04' } } });
   }
   if (u.host === 'api.trongrid.io') { const r = trongrid(u, init); return r ? json(r) : json({ Error: 'not found' }, 404); }
+  if (u.host === 'mempool.space' || u.host === 'blockstream.info') { const r = esplora(u); return r ? json(r) : json({ error: 'not found' }, 404); }
   if (/blockscout\.com$/.test(u.host) && /\/nft$/.test(u.pathname)) return json(blockscoutNfts());
   { const r = nftPriceMock(u, init); if (r) return r[0] === null ? json({}, r[1]) : json(r[0], r[1] || 200); }
   if (u.host === 'toncenter.com') { const r = toncenter(u); return r ? json(r) : json({ error: 'not found' }, 404); }

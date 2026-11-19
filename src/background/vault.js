@@ -5,7 +5,7 @@
 //   secrets (encrypted)  { v: 2, wallets: [{ id, mnemonic|null, hd: [index…], hdNext, imported: [pk…], [family]?: [{ address, secret, … }] }] }
 //   ([family]: wallets imported from another app of one family of networks, e.g. ton: [{ address, secret, version }];
 //    see background/families.js. The key of an HD account on another family comes from its phrase)
-//   storage.local        wallets:      [{ id, name, hasSeed }]
+//   storage.local        wallets:      [{ id, name, hasSeed, generated? (the phrase was created by Chakra, not typed in) }]
 //                        activeWallet: id            -> the UI, dapps and signing only see this wallet's accounts
 //                        accounts:     [{ address, name, type, index?, walletId }]   (all wallets)
 //                                      type <family> (e.g. 'ton'): an account of that family only, address as the family stores it
@@ -177,7 +177,7 @@ export async function view() {
 
 export async function activeAccounts() { return (await view()).accounts; }
 
-export async function createVault(password, mnemonic, name = t('vault.walletN', { n: 1 })) {
+export async function createVault(password, mnemonic, name = t('vault.walletN', { n: 1 }), { generated = false } = {}) {
   if (!password || password.length < 8) throw i18nError('errors.passwordTooShort');
   if (await isInitialized()) throw i18nError('errors.alreadyInitialized');
   const phrase = cleanPhrase(mnemonic);
@@ -188,7 +188,7 @@ export async function createVault(password, mnemonic, name = t('vault.walletN', 
   const key = await deriveKey(password, salt);
   await local.set('vault', await encryptWith(key, salt, secrets));
   const first = deriveHd(phrase, 0).address;
-  await local.set('wallets', [{ id, name: name.trim().slice(0, 32) || t('vault.walletN', { n: 1 }), hasSeed: true }]);
+  await local.set('wallets', [{ id, name: name.trim().slice(0, 32) || t('vault.walletN', { n: 1 }), hasSeed: true, ...(generated ? { generated: true } : {}) }]);
   await local.set('accounts', [{ address: first, name: t('vault.accountN', { n: 1 }), type: 'hd', index: 0, walletId: id }]);
   await local.set('activeWallet', id);
   await local.set('selected', first);
@@ -225,7 +225,7 @@ export async function changePassword(oldPw, newPw) {
 // ------------------------------------------------------------------ wallets (tenants)
 
 // New wallet from a generated/imported recovery phrase, or from a single private key (wallet without phrase).
-export async function createWallet({ name, mnemonic, privateKey }) {
+export async function createWallet({ name, mnemonic, privateKey, generated = false }) {
   const s = await getSession();
   const m = await meta();
   const id = newId();
@@ -249,7 +249,7 @@ export async function createWallet({ name, mnemonic, privateKey }) {
   s.secrets.wallets.push(w);
   await persist(s);
   const wname = String(name || '').trim().slice(0, 32) || t('vault.walletN', { n: m.wallets.length + 1 });
-  await local.set('wallets', [...m.wallets, { id, name: wname, hasSeed: !!w.mnemonic }]);
+  await local.set('wallets', [...m.wallets, { id, name: wname, hasSeed: !!w.mnemonic, ...(w.mnemonic && generated ? { generated: true } : {}) }]);
   await local.set('accounts', [...m.accounts, acc]);
   await activate(id);
   return { id, name: wname };
@@ -396,8 +396,8 @@ export async function getExtraSecret(name) { return (await getSession()).secrets
 
 // ------------------------------------------------------------------ other families (TON...: background/families.js)
 /**
- * Where an account's key for a family comes from (background only, never sent to the UI): { phrase, index } for
- * accounts of the recovery phrase, the stored entry ({ secret, ... }) for accounts of that family only, null otherwise
+ * Where an account's key for a family comes from (background only, never sent to the UI): { phrase, index, generated
+ * (the phrase was created by Chakra) } for accounts of the recovery phrase, the stored entry ({ secret, ... }) for accounts of that family only, null otherwise
  * (e.g. an imported Ethereum key has no TON key). evmKeys: the family uses Ethereum's curve (Tron), so an imported or
  * generated Ethereum key is its key too: { evmKey } for those accounts. Only accounts of the active wallet.
  */
@@ -407,7 +407,7 @@ export async function familyKeySource(kind, address, { evmKeys = false } = {}) {
   const acc = m.accounts.find((a) => lc(a.address) === lc(address) && a.walletId === m.active);
   if (!acc) return null;
   const w = s.secrets.wallets.find((x) => x.id === acc.walletId);
-  if (acc.type === 'hd' && w?.mnemonic) return { phrase: w.mnemonic, index: acc.index };
+  if (acc.type === 'hd' && w?.mnemonic) return { phrase: w.mnemonic, index: acc.index, ...(m.wallets.find((x) => x.id === acc.walletId)?.generated ? { generated: true } : {}) };
   if (acc.type === kind) { const x = (w?.[kind] || []).find((k) => lc(k.address) === lc(address)); if (!x) return null; const { address: _, ...rest } = x; return rest; }
   if (evmKeys && !familyOf(acc.type) && s.keys[lc(address)]) return { evmKey: s.keys[lc(address)] };
   return null;

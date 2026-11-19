@@ -6,12 +6,23 @@ import { useChainAddress } from '../hooks.js';
 import { driverFor } from '../chains/index.js';
 import { t } from '../../shared/i18n.js';
 
+/** The receive screen: the family's own when it has one (driver.ui.Receive: Bitcoin's address types), else the address. */
 export function Receive() {
+  const { chain } = useApp();
+  const Own = driverFor(chain).ui?.Receive;
+  return Own ? <Own /> : <ReceiveDefault />;
+}
+
+function ReceiveDefault() {
+  const addr = useChainAddress(); // the account's address on this network
+  return <ReceiveView address={addr.address} missing={addr.missing} />;
+}
+
+/** QR, address, payment request. extra: shown under the address (e.g. Bitcoin: the address type, a new address). */
+export function ReceiveView({ address, missing = false, extra = null }) {
   const { account, chain } = useApp();
   const { tokens } = useTokenList();
-  const addr = useChainAddress(); // the account's address on this network
   const drv = driverFor(chain);
-  const address = addr.address;
   const [ask, setAsk] = useState(false);
   const [token, setToken] = useState(null);
   const [amount, setAmount] = useState('');
@@ -24,7 +35,7 @@ export function Receive() {
   const amountRaw = raw && raw > 0n ? raw.toString() : null;
   const uri = address ? drv.paymentLink(chain, { address, token: tk, amountRaw, ask }) : '';
   if (!address) {
-    return <div class="screen"><TopBar title={t('receive.title')} /><div class="content">{addr.missing ? <div class="error">{t('chain.noKey.body', { network: chain.name })}</div> : <div class="empty"><span class="spinner" /></div>}</div></div>;
+    return <div class="screen"><TopBar title={t('receive.title')} /><div class="content">{missing ? <div class="error">{t('chain.noKey.body', { network: chain.name })}</div> : <div class="empty"><span class="spinner" /></div>}</div></div>;
   }
   const note = drv.receiveNote(chain, ask);
   const usd = raw && tk?.price != null ? (Number(amount.replace(',', '.')) || 0) * tk.price : null;
@@ -53,6 +64,7 @@ export function Receive() {
           <CopyBtn text={address} label={t('receive.copyAddress')} />
           {ask && raw && raw > 0n && <CopyBtn text={uri} label={t('receive.copyLink')} />}
         </div>
+        {extra}
         <div class="info small" style={{ textAlign: 'left' }}>
           {note.network ? rich(note.key, { network: <b>{chain.name}</b> }) : t(note.key)}
         </div>
