@@ -1,4 +1,4 @@
-// MetaMask Card compatibility (read-only view + spending limits): the card is a Mastercard by Baanx that spends the
+// MetaMask Card compatibility (read-only view + spending limits), on Linea and Base: the card is a Mastercard by Baanx that spends the
 // tokens of a self-custodial account. Nothing is moved to the card: the account allows a "FoxConnect" contract to take
 // up to a limit (an ERC-20 approve), and at every payment a Baanx relayer calls that contract, which moves the amount
 // from the account. So, on-chain and with no account at MetaMask or Baanx, we can see:
@@ -26,10 +26,22 @@ export const MMCARD = {
       { address: '0x3bce82cf1a2bc357f956dd494713fe11dc54780f', symbol: 'GBPe', decimals: 18 },
     ],
   },
+  8453: {
+    // Base: one contract for every card, US and the rest of the world
+    spenders: { global: '0xdabdafc43b2bc1c7d10c2bbce950a8cad4a367f8', us: '0xdabdafc43b2bc1c7d10c2bbce950a8cad4a367f8' },
+    tokens: [ // the tokens the card spends on Base (same addresses as shared/tokens.js)
+      { address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', symbol: 'USDC', decimals: 6 },
+      { address: '0xfde4c96c8593536e31f229ea8f37b2ada2699bb2', symbol: 'USDT', decimals: 6 },
+      { address: '0x4200000000000000000000000000000000000006', symbol: 'WETH', decimals: 18 },
+      { address: '0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42', symbol: 'EURC', decimals: 6 },
+    ],
+  },
 };
 export const MMCARD_SITE = 'https://metamask.io/card';
 
 export const cardConfig = (chain) => (chain && !chain.kind ? MMCARD[chain.id] || null : null);
+/** One contract for every region (Base): the card's region can't be told, and doesn't matter. */
+export const oneSpender = (cfg) => cfg.spenders.global === cfg.spenders.us;
 const isSpender = (cfg, a) => Object.values(cfg.spenders).includes(lc(a));
 const isCardToken = (cfg, a) => cfg.tokens.some((x) => x.address === lc(a));
 
@@ -39,22 +51,24 @@ export const isUnlimited = (allowance, decimals) => BigInt(allowance) >= UNLIMIT
 
 /**
  * The card's state for an account: null on networks without the card, else
- * { linked, region: 'global'|'us'|null, spender, tokens: [{ ...token, balance, allowance, spendable, active }] },
- * all amounts raw strings. One multicall (balance + both allowances per token).
+ * { linked, region: 'global'|'us'|null (null also where one contract serves every region), spender,
+ *   tokens: [{ ...token, balance, allowance, spendable, active }] }, all amounts raw strings. One multicall (balance and
+ * the allowance to each contract, per token).
  */
 export async function cardStatus(chain, owner) {
   const cfg = cardConfig(chain);
   if (!cfg) return null;
   const { global, us } = cfg.spenders;
+  const single = oneSpender(cfg), per = single ? 2 : 3;
   const calls = cfg.tokens.flatMap((x) => [
     { to: x.address, data: erc20.encodeFunctionData('balanceOf', [owner]) },
     { to: x.address, data: erc20.encodeFunctionData('allowance', [owner, global]) },
-    { to: x.address, data: erc20.encodeFunctionData('allowance', [owner, us]) },
+    ...(single ? [] : [{ to: x.address, data: erc20.encodeFunctionData('allowance', [owner, us]) }]),
   ]);
   const res = await multiCall(chain, calls);
-  if (res.every((r) => r == null)) throw new Error('Linea RPC');
+  if (res.every((r) => r == null)) throw new Error(`${chain.name} RPC`);
   const big = (r) => (r && r !== '0x' ? BigInt(r.slice(0, 66)) : 0n);
-  const rows = cfg.tokens.map((x, i) => ({ ...x, balance: big(res[i * 3]), g: big(res[i * 3 + 1]), u: big(res[i * 3 + 2]) }));
+  const rows = cfg.tokens.map((x, i) => ({ ...x, balance: big(res[i * per]), g: big(res[i * per + 1]), u: single ? 0n : big(res[i * per + 2]) }));
   // the account's card is the one with allowances (the other contract has none)
   const gSum = rows.reduce((s, r) => s + (r.g > 0n ? 1 : 0), 0), uSum = rows.reduce((s, r) => s + (r.u > 0n ? 1 : 0), 0);
   const region = gSum || uSum ? (uSum > gSum ? 'us' : 'global') : null;
@@ -64,7 +78,7 @@ export async function cardStatus(chain, owner) {
     const spendable = r.balance < allowance ? r.balance : allowance;
     return { address: r.address, symbol: r.symbol, decimals: r.decimals, balance: r.balance.toString(), allowance: allowance.toString(), spendable: spendable.toString(), active: allowance > 0n };
   });
-  return { linked: !!region, region, spender, tokens };
+  return { linked: !!region, region: single ? null : region, spender, tokens };
 }
 
 /** The approve that sets the card's limit on a token (0 = the card can no longer take it). */

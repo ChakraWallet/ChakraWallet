@@ -27,6 +27,16 @@ test('spam NFTs: links and bait words; emoji and other alphabets are fine', () =
   assert.equal(spamNft('vitalik.eth', 'ENS'), false);
 });
 
+test('spam NFTs: fear instead of a gift, and text dressed up in fancy letters', () => {
+  // seen on Base: a "security warning" that sends to a look-alike of revoke.cash, written in mathematical bold letters
+  const desc = '𝗜𝗳 𝘆𝗼𝘂 𝗿𝗲𝗰𝗲𝗶𝘃𝗲𝗱 𝘁𝗵𝗶𝘀 𝗺𝗲𝘀𝘀𝗮𝗴𝗲, 𝘆𝗼𝘂𝗿 𝘁𝗼𝗸𝗲𝗻𝘀 𝗺𝗮𝘆 𝗯𝗲 𝗮𝘁 𝗿𝗶𝘀𝗸.\n\n𝗿𝗲𝘃𝗼𝗸𝗲.𝗳𝗶 — a wallet check for dangerous token approvals.\n\nTo eliminate the threat, go to https://revoke.fi';
+  assert.equal(spamNft('Your tokens compromised', 'revoke', { description: desc }), true);
+  assert.equal(spamNft('Security notice', 'Wallet', { description: desc }), true, 'from the description alone');
+  assert.equal(spamNft('Notice', 'Info', { description: '𝗙𝗿𝗲𝗲 𝗺𝗶𝗻𝘁 at https://x.example' }), true, 'fancy letters with a link');
+  assert.equal(spamNft('𝔊𝔬𝔱𝔥𝔦𝔠 #3', 'Blackletter'), false, 'fancy letters alone: an art style');
+  assert.equal(spamNft('Sunset #4', 'Skies', { description: 'Painted in 2021. More at https://artist.example' }), false, 'a plain link to the artist');
+});
+
 test('Blockscout NFTs -> items', () => {
   const [a, b] = fromBlockscout([
     { id: '7', value: '1', token_type: 'ERC-721', image_url: 'ipfs://Qm/7.png', metadata: { name: 'Thing #7', description: 'd', attributes: [{ trait_type: 'Mood', value: 'calm' }, { trait_type: 'Bad', value: { x: 1 } }] }, token: { address_hash: C, name: 'Things', type: 'ERC-721', reputation: 'ok' } },

@@ -9,7 +9,7 @@ import { usePolyFunds, POLY_CHAIN } from '../polyBalance.js';
 import { HistoryList } from './history.jsx';
 import { t, tn } from '../../shared/i18n.js';
 import { NftSection, AddNftSheet } from './nfts.jsx';
-import { useMmCard, MmCardFace, HeroStack, CardActions, CardOps } from './mmcard.jsx';
+import { useMmCard, MmCardFace, HeroStack, CardActions, CardOps, CardElsewhere } from './mmcard.jsx';
 import { ConnectQrButton } from '../connectQr.jsx';
 
 // the card in front on the home (the balance card or the MetaMask Card): kept while moving between screens
@@ -128,7 +128,7 @@ export function Home() {
   const [sheet, setSheet] = useState(null);
   const [showUnpriced, setShowUnpriced] = useState(state.settings.showUnpriced);
   const [showHidden, setShowHidden] = useState(false);
-  // MetaMask Card (Linea): when the account is linked to one, its card sits behind the balance card
+  // MetaMask Card (Linea, Base): when the account is linked to one, its card sits behind the balance card
   const card = useMmCard();
   const linked = !!card.data?.linked;
   const [face, setFaceState] = useState(lastFace);
@@ -225,6 +225,7 @@ export function Home() {
           return <HeroStack face={face} setFace={setFace} wallet={walletHero} card={<MmCardFace card={card} onRefresh={card.reload} peek={<><Icon name="card" size={12} /> MetaMask Card</>} />} />;
         })()}
 
+        {!linked && card.cfg && card.data && <CardElsewhere card={card} />}
         {onCard && <CardActions card={card} />}
         {!onCard && <div class="actions">
           <button class="action" onClick={() => nav('send')}><span class="ic"><Icon name="send" /></span>{t('home.send')}</button>

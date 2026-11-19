@@ -1,11 +1,11 @@
-// MetaMask Card compatibility (Linea): the card's state read on-chain (balances and the allowances to its FoxConnect
+// MetaMask Card compatibility (Linea, Base): the card's state read on-chain (balances and the allowances to its FoxConnect
 // contracts) and the card's payments recognised in the history (sent by the card's relayer to FoxConnect, so not
 // taken for address-poisoning fakes).
 import './helpers/chrome.js';
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Interface } from 'ethers';
-import { cardStatus, cardConfig, isUnlimited, limitTx, MMCARD } from '../src/shared/mmcard.js';
+import { cardStatus, cardConfig, isUnlimited, limitTx, oneSpender, markCardRecords, MMCARD } from '../src/shared/mmcard.js';
 import { loadHistory } from '../src/shared/history.js';
 import { erc20 } from '../src/shared/rpc.js';
 import { getChain } from '../src/shared/chains.js';
@@ -102,4 +102,49 @@ test('history: a card payment (relayer -> FoxConnect) is a payment, not a fake t
   assert.equal(pay.spam, false);
   assert.equal(pay.transfers[0].amount, '3341486');
   assert.notEqual(fake.kind, 'card', 'another contract: still a fake');
+});
+
+// ---------------------------------------------------------------- Base: one FoxConnect for every region
+const BASE = getChain(8453);
+const FOX_BASE = MMCARD[8453].spenders.global;
+const USDC_BASE = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', EURC_BASE = '0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42';
+
+test('Base: a network with the card, its tokens among the well-known ones, one contract for every region', () => {
+  const cfg = cardConfig(BASE);
+  assert.ok(cfg);
+  assert.equal(oneSpender(cfg), true);
+  assert.equal(oneSpender(cardConfig(LINEA)), false);
+  assert.equal(FOX_BASE, '0xdabdafc43b2bc1c7d10c2bbce950a8cad4a367f8');
+  assert.deepEqual(cfg.tokens.map((x) => x.symbol), ['USDC', 'USDT', 'WETH', 'EURC']);
+  for (const x of cfg.tokens) assert.ok(POPULAR_TOKENS[8453].some((p) => p.address.toLowerCase() === x.address && p.decimals === x.decimals), x.symbol);
+});
+
+test('Base: the card state asks one allowance per token and has no region', async () => {
+  let calls = 0;
+  node({ [USDC_BASE]: { balance: 80_000_000n, [FOX_BASE]: 25_000_000n }, [EURC_BASE]: { balance: 10_000_000n, [FOX_BASE]: 2199023255551n * 10n ** 6n } });
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (init.method === 'POST' && JSON.parse(init.body).method === 'eth_call') calls = multicall.decodeFunctionData('aggregate3', JSON.parse(init.body).params[0].data)[0].length;
+    return inner(url, init);
+  };
+  const s = await cardStatus(BASE, ME);
+  assert.equal(calls, MMCARD[8453].tokens.length * 2, 'balance and one allowance per token');
+  assert.equal(s.linked, true);
+  assert.equal(s.region, null);
+  assert.equal(s.spender, FOX_BASE);
+  assert.equal(s.tokens.find((x) => x.symbol === 'USDC').spendable, '25000000');
+  assert.equal(s.tokens.find((x) => x.symbol === 'EURC').spendable, '10000000');
+  node({ [USDC_BASE]: { balance: 5n } });
+  assert.equal((await cardStatus(BASE, ME)).linked, false);
+});
+
+test('Base: a card payment (relayer -> FoxConnect) is recognised in the history', async () => {
+  const PAY = '0x' + 'd4'.repeat(32), OTHER = '0x' + 'e5'.repeat(32);
+  const SHOP = '0x8dfe562cbb4e93d5029f39da26bb6b501a8d1d3e';
+  node({}, { [PAY]: { hash: PAY, from: '0x88db0d1d188b0ab2ee30a7ebe2a6e64ba0152059', to: FOX_BASE }, [OTHER]: { hash: OTHER, from: '0x1111111111111111111111111111111111111111', to: '0x2222222222222222222222222222222222222222' } });
+  const rec = (hash) => ({ hash, isTx: false, transfers: [{ from: ME, to: SHOP, token: USDC_BASE, amount: '1000000' }] });
+  const records = [rec(PAY), rec(OTHER)];
+  await markCardRecords(BASE, ME, records);
+  assert.equal(records[0].card, 'spend');
+  assert.equal(records[1].card, undefined);
 });

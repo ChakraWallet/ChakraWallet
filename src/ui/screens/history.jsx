@@ -19,7 +19,7 @@ export const KIND = {
   approve: { label: 'history.kind.approve', icon: 'approve', color: 'var(--amber)', bg: 'var(--amber-soft)' },
   contract: { label: 'history.kind.contract', icon: 'contract', color: 'var(--muted)', bg: 'var(--card-2)' },
   self: { label: 'history.kind.self', icon: 'refresh', color: 'var(--muted)', bg: 'var(--card-2)' },
-  // MetaMask Card (Linea): a payment, sent by the card's relayer; money the card sent back
+  // MetaMask Card (Linea, Base): a payment, sent by the card's relayer; money the card sent back
   card: { label: 'history.kind.card', icon: 'card', color: 'var(--mm-orange)', bg: 'var(--mm-soft)' },
   cardRefund: { label: 'history.kind.cardRefund', icon: 'card', color: 'var(--green)', bg: 'var(--green-soft)' },
 };
@@ -347,7 +347,7 @@ export function HistoryList({ limit, filter = 'all', emptyText }) {
 export function History({ filter: initial = 'all' }) {
   const { chain, account } = useApp();
   const [filter, setFilter] = useState(initial);
-  // MetaMask Card payments (Linea): a filter of their own
+  // MetaMask Card payments (Linea, Base): a filter of their own
   const filters = cardConfig(chain) ? [...FILTERS.slice(0, 4), ['card', 'history.filter.card'], FILTERS[4]] : FILTERS;
   return (
     <div class="screen">

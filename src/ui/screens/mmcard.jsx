@@ -1,10 +1,11 @@
-// MetaMask Card compatibility (Linea): the card's face on the home (stacked with the balance card), the operations that
+// MetaMask Card compatibility (Linea, Base): the card's face on the home (stacked with the balance card), the operations that
 // can be done on-chain (top-up through a bridge, a swap into a token the card spends, spending limits) and the
 // management screen. The card's own data and settings stay in the MetaMask app: these screens say so, and link to it.
 // MetaMask and MetaMask Card are trademarks of their owners; Chakra is not affiliated with them.
 import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
-import { local } from '../../shared/ext.js';
-import { cardConfig, cardStatus, limitTx, isUnlimited, MMCARD_SITE } from '../../shared/mmcard.js';
+import { local, bg } from '../../shared/ext.js';
+import { cardConfig, cardStatus, limitTx, isUnlimited, oneSpender, MMCARD_SITE, MMCARD } from '../../shared/mmcard.js';
+import { getChain } from '../../shared/chains.js';
 import { POPULAR_TOKENS } from '../../shared/tokens.js';
 import { getPrices, tokenPriceKey } from '../../shared/prices.js';
 import { waitForReceipt } from '../../shared/rpc.js';
@@ -118,16 +119,62 @@ export function HeroStack({ face, setFace, wallet, card }) {
   );
 }
 
+// ---------------------------------------------------------------- the card on the other network
+const elsewhere = new Map(); // `${chainId}:${address}` -> { at, linked }
+/**
+ * On a network of the card where the account has none: the other network of the card where it has one (read from what
+ * was saved, else asked once: one multicall), or null.
+ */
+function useCardElsewhere(chain, owner, here) {
+  const [other, setOther] = useState(null);
+  useEffect(() => {
+    setOther(null);
+    if (!owner || !here || here.linked) return undefined;
+    let alive = true;
+    (async () => {
+      for (const id of Object.keys(MMCARD).map(Number).filter((id) => id !== chain.id)) {
+        const c = getChain(id);
+        if (!c) continue;
+        const k = `${id}:${String(owner).toLowerCase()}`;
+        let e = elsewhere.get(k);
+        if (!e || Date.now() - e.at > 10 * 60e3) {
+          const saved = await local.get(`mmcard:${k}`, null).catch(() => null);
+          if (saved && Date.now() - (saved.updated || 0) < 10 * 60e3) e = { at: saved.updated, linked: saved.linked };
+          else e = { at: Date.now(), linked: !!(await cardStatus(c, owner).catch(() => null))?.linked };
+          elsewhere.set(k, e);
+        }
+        if (e.linked) { if (alive) setOther(c); return; }
+      }
+    })();
+    return () => { alive = false; };
+  }, [chain.id, owner, here?.linked]);
+  return other;
+}
+
+/** Under the balance card, quietly: "Your MetaMask Card is on Linea" - a tap goes there. */
+export function CardElsewhere({ card }) {
+  const { chain, refresh } = useApp();
+  const addr = useChainAddress();
+  const other = useCardElsewhere(chain, addr.raw, card.data);
+  if (!other) return null;
+  const go = async () => { await bg('setChain', { chainId: other.id }); await refresh(); };
+  return (
+    <button class="mmc-elsewhere" onClick={go}>
+      <Icon name="card" size={13} /><span>{t('mmcard.elsewhere', { network: other.name })}</span><Icon name="forward" size={12} />
+    </button>
+  );
+}
+
 // ---------------------------------------------------------------- home: the card's operations
 const firstActive = (card) => card.active.find((x) => BigInt(x.spendable) > 0n) || card.active[0] || card.data?.tokens[0];
 
 /** Action buttons under the card (in place of Send / Receive / Swap / Bridge). */
 export function CardActions({ card }) {
-  const { nav } = useApp();
+  const { nav, chain } = useApp();
   const tk = firstActive(card);
   return (
     <div class="actions mmc">
-      <button class="action" onClick={() => nav('bridge', { toChainId: 59144, toAddress: tk?.address })}><span class="ic"><Icon name="route" /></span>{t('mmcard.topUp')}</button>
+      <button class="action" onClick={() => nav('bridge', { toChainId: chain.id, toAddress: tk?.address })}><span class="ic"><Icon name="route" /></span>{t('mmcard.topUp')}</button>
       <button class="action" onClick={() => nav('swap', { toAddress: tk?.address })}><span class="ic"><Icon name="swap" /></span>{t('mmcard.convert')}</button>
       <button class="action" onClick={() => nav('mmcard')}><span class="ic"><Icon name="approve" /></span>{t('mmcard.limits')}</button>
       <a class="action" href={MMCARD_SITE} target="_blank" rel="noopener" data-external><span class="ic"><Icon name="external" /></span>MetaMask</a>
@@ -137,7 +184,9 @@ export function CardActions({ card }) {
 
 /** The "Operations" tab: what the card can spend, token by token, and what can be done from here. */
 export function CardOps({ card }) {
-  const { nav } = useApp();
+  const { nav, chain } = useApp();
+  const net = { network: chain.name };
+  const symbols = card.cfg ? card.cfg.tokens.map((x) => x.symbol).join(', ') : '';
   const { m } = usePrivacy();
   const tk = firstActive(card);
   const Op = ({ icon, title, sub, onClick, href, danger }) => {
@@ -167,9 +216,9 @@ export function CardOps({ card }) {
       <div class="section-title">{t('mmcard.opsTitle')}</div>
       <div class="card" style={{ padding: '0.375rem' }}>
         <div class="list">
-          <Op icon="route" title={t('mmcard.op.topUp')} sub={t('mmcard.op.topUpSub')} onClick={() => nav('bridge', { toChainId: 59144, toAddress: tk?.address })} />
-          <Op icon="swap" title={t('mmcard.op.convert')} sub={t('mmcard.op.convertSub')} onClick={() => nav('swap', { toAddress: tk?.address })} />
-          <Op icon="receive" title={t('mmcard.op.receive')} sub={t('mmcard.op.receiveSub')} onClick={() => nav('receive')} />
+          <Op icon="route" title={t('mmcard.op.topUp')} sub={t('mmcard.op.topUpSub', net)} onClick={() => nav('bridge', { toChainId: chain.id, toAddress: tk?.address })} />
+          <Op icon="swap" title={t('mmcard.op.convert')} sub={t('mmcard.op.convertSub', { ...net, tokens: symbols })} onClick={() => nav('swap', { toAddress: tk?.address })} />
+          <Op icon="receive" title={t('mmcard.op.receive', net)} sub={t('mmcard.op.receiveSub')} onClick={() => nav('receive')} />
           <Op icon="approve" title={t('mmcard.op.limits')} sub={t('mmcard.op.limitsSub')} onClick={() => nav('mmcard')} />
           {card.active.length > 0 && <Op icon="lock" danger title={t('mmcard.op.block')} sub={t('mmcard.op.blockSub')} onClick={() => nav('mmcard', { revokeAll: true })} />}
           <Op icon="card" title={t('mmcard.op.app')} sub={t('mmcard.op.appSub')} href={MMCARD_SITE} />
@@ -269,7 +318,7 @@ export function MmCard({ revokeAll }) {
   const [limitOf, setLimitOf] = useState(null); // the token whose limit is being changed
   const [txs, setTxs] = useState(null); // the approvals to review and send
   const [askAll, setAskAll] = useState(!!revokeAll);
-  if (!card.cfg) return <div class="screen"><TopBar title="MetaMask Card" /><div class="content"><div class="info">{t('mmcard.onlyLinea')}</div></div></div>;
+  if (!card.cfg) return <div class="screen"><TopBar title="MetaMask Card" /><div class="content"><div class="info">{t('mmcard.onlyLinea', { networks: Object.keys(MMCARD).map((id) => getChain(id)?.name).filter(Boolean).join(', ') })}</div></div></div>;
   const d = card.data;
   const spender = d?.spender;
   const revoke = (list) => setTxs(list.map((x) => ({ token: x, spender, amount: '0', title: t('mmcard.txRevoke', { symbol: x.symbol }) })));
@@ -279,7 +328,7 @@ export function MmCard({ revokeAll }) {
       <TopBar title="MetaMask Card" right={<button class="iconbtn" title={t('home.refresh')} onClick={card.reload}>{card.loading ? <Spinner /> : <Icon name="refresh" size={16} />}</button>} />
       <div class="content">
         {!d && !card.error && <div class="empty"><Spinner /></div>}
-        {card.error && !d && <div class="error">{t('mmcard.loadFailed')}</div>}
+        {card.error && !d && <div class="error">{t('mmcard.loadFailed', { network: chain.name })}</div>}
         {d && <>
           <MmCardFace card={card} />
           {!d.linked && <div class="info small">{t('mmcard.notLinked')}</div>}
@@ -338,7 +387,7 @@ export function MmCard({ revokeAll }) {
           <div class="section-title">{t('mmcard.infoTitle')}</div>
           <div class="card flat tx-rows">
             <div class="tx-row"><span class="k">{t('history.network')}</span><span class="v"><ChainIcon chain={chain} size={16} /><span class="ellipsis">{chain.name}</span></span></div>
-            {d.linked && <div class="tx-row"><span class="k">{t('mmcard.region')}</span><span class="v">{t(d.region === 'us' ? 'mmcard.regionUs' : 'mmcard.regionGlobal')}</span></div>}
+            {d.linked && !oneSpender(card.cfg) && <div class="tx-row"><span class="k">{t('mmcard.region')}</span><span class="v">{t(d.region === 'us' ? 'mmcard.regionUs' : 'mmcard.regionGlobal')}</span></div>}
             <div class="tx-row"><span class="k">{t('mmcard.contract')}</span><span class="v"><span class="mono-s">{shortAddr(spender, 6)}</span><CopyBtn text={spender} /></span></div>
           </div>
           {chain.explorer && <a class="btn secondary block" href={`${chain.explorer}/address/${spender}`} target="_blank" rel="noopener" data-external><Icon name="external" size={16} /> {t('mmcard.viewContract')}</a>}
@@ -352,7 +401,7 @@ export function MmCard({ revokeAll }) {
       {askAll && d && (
         <Sheet title={t('mmcard.revokeAllTitle')} onClose={() => setAskAll(false)}>
           <div class="small">{t('mmcard.revokeAllText')}</div>
-          <div class="small muted">{tn('mmcard.revokeAllCount', card.active.length)}</div>
+          <div class="small muted">{tn('mmcard.revokeAllCount', card.active.length, { network: chain.name })}</div>
           {card.active.length > 0
             ? <Btn class="mmc-danger-fill" onClick={() => { setAskAll(false); revoke(card.active); }}>{t('mmcard.revokeAll')}</Btn>
             : <div class="info small">{t('mmcard.nothingToRevoke')}</div>}

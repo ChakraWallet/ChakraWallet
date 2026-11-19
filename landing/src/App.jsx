@@ -192,8 +192,8 @@ const FEATURES = [
   },
   {
     id: 'mmcard', kicker: 'MetaMask Card', title: 'Your card, right behind your balance.',
-    text: 'Have a MetaMask Card? On Linea, Chakra finds it from the blockchain and puts it behind your balance card: what you can spend now, the payments you made, and a top-up from any network in a few taps. No sign-in, nothing shared.',
-    points: ['Spending limits per token: change or revoke them', 'Card payments recognised in your history', 'Top up through the best bridge to Linea'],
+    text: 'Have a MetaMask Card? On Linea and Base, Chakra finds it from the blockchain and puts it behind your balance card: what you can spend now, the payments you made, and a top-up from any network in a few taps. No sign-in, nothing shared.',
+    points: ['Spending limits per token: change or revoke them', 'Card payments recognised in your history', 'Top up through the best bridge, to Linea or Base'],
     img: 'mmcard',
   },
   {

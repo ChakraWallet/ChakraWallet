@@ -1777,6 +1777,9 @@ button.dn-row:active { background: var(--card-2); }
 .hs-peek { position: absolute; left: 50%; bottom: .3rem; transform: translateX(-50%); display: inline-flex; align-items: center; gap: .3rem;
   font-size: .6875rem; font-weight: 650; letter-spacing: .02em; color: #fff; opacity: 0; transition: opacity .3s; white-space: nowrap; }
 .hs-slot.back .hs-peek { opacity: .95; }
+.mmc-elsewhere { align-self: center; display: inline-flex; align-items: center; gap: .375rem; margin-top: -.25rem; padding: .3125rem .75rem;
+  border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer; }
+.mmc-elsewhere:hover { color: var(--text); border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
 .hs-dots { position: absolute; left: 0; right: 0; bottom: .125rem; display: flex; justify-content: center; gap: .375rem; z-index: 4; }
 .hs-dots button { width: .375rem; height: .375rem; border-radius: 999px; background: var(--border); padding: 0; transition: width .3s var(--ease-out), background .3s; }
 .hs-dots button.on { width: 1.125rem; background: var(--primary); }

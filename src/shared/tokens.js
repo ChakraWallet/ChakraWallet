@@ -35,9 +35,11 @@ export const POPULAR_TOKENS = {
     t('0x514910771AF9Ca656af840dff83E8264EcF986CA', 'LINK', 'Chainlink', 18),
     t('0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 'UNI', 'Uniswap', 18),
   ],
-  8453: [
+  8453: [ // USDC, USDT, WETH, EURC: the ones the MetaMask Card spends (shared/mmcard.js)
     t('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 'USDC', 'USD Coin', 6),
+    t('0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2', 'USDT', 'Tether USD', 6),
     t('0x4200000000000000000000000000000000000006', 'WETH', 'Wrapped Ether', 18),
+    t('0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42', 'EURC', 'EURC', 6),
     t('0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', 'DAI', 'Dai Stablecoin', 18),
     t('0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', 'cbBTC', 'Coinbase Wrapped BTC', 8),
   ],
