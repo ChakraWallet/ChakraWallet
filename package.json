@@ -2,6 +2,7 @@
   "name": "chakra",
   "version": "1.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Chakra - a simple Ethereum wallet, MetaMask compatible, for Chrome, Firefox and Android",
   "type": "module",
   "scripts": {

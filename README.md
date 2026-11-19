@@ -93,3 +93,7 @@ The wallet screens are the same for every network: each family of networks (EVM,
 driver (`src/ui/chains/driver.d.md`) and, for keys, a family module in the background (`src/background/families.js`).
 Adding one: [docs/adding-a-chain.md](docs/adding-a-chain.md). `npm test` checks every driver
 against the interface (`tests/drivers.test.js`).
+
+## License
+
+[Apache License 2.0](LICENSE).
