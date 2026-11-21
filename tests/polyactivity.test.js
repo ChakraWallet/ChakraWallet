@@ -56,4 +56,7 @@ test('tiers: Polymarket\'s name decides, the table adds rate and next step', () 
   const maker = placeInTiers(tierTable('maker', AFTER), { name: 'Tier 2', volume: 1.5e6 });
   assert.deepEqual([maker.rate, maker.next.name, maker.next.rate], [7, 'Tier 3', 10]);
   assert.equal(placeInTiers(null, { name: 'Tier 0', volume: 0 }).none, false, 'no ladder: nothing to place on');
+  // a rate given by Polymarket (maker endpoint, rebate_bps / 100) wins over the table's, e.g. a campaign
+  assert.equal(placeInTiers(tierTable('maker', AFTER), { name: 'Tier 2', volume: 1.5e6, rate: 9 }).rate, 9);
+  assert.equal(placeInTiers(tierTable('maker', AFTER), { name: 'Tier 0', volume: 194, rate: 0 }).none, true);
 });

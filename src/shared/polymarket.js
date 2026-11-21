@@ -305,9 +305,10 @@ export const weightedByCategory = (kind, now = Date.now()) => kind === 'taker' &
 /**
  * Where an account stands on a ladder: { name, none, rate (% or null), volume, next: { name, min, rate } | null }.
  * The tier is Polymarket's (its name decides, the volume may lag a day); the table only adds the rate and the next
- * step. A name the table doesn't know (a tier added later) is shown as it is, without a rate.
+ * step (a rate given by Polymarket, e.g. a maker campaign, wins over the table's). A name the table doesn't know (a
+ * tier added later) is shown as it is, without a rate unless one is given.
  */
-export function placeInTiers(table, { name, volume }) {
+export function placeInTiers(table, { name, volume, rate }) {
   const rows = table || [];
   const n = String(name || '').trim().toLowerCase();
   let i = rows.findIndex((x) => x.name.toLowerCase() === n);
@@ -315,17 +316,25 @@ export function placeInTiers(table, { name, volume }) {
   const known = i >= 0 ? rows[i] : null;
   const v = Number(volume) || 0;
   const next = rows.find((x, j) => (known ? j > i : x.min > v)) || null;
-  return { name: known ? known.name : String(name || ''), none: i === 0, rate: known ? known.rate : null, volume: num(volume), next };
+  return { name: known ? known.name : String(name || ''), none: i === 0, rate: rate ?? (known ? known.rate : null), volume: num(volume), next };
 }
 
-/** Rebate tiers of an address, from its public profile: { taker: { name, volume } | null, maker: … | null } or null. */
+/**
+ * Rebate tiers of an address: { taker: { name, volume } | null, maker: { name, volume, rate } | null } or null.
+ * Taker from the public profile; maker from its own endpoint (POST /v1/maker-tier/tiers, live since 20 Nov 2026):
+ * a numbered tier, the rate in bps (a campaign may change it) and the 30-day weighted volume pooled across the
+ * maker's linked addresses (what the tier is computed on). One failing doesn't hide the other.
+ */
 export async function rebateTiers(address) {
-  const p = await getJson(`${GAMMA}/public-profile?${qs({ address })}`, { label: 'Polymarket' });
-  if (!p) return null;
+  const [p, m] = await Promise.all([
+    getJson(`${GAMMA}/public-profile?${qs({ address })}`, { label: 'Polymarket' }),
+    getJson(`${GAMMA}/v1/maker-tier/tiers`, { label: 'Polymarket', body: { addresses: [address] } }).catch(() => null),
+  ]);
+  const mk = m?.tiers?.find((x) => String(x.address).toLowerCase() === String(address).toLowerCase()) ?? m?.tiers?.[0];
+  if (!p && !mk) return null;
   const tier = (name, level, volume) => (name == null && level == null ? null : { name: name ?? `Tier ${level}`, volume: num(volume) });
   return {
-    taker: tier(p.takerTierName, p.takerTier, p.takerWeightedVolume ?? p.weightedVolume),
-    // not published yet: maker tiers start on 20 Nov 2026; read under the names the taker fields suggest
-    maker: tier(p.makerTierName, p.makerTier, p.makerWeightedVolume),
+    taker: p ? tier(p.takerTierName, p.takerTier, p.takerWeightedVolume ?? p.weightedVolume) : null,
+    maker: mk && mk.tier != null ? { ...tier(null, mk.tier, mk.wv_30d ?? mk.own_wv_30d), rate: mk.rebate_bps == null ? null : mk.rebate_bps / 100 } : null,
   };
 }
