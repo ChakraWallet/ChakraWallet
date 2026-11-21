@@ -8,11 +8,11 @@ import { t, tn, locale } from '../../shared/i18n.js';
 import { BUILTIN_CHAINS } from '../../shared/chains.js';
 import { ethCall, erc20 } from '../../shared/rpc.js';
 import {
-  regionStatus, listEvents, searchEvents, getEvent, priceHistory, watchPrices, positions, accountsOf, mainAccount, userPnl, userStats, suggestions,
+  regionStatus, listEvents, searchEvents, getEvent, priceHistory, watchPrices, watchUser, positions, accountsOf, mainAccount, userPnl, userStats, suggestions,
   activity, rebateTiers, tierTable, placeInTiers, weightedByCategory, CATEGORIES, INTERVALS, MARKET_URL,
 } from '../../shared/polymarket.js';
 import { TradeSheet, CashSheet, OpenOrders, RelayerSheet, EmergencySheet, usePolyAccount } from './predictTrade.jsx';
-import { redeem, redeemMany, balances, autoRedeemOn } from '../polyClient.js';
+import { redeem, redeemMany, balances, autoRedeemOn, credsOf, onCreds, ensureCreds } from '../polyClient.js';
 import { CASH_TOKENS } from '../polyBalance.js';
 import { createFeed, signal, signalCategory, seen as markSeenTaste } from '../predictTaste.js';
 import { useSaved, savedList, toggleSaved } from '../predictSaved.js';
@@ -65,21 +65,61 @@ function usePageVisible() {
   return vis;
 }
 
-/** Live prices for the given outcome tokens: { token: price }. Connected only while shown and the app is in the foreground. */
+/**
+ * Live prices for the given outcome tokens: { token: price }. Connected only while shown and the app is in the
+ * foreground; a change of tokens (e.g. a new position) goes on the same connection, no reconnect.
+ */
 function useLivePrices(tokens, active = true) {
   const [live, setLive] = useState({});
   const pageVisible = usePageVisible();
-  const key = active && pageVisible ? tokens.filter(Boolean).sort().join(',') : '';
+  const on = active && pageVisible;
+  const key = tokens.filter(Boolean).sort().join(',');
+  const keyRef = useRef(key); keyRef.current = key;
+  const watcher = useRef(null);
   useEffect(() => {
-    if (!key) return undefined;
+    if (!on) return undefined;
     const pending = {}; let raf = 0;
-    const stop = watchPrices(key.split(','), (tok, p) => {
+    const stop = watchPrices(keyRef.current ? keyRef.current.split(',') : [], (tok, p) => {
       pending[tok] = p;
       if (!raf) raf = requestAnimationFrame(() => { raf = 0; setLive((x) => ({ ...x, ...pending })); });
     });
-    return () => { stop(); cancelAnimationFrame(raf); };
-  }, [key]);
+    watcher.current = stop;
+    return () => { watcher.current = null; stop(); cancelAnimationFrame(raf); };
+  }, [on]);
+  useEffect(() => { watcher.current?.update(key ? key.split(',') : []); }, [key]);
   return live;
+}
+
+/**
+ * The account's trades and orders as they happen (CLOB user channel). It needs the API key, so it runs only once
+ * trading is unlocked in this session (it starts by itself when that happens). onEvent(message), see watchUser.
+ * Returns whether it is on (the key is there).
+ */
+function useUserFeed(acc, active, onEvent) {
+  const pageVisible = usePageVisible();
+  const [auth, setAuth] = useState(() => (acc ? credsOf(acc) : null));
+  useEffect(() => {
+    setAuth(acc ? credsOf(acc) : null);
+    return acc ? onCreds(() => setAuth(credsOf(acc))) : undefined;
+  }, [acc?.signer]);
+  const cb = useRef(onEvent); cb.current = onEvent;
+  useEffect(() => {
+    if (!auth || !active || !pageVisible) return undefined;
+    return watchUser(auth, (m) => cb.current(m));
+  }, [auth, active, pageVisible]);
+  return !!auth;
+}
+
+/** A position at the live price, when there is one: value and P&L move with it (from Polymarket's figures). */
+function atLive(p, live) {
+  const lp = p.token && !p.redeemable ? live[p.token] : null;
+  if (lp == null || p.price == null || lp === p.price) return p;
+  const d = p.size * (lp - p.price), basis = p.avgPrice != null ? p.size * p.avgPrice : 0;
+  return {
+    ...p, price: lp, value: p.value + d,
+    unrealized: p.unrealized != null ? p.unrealized + d : null, pnl: p.pnl != null ? p.pnl + d : null,
+    pnlPct: p.pnlPct != null && basis > 0 ? p.pnlPct + (d / basis) * 100 : p.pnlPct,
+  };
 }
 
 // ------------------------------------------------------------ root
@@ -122,7 +162,7 @@ export function Predict({ visible, onDeep, openReq }) {
       {/* the portfolio too: back from a market opened from it, same tab, filter and place in the list (no reload) */}
       {stack.some((x) => x.name === 'portfolio') && (
         <div class={`screen ${top.name === 'portfolio' ? dir : ''}`} style={{ display: top.name === 'portfolio' ? 'flex' : 'none' }}>
-          <Portfolio onBack={back} onOpen={(slug) => open({ name: 'event', slug })} />
+          <Portfolio active={visible && top.name === 'portfolio'} onBack={back} onOpen={(slug) => open({ name: 'event', slug })} />
         </div>
       )}
       {top?.name === 'event' && (
@@ -852,10 +892,15 @@ const TABS = [['OPEN', 'predict.pos.positions'], ['ORDERS', 'predict.pos.orders'
 // the history: every movement of the account (all / trades / rebates and rewards) or the closed positions
 const HIST = ['all', 'trades', 'income', 'closed'];
 
-function Portfolio({ onBack, onOpen }) {
+function Portfolio({ active, onBack, onOpen }) {
   const { account } = useApp();
   const [tick, setTick] = useState(0);
-  const sum = useSummary(account.address, tick);
+  // live: a trade or an order of the account (user channel) reloads only what it changes: positions, cash, history
+  // (fresh) and open orders, once for a burst of messages. P&L chart, stats and rebates are daily: not reloaded.
+  const [feed, setFeed] = useState(0);
+  const [ordersTick, setOrdersTick] = useState(0);
+  const fresh = `${tick}.${feed}`;
+  const sum0 = useSummary(account.address, fresh);
   const [tab, setTab] = useState('OPEN');
   const [hist, setHist] = useState('all');
   const activityTab = tab === 'CLOSED' && hist !== 'closed';
@@ -868,6 +913,29 @@ function Portfolio({ onBack, onOpen }) {
   const acc = usePolyAccount();
   const { authorize, toast } = useApp();
   const refreshAll = () => setTick((x) => x + 1);
+  const due = useRef({ pos: false, orders: false, timer: 0, opened: false });
+  useEffect(() => () => clearTimeout(due.current.timer), []);
+  const bump = (pos, orders) => {
+    const d = due.current;
+    d.pos ||= pos; d.orders ||= orders;
+    clearTimeout(d.timer);
+    d.timer = setTimeout(() => { if (d.pos) setFeed((x) => x + 1); if (d.orders) setOrdersTick((x) => x + 1); d.pos = d.orders = false; }, 1200);
+  };
+  const liveOn = useUserFeed(acc, active, (m) => {
+    // back after a disconnection (or the app in the background): what may have happened meanwhile
+    if (m.event_type === 'open') { if (due.current.opened) bump(true, true); due.current.opened = true; }
+    else if (m.event_type === 'order') bump(false, true);
+    // matched: shown at once; confirmed (on chain) or failed: the final figures
+    else if (m.event_type === 'trade' && ['MATCHED', 'CONFIRMED', 'FAILED'].includes(m.status)) bump(true, true);
+  });
+  // open positions at the live price: value, P&L and balance move with the market
+  const live = useLivePrices((sum0?.open || []).map((p) => p.token), active);
+  const sum = useMemo(() => {
+    if (!sum0?.open) return sum0;
+    const open = sum0.open.map((p) => atLive(p, live));
+    const d = open.reduce((s, p, i) => s + p.value - sum0.open[i].value, 0);
+    return { ...sum0, open, value: sum0.value + d, total: sum0.total + d, pnl: open.reduce((s, p) => s + (p.unrealized || 0), 0) };
+  }, [sum0, live]);
   const doRedeem = async (p) => {
     setBusy(p.token);
     try { await authorize((password) => redeem(acc, p, password), t('predict.redeem')); toast(t('predict.redeemed')); refreshAll(); } catch (e) {
@@ -890,11 +958,11 @@ function Portfolio({ onBack, onOpen }) {
   };
   useEffect(() => { mainAccount(account.address).then(setUser).catch(() => setUser(account.address.toLowerCase())); }, [account.address]);
   useEffect(() => { if (user) userStats(user).then(setStats).catch(() => setStats(null)); }, [user, tick]);
-  const openRows = sum?.open;
+  const openRows = sum0?.open;
   // resolved markets: the positions that pay something go to the redeem banner, the losing ones (worth nothing,
   // Polymarket keeps them as "to redeem" for good) to the history
   const [resolved, setResolved] = useState([]);
-  useEffect(() => { positions(account.address, 'REDEEMABLE').then(setResolved).catch(() => setResolved([])); }, [account.address, tick]);
+  useEffect(() => { positions(account.address, 'REDEEMABLE').then(setResolved).catch(() => setResolved([])); }, [account.address, fresh]);
   const wins = resolved.filter((p) => p.value > 0.005);
   const lost = resolved.filter((p) => p.value <= 0.005);
   const shown = tab === 'CLOSED' && rows ? [...lost, ...rows].sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)) : rows;
@@ -907,6 +975,12 @@ function Portfolio({ onBack, onOpen }) {
     if (acc?.wallet && acc.mode !== 'error') autoRedeemOn(acc).then((v) => alive && setAuto(v));
     return () => { alive = false; };
   }, [acc?.wallet, tick]);
+  // the live feed needs the Polymarket key: the same unlock as the Orders tab (one signature, moves no funds)
+  const unlockLive = async () => {
+    setBusy('live');
+    try { await authorize((password) => ensureCreds(acc, password), t('predict.orders.unlock')); } catch (e) { if (!e.cancelled) toast(e.message, 'warn'); }
+    setBusy('');
+  };
   const redeemBtn = (p) => <button class="pm-act win" disabled={!!busy} onClick={(e) => { e.stopPropagation(); doRedeem(p); }}>{busy === p.token ? <Spinner /> : t('predict.redeem')}</button>;
   useEffect(() => {
     if (tab === 'ORDERS' || activityTab) return undefined;
@@ -914,7 +988,7 @@ function Portfolio({ onBack, onOpen }) {
     let alive = true; setErr(''); setRows(null);
     positions(account.address, tab).then((r) => alive && setRows(r)).catch((e) => { if (alive) { setErr(e.message); setRows([]); } });
     return () => { alive = false; };
-  }, [tab, activityTab, account.address, tick, openRows]);
+  }, [tab, activityTab, account.address, fresh, openRows]);
   const showIncome = () => { setTab('CLOSED'); setHist('income'); };
 
   return (
@@ -932,6 +1006,13 @@ function Portfolio({ onBack, onOpen }) {
             <span class="pm-chips">
               {acc && acc.mode !== 'error' && <span class="pm-wtype" title={t(`predict.wtype.${walletType(acc)}.hint`)}>{t(`predict.wtype.${walletType(acc)}`)}</span>}
               {auto && <span class="pm-wtype auto" title={t('predict.auto.hint')}><Icon name="check" size={11} stroke={3} />{t('predict.auto.badge')}</span>}
+              {canAct && (liveOn
+                ? <span class="pm-wtype pm-live on" title={t('predict.live.hint.on')}><i class="pm-live-dot" />{t('predict.live.on')}</span>
+                // a span like the chips next to it (same look); a button for the screen reader and the keyboard
+                : <span class={`pm-wtype pm-live${busy === 'live' ? ' busy' : ''}`} role="button" tabIndex={0} title={t('predict.live.hint.off')}
+                    onClick={() => busy !== 'live' && unlockLive()} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && busy !== 'live' && (e.preventDefault(), unlockLive())}>
+                    <Icon name="flash" size={11} stroke={2.5} />{t('predict.live.off')}
+                  </span>)}
             </span>
           </div>
           <div class="total">{sum && !sum.error ? usd(sum.total) : '…'}</div>
@@ -949,7 +1030,7 @@ function Portfolio({ onBack, onOpen }) {
           </div>
         )}
         {acc?.mode === 'readonly' && <div class="pm-err"><Icon name="lock" size={18} /><span>{t(acc.reason)}</span></div>}
-        {acc && acc.mode !== 'error' && <MoneyMap acc={acc} inPositions={sum?.value} tick={tick} />}
+        {acc && acc.mode !== 'error' && <MoneyMap acc={acc} inPositions={sum?.value} tick={fresh} />}
 
         {user && <PnlCard user={user} tick={tick} />}
 
@@ -980,19 +1061,19 @@ function Portfolio({ onBack, onOpen }) {
         <div class="seg seg-full pm-seg" role="tablist">
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} class={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t(l)}</button>)}
         </div>
-        {tab === 'ORDERS' && <OpenOrders acc={acc} />}
+        {tab === 'ORDERS' && <OpenOrders acc={acc} tick={ordersTick} />}
         {tab === 'CLOSED' && (
           <div class="pm-filters" role="tablist">
             {HIST.map((k) => <button key={k} role="tab" aria-selected={hist === k} class={hist === k ? 'on' : ''} onClick={() => setHist(k)}>{t(`predict.hist.${k}`)}</button>)}
           </div>
         )}
-        {activityTab && user && <ActivityList user={user} filter={hist} tick={tick} onOpen={onOpen} />}
+        {activityTab && user && <ActivityList user={user} filter={hist} tick={fresh} onOpen={onOpen} />}
         {tab !== 'ORDERS' && !activityTab && <>
         {err && <div class="pm-err"><Icon name="wifiOff" size={18} /><span>{t('predict.loadError')}</span><button class="link" onClick={() => setTick((x) => x + 1)}>{t('predict.retry')}</button></div>}
         {rows === null && [0, 1].map(() => <div class="pm-pos"><span class="skeleton" style={{ width: '2.625rem', height: '2.625rem', borderRadius: '.625rem' }} /><div class="grow col" style={{ gap: '.5rem' }}><span class="skeleton" style={{ width: '80%' }} /><span class="skeleton" style={{ width: '40%' }} /></div></div>)}
         {shown && !shown.length && !err && <div class="pm-empty"><Icon name="predict" size={28} /><span>{t(`predict.pos.empty.${tab}`)}</span></div>}
         {tab === 'CLOSED' && shown && <ClosedDays list={shown} onOpen={onOpen} />}
-        {tab === 'OPEN' && shown?.map((p, i) => (
+        {tab === 'OPEN' && shown?.map((p0) => atLive(p0, live)).map((p, i) => (
           <PositionRow p={p} onOpen={onOpen} style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
             action={canAct && p.price != null && p.price > 0 && p.price < 1
               ? <button class="pm-act" onClick={(e) => { e.stopPropagation(); setSheet({ sell: p }); }}>{t('predict.sell')}</button>

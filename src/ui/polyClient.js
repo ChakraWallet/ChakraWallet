@@ -61,6 +61,11 @@ export async function polyAccount(address) {
 // ------------------------------------------------------------ CLOB API (L1 / L2 auth)
 const creds = new Map(); // address -> { apiKey, secret, passphrase } (memory only)
 export const hasCreds = (acc) => creds.has(lc(acc.signer));
+/** The API key of the account if it was unlocked in this session (for the live user channel), else null. */
+export const credsOf = (acc) => creds.get(lc(acc.signer)) || null;
+const credsListeners = new Set();
+/** Called when an account's API key becomes available (trading unlocked). Returns unsubscribe. */
+export const onCreds = (fn) => { credsListeners.add(fn); return () => credsListeners.delete(fn); };
 
 async function clobFetch(method, path, { query, body, headers = {} } = {}) {
   const url = `${CLOB}${path}${query ? `?${new URLSearchParams(query)}` : ''}`;
@@ -86,6 +91,7 @@ export async function ensureCreds(acc, password) {
   const c = { apiKey: r.apiKey || r.key, secret: r.secret, passphrase: r.passphrase };
   if (!c.apiKey || !c.secret) throw new Error('Polymarket API key');
   creds.set(key, c);
+  credsListeners.forEach((fn) => { try { fn(key); } catch { /* a listener's problem */ } });
   return c;
 }
 

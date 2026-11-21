@@ -1,4 +1,4 @@
-// Polymarket, read-only (phase 1): region check, markets (Gamma), price history, live prices (CLOB websocket),
+// Polymarket, read-only (phase 1): region check, markets (Gamma), price history, live prices and own trades (CLOB websocket),
 // positions of an address (Data API). Public endpoints, no account and no keys.
 // Amounts are USD (Polymarket's pUSD is 1:1 with USD); prices are 0..1 (= probability, shown in ¢ / %).
 import { getJson } from './http.js';
@@ -8,6 +8,7 @@ const GAMMA = 'https://gamma-api.polymarket.com';
 const CLOB = 'https://clob.polymarket.com';
 const DATA = 'https://data-api.polymarket.com';
 const WS = 'wss://ws-subscriptions-clob.polymarket.com/ws/market';
+const WS_USER = 'wss://ws-subscriptions-clob.polymarket.com/ws/user';
 
 export const MARKET_URL = (slug) => `${SITE}/event/${slug}`;
 const qs = (o) => new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString();
@@ -124,13 +125,14 @@ export async function priceHistory(token, interval = '1w') {
 
 // ------------------------------------------------------------ live prices
 /**
- * Live midpoint / last-trade updates for some outcome tokens. onPrice(token, price). Returns stop().
- * Reconnects with backoff; keep-alive "PING" every 10 s.
+ * Live midpoint / last-trade updates for some outcome tokens. onPrice(token, price). Returns stop(), with
+ * stop.update(tokens) to change the tokens on the same connection (subscribe / unsubscribe, no reconnect; with no
+ * tokens the connection closes, it opens again when some come). Reconnects with backoff; keep-alive "PING" every 10 s.
  */
 export function watchPrices(tokens, onPrice) {
-  let ws = null, stopped = false, ping = 0, retry = 0, timer = 0;
-  const ids = [...new Set(tokens.filter(Boolean))];
-  if (!ids.length || typeof WebSocket === 'undefined') return () => {};
+  let ws = null, stopped = false, retry = 0, timer = 0;
+  let ids = new Set(tokens.filter(Boolean));
+  if (typeof WebSocket === 'undefined') return Object.assign(() => {}, { update() {} });
   const handle = (m) => {
     if (!m || typeof m !== 'object') return;
     if (m.event_type === 'price_change' || m.price_changes) {
@@ -145,15 +147,71 @@ export function watchPrices(tokens, onPrice) {
     }
   };
   const open = () => {
+    if (stopped || ws || !ids.size) return;
+    let me, ping = 0;
+    try { me = ws = new WebSocket(WS); } catch { ws = null; return; }
+    // the whole current set at open: tokens changed while connecting are included
+    me.onopen = () => { retry = 0; me.send(JSON.stringify({ type: 'market', assets_ids: [...ids] })); ping = setInterval(() => { try { me.send('PING'); } catch { /* closing */ } }, 10000); };
+    me.onmessage = (ev) => { if (ev.data === 'PONG') return; try { const d = JSON.parse(ev.data); (Array.isArray(d) ? d : [d]).forEach(handle); } catch { /* not json */ } };
+    me.onclose = () => {
+      clearInterval(ping);
+      if (ws !== me) return; // closed on purpose
+      ws = null;
+      if (!stopped && ids.size) timer = setTimeout(open, Math.min(30000, 1000 * 2 ** retry++));
+    };
+    me.onerror = () => { try { me.close(); } catch { /* already closed */ } };
+  };
+  const drop = () => { const w = ws; ws = null; try { w?.close(); } catch { /* ignore */ } };
+  open();
+  const stop = () => { stopped = true; clearTimeout(timer); drop(); };
+  stop.update = (next) => {
+    const n = new Set(next.filter(Boolean));
+    const add = [...n].filter((x) => !ids.has(x)), rem = [...ids].filter((x) => !n.has(x));
+    ids = n;
+    if (stopped || (!add.length && !rem.length)) return;
+    if (!ids.size) { clearTimeout(timer); drop(); return; }
+    if (!ws) { clearTimeout(timer); retry = 0; open(); return; }
+    if (ws.readyState !== 1) return; // still connecting: onopen sends the current set
+    if (add.length) ws.send(JSON.stringify({ operation: 'subscribe', assets_ids: add }));
+    if (rem.length) ws.send(JSON.stringify({ operation: 'unsubscribe', assets_ids: rem }));
+  };
+  return stop;
+}
+
+/**
+ * The account's own orders and trades as they happen (CLOB user channel, all markets). auth: the L2 API key
+ * { apiKey, secret, passphrase }. onEvent(message): Polymarket's "order" / "trade" messages, plus { event_type:
+ * 'open' } each time the connection is (re)established, so what happened while it was down can be reloaded.
+ * Reconnects with backoff; keep-alive "PING" every 10 s. Returns stop().
+ */
+export function watchUser(auth, onEvent) {
+  let ws = null, stopped = false, retry = 0, timer = 0;
+  if (!auth?.apiKey || typeof WebSocket === 'undefined') return () => {};
+  const open = () => {
     if (stopped) return;
-    try { ws = new WebSocket(WS); } catch { return; }
-    ws.onopen = () => { retry = 0; ws.send(JSON.stringify({ type: 'market', assets_ids: ids })); ping = setInterval(() => { try { ws.send('PING'); } catch { /* closing */ } }, 10000); };
-    ws.onmessage = (ev) => { if (ev.data === 'PONG') return; try { const d = JSON.parse(ev.data); (Array.isArray(d) ? d : [d]).forEach(handle); } catch { /* not json */ } };
-    ws.onclose = () => { clearInterval(ping); if (!stopped) timer = setTimeout(open, Math.min(30000, 1000 * 2 ** retry++)); };
-    ws.onerror = () => { try { ws.close(); } catch { /* already closed */ } };
+    let me, ping = 0;
+    try { me = ws = new WebSocket(WS_USER); } catch { return; }
+    me.onopen = () => {
+      retry = 0;
+      me.send(JSON.stringify({ type: 'user', auth: { apiKey: auth.apiKey, secret: auth.secret, passphrase: auth.passphrase } }));
+      ping = setInterval(() => { try { me.send('PING'); } catch { /* closing */ } }, 10000);
+      onEvent({ event_type: 'open' });
+    };
+    me.onmessage = (ev) => {
+      if (ev.data === 'PONG') return;
+      let d; try { d = JSON.parse(ev.data); } catch { return; }
+      for (const m of Array.isArray(d) ? d : [d]) if (m && typeof m === 'object' && m.event_type) onEvent(m);
+    };
+    me.onclose = (e) => {
+      clearInterval(ping);
+      if (ws === me) ws = null;
+      if (e?.code === 1008) { stopped = true; return; } // key refused ("authentication failed"): retrying won't help
+      if (!stopped) timer = setTimeout(open, Math.min(30000, 1000 * 2 ** retry++));
+    };
+    me.onerror = () => { try { me.close(); } catch { /* already closed */ } };
   };
   open();
-  return () => { stopped = true; clearInterval(ping); clearTimeout(timer); try { ws?.close(); } catch { /* ignore */ } };
+  return () => { stopped = true; clearTimeout(timer); const w = ws; ws = null; try { w?.close(); } catch { /* ignore */ } };
 }
 
 // ------------------------------------------------------------ portfolio (read-only)

@@ -455,13 +455,14 @@ export function EmergencySheet({ acc, onClose, onDone }) {
 }
 
 // ------------------------------------------------------------ open orders
-export function OpenOrders({ acc }) {
+/** Open orders; tick reloads them (e.g. an order filled or canceled, from the live user channel). */
+export function OpenOrders({ acc, tick = 0 }) {
   const { authorize } = useApp();
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
   const load = () => { setErr(''); openOrders(acc).then(setRows).catch((e) => { setErr(e.message); setRows([]); }); };
-  useEffect(() => { if (acc && hasCreds(acc)) load(); }, [acc]);
+  useEffect(() => { if (acc && hasCreds(acc)) load(); }, [acc, tick]);
   if (!acc) return <div class="pm-center"><Spinner /></div>;
   if (acc.mode === 'readonly' || acc.mode === 'error') return <div class="pt-ro"><Icon name="lock" size={22} /><span>{t(acc.reason || 'predict.acc.error')}</span></div>;
   if (!hasCreds(acc)) {
