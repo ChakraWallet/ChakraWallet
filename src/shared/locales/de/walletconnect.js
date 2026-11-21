@@ -1,0 +1,20 @@
+// WalletConnect (Android app): dapps outside the app (a QR code on a computer, a link on the phone) - connecting, who asks
+export default {
+  'wc.connect.title': 'Diese Website verbinden',
+  'wc.connect.networks': 'Netzwerke',
+  'wc.connect.unsupported.one': '{n} angefragtes Netzwerk ist nicht in Chakra oder ausgeschaltet: Die Website sieht es nicht.',
+  'wc.connect.unsupported.other': '{n} angefragte Netzwerke sind nicht in Chakra oder ausgeschaltet: Die Website sieht sie nicht.',
+  'wc.connect.noAccount': 'Kein Konto dieses Wallets hat eine Adresse in allen Netzwerken, die die Website verlangt.',
+  'wc.connect.choose': 'Wähle das Konto, das die Website sehen wird. Es bleibt dasselbe, bis du die Verbindung trennst.',
+  'wc.connect.info': 'Über WalletConnect sieht die Website die Adressen des Kontos und kann Signaturen und Transaktionen anfordern: Jede wird zuerst hier angezeigt. Trennen kannst du sie unter Einstellungen › Verbundene Websites.',
+  'wc.site.verified': 'Verifiziert',
+  'wc.site.unknown': 'Chakra kann nicht bestätigen, dass die Anfrage von {host} kommt: Das gibt die Website selbst an. Verbinde nur, wenn du diese Website selbst geöffnet hast.',
+  'wc.site.invalid': '<b>Achtung:</b> Die Anfrage kommt von {origin}, nicht von {host}, wie die Website angibt. Es könnte eine Nachahmung sein.',
+  'wc.site.scam': '<b>Gefährliche Website.</b> WalletConnect meldet {host} als Betrug: Verbinde sie nicht und signiere nichts.',
+  'wc.link.connected': 'Verbunden mit {name}',
+  'wc.link.failed': 'Verbindung fehlgeschlagen: {reason}',
+  'wc.err.notLink': 'Das ist kein WalletConnect-Verbindungscode.',
+  'wc.err.v1': 'Dieser Code ist für WalletConnect 1, das seit 2023 abgeschaltet ist: Die Website muss Version 2 verwenden.',
+  'wc.err.expired': 'Der Code ist abgelaufen: Hol dir einen neuen von der Website.',
+  'wc.err.noProposal': 'Die Website hat ihre Anfrage nicht gesendet: Hol dir einen neuen Code von der Website und versuche es erneut.',
+};

@@ -152,7 +152,8 @@ let approvalWindowId = null;
 export async function requestApproval(origin, kind, params, tab) {
   const id = crypto.randomUUID();
   const p = new Promise((resolve, reject) => {
-    pending.set(id, { id, origin, kind, params, resolve, reject, created: Date.now(), favicon: tab?.favIconUrl || '', title: tab?.title || '' });
+    // remote: a dapp outside the app (WalletConnect): what it declares and what Verify says (shown instead of a page)
+    pending.set(id, { id, origin, kind, params, resolve, reject, created: Date.now(), favicon: tab?.favIconUrl || '', title: tab?.title || '', remote: tab?.remote || null });
   });
   await openApprovalWindow();
   return p;
@@ -254,7 +255,7 @@ async function completeApproval(p, data) {
     }
     case 'tx': {
       const [req] = p.params;
-      return signAndSend(req.from, data.tx, { origin: p.origin, title: data.title });
+      return signAndSend(req.from, data.tx, { origin: p.remote?.url ? new URL(p.remote.url).origin : p.origin, title: data.title });
     }
     case 'switchChain': {
       if (p.params.enable) await enableChain(p.params.chainId); // switched off in Settings: the user agreed to turn it back on

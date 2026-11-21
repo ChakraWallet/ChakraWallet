@@ -33,6 +33,20 @@ const chainOf = (name) => {
 };
 
 /**
+ * Transactions from a dapp (base64): read (so a broken one is refused here), at most MAX_TXS, each one to be signed by
+ * the session's address. Also used by WalletConnect (src/background/walletconnect.js).
+ */
+export function readTxs(list, address) {
+  if (!Array.isArray(list) || !list.length || list.length > MAX_TXS) throw Object.assign(new Error('Bad transactions'), { code: -32602 });
+  return list.map((x) => {
+    let tx;
+    try { tx = parseTransaction(fromBase64(String(x))); } catch (e) { throw Object.assign(new Error(`Unreadable transaction: ${e.message}`), { code: -32602 }); }
+    if (!tx.msg.keys.slice(0, tx.msg.header.signatures).includes(address)) throw Object.assign(new Error('The transaction is not for the connected account'), { code: -32602 });
+    return String(x);
+  });
+}
+
+/**
  * The Solana "dapp family" for src/background/index.js (registerDappFamily).
  * kit: { requestApproval(origin, kind, params, tab), ensureUnlocked(origin, tab), emitToOrigin(origin, event, data) }.
  */
@@ -48,16 +62,6 @@ export function solanaDappFamily({ requestApproval, ensureUnlocked, emitToOrigin
     const id = chainOf(name);
     if (!isChainEnabled(id, await local.get('settings', {}))) throw new Error('This network is turned off in Chakra');
     return id;
-  }
-  /** Transactions from the page (base64): read (so a broken one is refused here), at most MAX_TXS, for the session's address. */
-  function readTxs(list, address) {
-    if (!Array.isArray(list) || !list.length || list.length > MAX_TXS) throw Object.assign(new Error('Bad transactions'), { code: -32602 });
-    return list.map((x) => {
-      let tx;
-      try { tx = parseTransaction(fromBase64(String(x))); } catch (e) { throw Object.assign(new Error(`Unreadable transaction: ${e.message}`), { code: -32602 }); }
-      if (!tx.msg.keys.slice(0, tx.msg.header.signatures).includes(address)) throw Object.assign(new Error('The transaction is not for the connected account'), { code: -32602 });
-      return String(x);
-    });
   }
 
   async function handle(origin, method, p = {}, tab) {

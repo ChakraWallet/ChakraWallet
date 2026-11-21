@@ -29,7 +29,44 @@ const KNOWN = new Interface([
   'function increaseAllowance(address spender, uint256 addedValue)',
 ]);
 
+const hostOf = (url) => { try { return new URL(url).host; } catch { return ''; } };
+
+/**
+ * The site a request comes from, as the warnings name it: the page's host, or for a dapp outside the app
+ * (WalletConnect) the address it declares - the real one when Verify saw it's another.
+ */
+export const siteHost = (req) => (req.remote
+  ? hostOf(req.remote.validation === 'INVALID' && req.remote.origin ? req.remote.origin : req.remote.url) || req.remote.name
+  : hostOf(req.origin) || req.origin);
+
+/**
+ * A dapp outside the app (WalletConnect): its name, address and icon are what it declares. Verify (the relay's service
+ * that sees the page sending the request) confirms the address, or says it's another site or a known scam.
+ * unverified: also say when it can't be confirmed (the connection screen).
+ */
+export function RemoteSite({ remote, unverified = false }) {
+  const [icon, setIcon] = useState(!!remote.icon);
+  useEffect(() => setIcon(!!remote.icon), [remote.icon]);
+  const ok = remote.validation === 'VALID' && !remote.isScam;
+  return (
+    <>
+      <div class="site">
+        {icon ? <img src={remote.icon} alt="" onError={() => setIcon(false)} /> : <div class="fav" />}
+        <div class="grow" style={{ minWidth: 0 }}>
+          <div class="bold ellipsis">{remote.host || remote.name}</div>
+          <div class="tiny muted ellipsis">{remote.name}</div>
+        </div>
+        <span class={`badge ${ok ? 'green' : ''}`}>{ok ? t('wc.site.verified') : 'WalletConnect'}</span>
+      </div>
+      {remote.isScam && <div class="error small">{rich('wc.site.scam', { host: hostOf(remote.origin) || remote.host })}</div>}
+      {!remote.isScam && remote.validation === 'INVALID' && <div class="error small">{rich('wc.site.invalid', { origin: hostOf(remote.origin), host: remote.host })}</div>}
+      {unverified && !remote.isScam && remote.validation === 'UNKNOWN' && <div class="warn small">{t('wc.site.unknown', { host: remote.host || remote.name })}</div>}
+    </>
+  );
+}
+
 export function Site({ req }) {
+  if (req.remote) return <RemoteSite remote={req.remote} />;
   const host = req.origin.replace(/^https?:\/\//, '');
   const hd = useSiteIcon(req.origin); // HD icon from the site's metadata (in-app browser only)
   const icon = hd || req.favicon;
@@ -88,7 +125,7 @@ function SignMessage({ req, done }) {
   const text = /^0x/i.test(message) ? hexToUtf8(message) : message;
   const siwe = text && /wants you to sign in with your Ethereum account/i.test(text);
   const siweDomain = siwe ? text.split(' ')[0] : null;
-  const host = new URL(req.origin).host;
+  const host = siteHost(req);
   return (
     <>
       <div class="content">
@@ -127,7 +164,7 @@ function EthSign({ req, done }) {
         <div class="warn small">{t('approve.ethSign.warn')}</div>
         <label class="card flat row" style={{ cursor: 'pointer', borderColor: ack ? 'var(--red)' : undefined }}>
           <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
-          <span class="small">{rich('approve.ethSign.ack', { site: req.origin.replace(/^https?:\/\//, '') })}</span>
+          <span class="small">{rich('approve.ethSign.ack', { site: siteHost(req) })}</span>
         </label>
       </div>
       <div class="footer">
@@ -154,8 +191,10 @@ function Tree({ value, depth = 0 }) {
 }
 
 function SignTyped({ req, done }) {
-  const { chain } = useApp();
+  const { chain: appChain, state } = useApp();
   const [address, typed] = req.params;
+  // the network the signature names (a dapp outside the app may be on another one than the app's)
+  const chain = (typed.domain?.chainId != null && getChain(Number(typed.domain.chainId), state.customChains)) || appChain;
   const pt = typed.primaryType || '';
   const isPermit = /permit/i.test(pt);
   const m = typed.message || {};
@@ -198,8 +237,10 @@ function SignTyped({ req, done }) {
 
 // ------------------------------------------------------------------ transaction
 function TxRequest({ req, done }) {
-  const { chain } = useApp();
+  const { chain: appChain, state } = useApp();
   const [tx] = req.params;
+  // the network the request names (WalletConnect: each request has its own; the in-app browser: the active one)
+  const chain = (tx.chainId != null && getChain(Number(BigInt(tx.chainId)), state.customChains)) || appChain;
   const nativePrice = useNativePrice(chain);
   const [prepared, setPrepared] = useState(null);
   const [speed, setSpeed] = useState('normal');

@@ -24,6 +24,9 @@ const DEFAULTS = {
   jitoTips: 'https://bundles.jito.wtf', // what Jito's bundles pay to land
   // TON Connect bridge (dapps outside the app, QR and links): TonAPI's public one, which every dapp listens to
   tonconnectBridge: 'https://bridge.tonapi.io/bridge',
+  // WalletConnect (dapps outside the app, QR and links): its relay, and Verify (which site a request comes from)
+  wcRelay: 'wss://relay.walletconnect.org',
+  wcVerify: 'https://verify.walletconnect.org',
   // MEV protection (Ethereum): signed transactions go to Flashbots Protect, a private channel to the block builders,
   // instead of the public mempool where bots can see a swap and trade around it ("sandwich")
   mevEth: 'https://rpc.flashbots.net/fast',
@@ -33,3 +36,9 @@ const DEFAULTS = {
 export const ENDPOINTS = { ...DEFAULTS, ...(globalThis.__CK_ENDPOINTS__ || {}) };
 /** Is a service available (not switched off by a test build)? */
 export const hasService = (name) => !!ENDPOINTS[name];
+
+/**
+ * Chakra's WalletConnect project id (dashboard.walletconnect.com). Public: it only names the project to the relay,
+ * which accepts it from the app (and from localhost) and refuses it from any other site (the project's allowlist).
+ */
+export const WALLETCONNECT_PROJECT_ID = '07cb1f8cd0c61263d805957b533837be';

@@ -104,9 +104,12 @@ export default {
   'settings.sites.count.other': '{n} 个网站',
   'settings.sites.none': '没有已连接的网站',
   'settings.sites.viaLink': '通过二维码或链接',
+  'settings.sites.viaWc': '通过 WalletConnect',
   'connect.qr.title': '扫码连接',
   'connect.qr.hint': '扫描网站上用于连接钱包的二维码',
-  'connect.qr.unknown': '此二维码不是连接码（TON Connect）。',
+  'connect.qr.unknown': '此二维码不是连接码（WalletConnect、TON Connect）。',
+  'connect.link.placeholder': '或粘贴网站提供的链接',
+  'connect.link.button': '连接',
   'settings.sites.since': '自 {date} 起',
   'settings.sites.disconnect': '断开连接',
 

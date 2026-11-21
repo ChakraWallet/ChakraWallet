@@ -11,7 +11,7 @@ import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
 import { TermsSheet } from '../terms.jsx';
 import { ApiKeys, keysCount } from './apikeys.jsx';
-import { ConnectQrButton } from '../connectQr.jsx';
+import { ConnectQrButton, ConnectLinkField } from '../connectQr.jsx';
 
 function Row({ icon, title, sub, onClick, right }) {
   return (
@@ -215,29 +215,34 @@ function Networks() {
   );
 }
 
-/** Sites connected to Ethereum accounts and / or to a TON account (TON Connect) or a Solana one (Android app). */
-const connectedSites = (state) => [...new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {}), ...Object.keys(state.solSites || {}), ...Object.keys(state.tronSites || {})])];
+/**
+ * Sites connected to Ethereum accounts and / or to a TON account (TON Connect), a Solana or a Tron one (Android app),
+ * and the dapps connected through WalletConnect (Android app: "wc:<topic>").
+ */
+const connectedSites = (state) => [...new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {}), ...Object.keys(state.solSites || {}), ...Object.keys(state.tronSites || {}), ...Object.keys(state.wcSites || {})])];
 
 function Sites() {
   const { state, refresh } = useApp();
   const origins = connectedSites(state);
   return (
     <>
-      {/* a dapp on another screen (e.g. a computer) shows a QR code: connect it (TON Connect) */}
+      {/* a dapp on another screen (e.g. a computer) shows a QR code: connect it (WalletConnect, TON Connect) */}
       <ConnectQrButton class="btn secondary" size={18}> {t('connect.qr.title')}</ConnectQrButton>
+      <ConnectLinkField />
       <div class="card" style={{ padding: '0.375rem' }}>
         {!origins.length && <Empty>{t('settings.sites.none')}</Empty>}
         {origins.map((origin) => {
-          const p = state.permissions?.[origin], ton = state.tonSites?.[origin], sol = state.solSites?.[origin], tron = state.tronSites?.[origin];
-          const who = [...(p?.accounts || []).map((a) => shortAddr(a)), ...(ton ? [`TON ${shortAddr(ton.display, 6)}`] : []), ...(sol ? [`Solana ${shortAddr(sol.address, 6)}`] : []), ...(tron ? [`Tron ${shortAddr(tron.address, 6)}`] : [])].join(', ');
-          // through the bridge (QR code or link) the site is what the dapp declares: its name and address
-          const title = ton?.remote ? ton.host || ton.name : origin.replace(/^https?:\/\//, '');
+          const p = state.permissions?.[origin], ton = state.tonSites?.[origin], sol = state.solSites?.[origin], tron = state.tronSites?.[origin], wc = state.wcSites?.[origin];
+          const who = [...(p?.accounts || []).map((a) => shortAddr(a)), ...(ton ? [`TON ${shortAddr(ton.display, 6)}`] : []), ...(sol ? [`Solana ${shortAddr(sol.address, 6)}`] : []), ...(tron ? [`Tron ${shortAddr(tron.address, 6)}`] : []), ...(wc?.addresses || []).map((a) => shortAddr(a, 6))].join(', ');
+          // through a bridge or a relay (QR code or link) the site is what the dapp declares: its name and address
+          const remote = ton?.remote || !!wc;
+          const title = wc ? wc.host || wc.name : ton?.remote ? ton.host || ton.name : origin.replace(/^https?:\/\//, '');
           return (
             <div class="item">
-              <div class="tx-icon" style={{ background: 'var(--card-2)' }}><Icon name={ton?.remote ? 'qr' : 'globe'} /></div>
+              <div class="tx-icon" style={{ background: 'var(--card-2)' }}><Icon name={remote ? 'qr' : 'globe'} /></div>
               <div class="grow" style={{ minWidth: 0 }}>
                 <div class="bold ellipsis">{title}</div>
-                <div class="tiny muted">{ton?.remote ? `${t('settings.sites.viaLink')} · ` : ''}{who} · {t('settings.sites.since', { date: fmtDateTime(p?.since || ton?.since || sol?.since || tron.since) })}</div>
+                <div class="tiny muted">{wc ? `${t('settings.sites.viaWc')} · ` : ton?.remote ? `${t('settings.sites.viaLink')} · ` : ''}{who} · {t('settings.sites.since', { date: fmtDateTime(p?.since || ton?.since || sol?.since || tron?.since || wc?.since) })}</div>
               </div>
               <button class="btn sm secondary" onClick={async () => { await bg('disconnectSite', { origin }); refresh(); }}>{t('settings.sites.disconnect')}</button>
             </div>

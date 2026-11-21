@@ -122,9 +122,12 @@ export default {
   'settings.sites.count.other': '{n} сайта',
   'settings.sites.none': 'Нет подключённых сайтов',
   'settings.sites.viaLink': 'через QR-код или ссылку',
+  'settings.sites.viaWc': 'через WalletConnect',
   'connect.qr.title': 'Подключение по QR-коду',
   'connect.qr.hint': 'Наведите камеру на QR-код, который сайт показывает для подключения кошелька',
-  'connect.qr.unknown': 'Этот QR-код не является кодом подключения (TON Connect).',
+  'connect.qr.unknown': 'Этот QR-код не является кодом подключения (WalletConnect, TON Connect).',
+  'connect.link.placeholder': 'Или вставьте ссылку, которую даёт сайт',
+  'connect.link.button': 'Подключить',
   'settings.sites.since': 'с {date}',
   'settings.sites.disconnect': 'Отключить',
 

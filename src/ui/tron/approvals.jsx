@@ -5,7 +5,7 @@
 // the signatures happen in the background (src/background/tronDapp.js) after the password or the fingerprint.
 import { useEffect, useState } from 'preact/hooks';
 import { Btn, Avatar, Icon, Spinner, useApp, rich } from '../components.jsx';
-import { Site } from '../screens/approve.jsx';
+import { Site, siteHost } from '../screens/approve.jsx';
 import { fmtAmount, fmtNum, shortAddr } from '../../shared/format.js';
 import { t, tn } from '../../shared/i18n.js';
 import { fromHex, fromEvmAddress } from '../../shared/tron/core.js';
@@ -17,7 +17,6 @@ import { KNOWN_CONTRACTS } from '../../shared/tron/history.js';
 import { isChainEnabled } from '../../shared/chains.js';
 import { useTronAccounts } from './hooks.js';
 
-const hostOf = (url) => { try { return new URL(url).host; } catch { return ''; } };
 const chainOfNode = (node) => TRON_CHAINS[node === 'nile' ? TRON_NILE : TRON_MAINNET];
 const TRX = (sun) => `${fmtAmount(BigInt(sun || 0), 6, 6)} TRX`;
 const UNLIMITED = 2n ** 128n;
@@ -179,7 +178,7 @@ function TronTx({ req, done }) {
           {fee?.energy.need > 0 && <div class="row between tiny muted"><span>{t('tron.res.energy')}</span><span>{fmtNum(fee.energy.need, 0)}{fee.energy.burn ? '' : ` · ${t('tron.res.covered')}`}</span></div>}
           {d.raw.fee_limit > 0 && <div class="row between tiny muted"><span>{t('tronapp.feeLimit')}</span><span>{TRX(d.raw.fee_limit)}</span></div>}
         </div>
-        {danger && <label class="ack row small"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {rich('tronapp.ack', { site: hostOf(req.origin) })}</label>}
+        {danger && <label class="ack row small"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {rich('tronapp.ack', { site: siteHost(req) })}</label>}
       </div>
       <div class="footer">
         <Btn kind="secondary" onClick={() => done(false)}>{t('approve.reject')}</Btn>
@@ -208,7 +207,7 @@ function TronSignMessage({ req, done }) {
         {text != null ? <div class="col" style={{ gap: '.25rem' }}><span class="small muted">{t('approve.sign.message')}</span><pre class="data mono">{text}</pre></div>
           : <><div class="warn small">{t('approve.sign.unreadable')}</div><pre class="data mono">{message}</pre></>}
         <div class="info small">{t('tronapp.sign.free')}</div>
-        {text == null && <label class="ack row small"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {rich('tronapp.ack', { site: hostOf(req.origin) })}</label>}
+        {text == null && <label class="ack row small"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {rich('tronapp.ack', { site: siteHost(req) })}</label>}
       </div>
       <div class="footer">
         <Btn kind="secondary" onClick={() => done(false)}>{t('approve.reject')}</Btn>
@@ -229,7 +228,7 @@ function TronBlocked({ req, done }) {
           <span class="tr-blocked-ic"><Icon name="shield" size={30} /></span>
           <h3>{t('tronapp.blocked.title')}</h3>
           <AccountLine account={account} address={address} />
-          <p class="small">{rich('tronapp.blocked.body', { site: hostOf(req.origin) })}</p>
+          <p class="small">{rich('tronapp.blocked.body', { site: siteHost(req) })}</p>
           <p class="small">{t('tronapp.blocked.what')}</p>
         </div>
       </div>

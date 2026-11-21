@@ -110,9 +110,12 @@ export default {
   'settings.sites.count.other': '{n} sitios',
   'settings.sites.none': 'No hay sitios conectados',
   'settings.sites.viaLink': 'por QR o enlace',
+  'settings.sites.viaWc': 'vía WalletConnect',
   'connect.qr.title': 'Conectar con QR',
   'connect.qr.hint': 'Encuadra el código QR que muestra el sitio para conectar una billetera',
-  'connect.qr.unknown': 'Este código QR no es un código de conexión (TON Connect).',
+  'connect.qr.unknown': 'Este código QR no es un código de conexión (WalletConnect, TON Connect).',
+  'connect.link.placeholder': 'O pega el enlace que te da el sitio',
+  'connect.link.button': 'Conectar',
   'settings.sites.since': 'desde el {date}',
   'settings.sites.disconnect': 'Desconectar',
 

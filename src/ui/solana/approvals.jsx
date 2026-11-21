@@ -5,7 +5,7 @@
 // password or the fingerprint.
 import { useEffect, useState } from 'preact/hooks';
 import { Btn, Avatar, ChainIcon, useApp, rich } from '../components.jsx';
-import { Site } from '../screens/approve.jsx';
+import { Site, siteHost } from '../screens/approve.jsx';
 import { Loading, SolValue, AddrValue } from '../screens/contracts/sol/parts.jsx';
 import { fmtAmount, shortAddr } from '../../shared/format.js';
 import { t, tn } from '../../shared/i18n.js';
@@ -16,7 +16,6 @@ import { signInText } from '../../shared/solana/siws.js';
 import { simText } from './tx.js';
 import { useSolAccounts } from './hooks.js';
 
-const hostOf = (url) => { try { return new URL(url).host; } catch { return ''; } };
 
 function AccountLine({ account, address }) {
   const { state } = useApp();
@@ -181,7 +180,7 @@ function SolSignMessage({ req, done }) {
           </>
         )}
         <div class="info small">{t('solapp.sign.free')}</div>
-        {(text == null || disguised) && <label class="ack row small"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {rich('solapp.sign.ack', { site: hostOf(req.origin) })}</label>}
+        {(text == null || disguised) && <label class="ack row small"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> {rich('solapp.sign.ack', { site: siteHost(req) })}</label>}
       </div>
       <div class="footer">
         <Btn kind="secondary" onClick={() => done(false)}>{t('approve.reject')}</Btn>

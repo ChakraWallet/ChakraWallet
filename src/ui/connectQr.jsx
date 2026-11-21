@@ -1,8 +1,9 @@
-// "Connect with QR": the camera reads the code a dapp shows on another screen (TON Connect today, see connectors.js)
-// and the connection starts, with its approval screen. The button only asks; the scanner is drawn once, by the
+// "Connect with QR": the camera reads the code a dapp shows on another screen (WalletConnect, TON Connect: see
+// connectors.js) and the connection starts, with its approval screen. A dapp on the phone itself gives a link to copy
+// instead: it can be pasted in Settings > Connected sites (ConnectLinkField). The button only asks; the scanner is drawn once, by the
 // host at the top of the app, so it covers the whole screen wherever the button is (e.g. inside the balance card).
 import { useEffect, useState } from 'preact/hooks';
-import { Icon, useApp } from './components.jsx';
+import { Btn, Icon, useApp } from './components.jsx';
 import { QrScanner } from './scanner.jsx';
 import { hasConnectors, connectorFor } from './connectors.js';
 import { t } from '../shared/i18n.js';
@@ -39,4 +40,25 @@ export function ConnectQrHost() {
     c.open(text).catch((e) => toast(e.message, 'warn'));
   };
   return <QrScanner onResult={onResult} onClose={() => setScan(false)} hint={t('connect.qr.hint')} />;
+}
+
+/** A connection link pasted (a dapp on this same phone: "copy link"), for any registered protocol. */
+export function ConnectLinkField() {
+  const { toast } = useApp();
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!hasConnectors()) return null;
+  const go = async () => {
+    const link = text.trim();
+    const c = connectorFor(link);
+    if (!c) { toast(t('connect.qr.unknown'), 'warn'); return; }
+    setBusy(true);
+    try { await c.open(link); setText(''); } catch (e) { toast(e.message, 'warn'); } finally { setBusy(false); }
+  };
+  return (
+    <div class="row" style={{ gap: '.5rem' }}>
+      <input class="input grow" placeholder={t('connect.link.placeholder')} value={text} onInput={(e) => setText(e.target.value)} autocomplete="off" autocapitalize="off" spellcheck={false} />
+      <Btn kind="secondary" loading={busy} disabled={!text.trim()} onClick={go}>{t('connect.link.button')}</Btn>
+    </div>
+  );
 }

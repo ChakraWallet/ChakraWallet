@@ -316,7 +316,8 @@ public class DappBrowserPlugin extends Plugin {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme();
-                if (isTonConnectLink(uri)) { tonConnectLink(tab, uri); return true; }
+                if (isTonConnectLink(uri)) { connectLink(tab, uri, "tonConnectLink"); return true; }
+                if (isWalletConnectLink(uri)) { connectLink(tab, uri, "walletConnectLink"); return true; }
                 if (scheme.equals("http") || scheme.equals("https")) {
                     // moving to a site that uses the other version (desktop/mobile): reload it with the right user agent
                     String ua = uaFor(uri.toString());
@@ -755,11 +756,21 @@ public class DappBrowserPlugin extends Plugin {
         return scheme.equals("https") && "chakrawallet.dev".equalsIgnoreCase(uri.getHost()) && path.startsWith("/ton-connect");
     }
 
-    private void tonConnectLink(Tab tab, Uri uri) {
+    /**
+     * A WalletConnect link (wc:…, chakra-wc://…) in a page of the in-app browser: as for TON Connect, the app connects
+     * the site itself (its pages also find Chakra injected, but some offer only WalletConnect).
+     */
+    private static boolean isWalletConnectLink(Uri uri) {
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+        return scheme.equals("wc") || scheme.equals("chakra-wc");
+    }
+
+    /** Hands a connection link to the app (event: tonConnectLink | walletConnectLink). */
+    private void connectLink(Tab tab, Uri uri, String event) {
         JSObject ev = new JSObject();
         ev.put("url", uri.toString());
         ev.put("tabId", tab.id);
-        notifyListeners("tonConnectLink", ev);
+        notifyListeners(event, ev);
         if (tab.url == null || tab.url.isEmpty()) { // opened for this link only (window.open): no page in it
             JSObject c = new JSObject();
             c.put("tabId", tab.id);

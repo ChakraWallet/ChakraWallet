@@ -6,4 +6,5 @@ import './tonPlugin.js'; // TON (GRAM): networks, background handlers, screens -
 import './solanaPlugin.js'; // Solana (SOL): networks, background handlers, screens - before the UI too
 import './tronPlugin.js'; // Tron (TRX): networks, background handlers, screens - before the UI too
 import './btcPlugin.js'; // Bitcoin (BTC): networks, background handlers, screens - before the UI too
+import './walletconnectPlugin.js'; // WalletConnect: dapps outside the app (EVM, Solana, Tron) - after their families
 import '../ui/index.jsx';

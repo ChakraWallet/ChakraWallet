@@ -25,7 +25,27 @@ async function sessionOf(origin) {
   return accounts.some((a) => a.address === s.account) ? s : null;
 }
 const bad = (message) => Object.assign(new Error(message), { code: -32602 });
-const rejected = () => Object.assign(new Error('User rejected the request.'), { code: 4001 });
+export const rejected = () => Object.assign(new Error('User rejected the request.'), { code: 4001 });
+
+/**
+ * A transaction from a dapp ({ raw_data_hex, txID? }), read from its bytes -> { raw, d (decoded), forbidden }. The id
+ * the dapp shows must be the one of these bytes (it can't make the user approve one thing and sign another). Unless
+ * it changes the account's permissions (forbidden: never signed, the caller explains it), it must be the address's own
+ * and single-signature. Also used by WalletConnect (src/background/walletconnect.js).
+ */
+export function readTx(p, address) {
+  const raw = String(p?.raw_data_hex || '').toLowerCase();
+  if (!raw || raw.length > MAX_TX_HEX || raw.length % 2 || /[^0-9a-f]/.test(raw)) throw bad('Bad transaction');
+  let d;
+  try { d = decodeRawData(raw); } catch (e) { throw bad(`Unreadable transaction: ${e.message}`); }
+  if (p.txID && String(p.txID).toLowerCase() !== d.txID) throw bad('The transaction id does not match its bytes');
+  const forbidden = d.contracts.some((c) => FORBIDDEN.has(c.type));
+  if (!forbidden) {
+    if (d.contracts.some((c) => c.parameter?.owner_address !== address)) throw bad('The transaction is not for the connected account');
+    if (d.contracts.some((c) => c.permissionId)) throw bad('Multi-signature transactions are not supported');
+  }
+  return { raw, d, forbidden };
+}
 
 /**
  * The Tron "dapp family" for src/background/index.js (registerDappFamily).
@@ -62,20 +82,13 @@ export function tronDappFamily({ requestApproval, ensureUnlocked, emitToOrigin }
       }
       case 'tron_signTransaction': {
         const s = await connected(origin);
-        const raw = String(p.raw_data_hex || '').toLowerCase();
-        if (!raw || raw.length > MAX_TX_HEX || raw.length % 2 || /[^0-9a-f]/.test(raw)) throw bad('Bad transaction');
-        let d;
-        try { d = decodeRawData(raw); } catch (e) { throw bad(`Unreadable transaction: ${e.message}`); }
-        // the id the page shows is the one of these bytes (a page can't make the user approve one thing and sign another)
-        if (p.txID && String(p.txID).toLowerCase() !== d.txID) throw bad('The transaction id does not match its bytes');
+        const { raw, d, forbidden } = readTx(p, s.address);
         await ensureUnlocked(origin, tab);
-        if (d.contracts.some((c) => FORBIDDEN.has(c.type))) {
+        if (forbidden) {
           // never signed: the screen explains what the site tried, and only lets the user close it
           await requestApproval(origin, 'tronBlocked', { account: s.account, address: s.address, contracts: d.contracts.map((c) => c.type) }, tab).catch(() => {});
           throw rejected();
         }
-        if (d.contracts.some((c) => c.parameter?.owner_address !== s.address)) throw bad('The transaction is not for the connected account');
-        if (d.contracts.some((c) => c.permissionId)) throw bad('Multi-signature transactions are not supported');
         return requestApproval(origin, 'tronTx', { account: s.account, address: s.address, node: s.node, raw }, tab);
       }
       case 'tron_signMessage': {

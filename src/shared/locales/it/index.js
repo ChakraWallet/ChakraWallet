@@ -10,6 +10,7 @@ import contracts from './contracts.js';
 import ton from './ton.js';
 import toncontracts from './toncontracts.js';
 import tonconnect from './tonconnect.js';
+import walletconnect from './walletconnect.js';
 import solana from './solana.js';
 import solcontracts from './solcontracts.js';
 import tron from './tron.js';
@@ -17,4 +18,4 @@ import bitcoin from './bitcoin.js';
 import legal from './legal.js';
 import mmcard from './mmcard.js';
 
-export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...tonconnect, ...solana, ...solcontracts, ...tron, ...bitcoin, ...legal, ...mmcard };
+export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...tonconnect, ...walletconnect, ...solana, ...solcontracts, ...tron, ...bitcoin, ...legal, ...mmcard };
