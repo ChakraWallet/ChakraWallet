@@ -996,6 +996,14 @@ function Portfolio({ active, onBack, onOpen }) {
       <div class="topbar">
         <button class="iconbtn" onClick={onBack} title={t('common.back')}><Icon name="back" /></button>
         <h1>{t('predict.portfolio')}</h1>
+        {/* one "LIVE" mark: dot off and tappable (unlocks, as the Orders tab) until the feed is on, then the dot pulses */}
+        {canAct && (
+          <button class={`pm-live${liveOn ? ' on' : ''}`} title={t(liveOn ? 'predict.live.hint.on' : 'predict.live.hint.off')}
+            aria-label={t(liveOn ? 'predict.live.hint.on' : 'predict.live.hint.off')} aria-pressed={liveOn}
+            disabled={busy === 'live'} onClick={() => !liveOn && unlockLive()}>
+            <i class="pm-live-dot" />{t('predict.live.on')}
+          </button>
+        )}
         <button class="iconbtn" onClick={() => setTick((x) => x + 1)} title={t('predict.refresh')}><Icon name="refresh" size={18} /></button>
       </div>
       <div class="content pm-content">
@@ -1006,13 +1014,6 @@ function Portfolio({ active, onBack, onOpen }) {
             <span class="pm-chips">
               {acc && acc.mode !== 'error' && <span class="pm-wtype" title={t(`predict.wtype.${walletType(acc)}.hint`)}>{t(`predict.wtype.${walletType(acc)}`)}</span>}
               {auto && <span class="pm-wtype auto" title={t('predict.auto.hint')}><Icon name="check" size={11} stroke={3} />{t('predict.auto.badge')}</span>}
-              {canAct && (liveOn
-                ? <span class="pm-wtype pm-live on" title={t('predict.live.hint.on')}><i class="pm-live-dot" />{t('predict.live.on')}</span>
-                // a span like the chips next to it (same look); a button for the screen reader and the keyboard
-                : <span class={`pm-wtype pm-live${busy === 'live' ? ' busy' : ''}`} role="button" tabIndex={0} title={t('predict.live.hint.off')}
-                    onClick={() => busy !== 'live' && unlockLive()} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && busy !== 'live' && (e.preventDefault(), unlockLive())}>
-                    <Icon name="flash" size={11} stroke={2.5} />{t('predict.live.off')}
-                  </span>)}
             </span>
           </div>
           <div class="total">{sum && !sum.error ? usd(sum.total) : '…'}</div>

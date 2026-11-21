@@ -247,7 +247,6 @@ export default {
   'predict.orders.locked': "Pour voir et annuler vos ordres ouverts, déverrouillez l’accès Polymarket (une signature, aucun fonds déplacé).",
   'predict.orders.unlock': "Déverrouiller l’accès",
   'predict.live.on': "Live",
-  'predict.live.off': "Activer le live",
   'predict.live.hint.on': "Positions, solde et ordres se mettent à jour d’eux-mêmes quand vous tradez, y compris sur polymarket.com",
   'predict.live.hint.off': "Déverrouillez l’accès Polymarket (une signature, aucun fonds déplacé) pour voir vos trades et ordres en temps réel",
   'predict.orders.empty': "Aucun ordre ouvert",

@@ -257,7 +257,6 @@ export default {
   'predict.orders.locked': "Чтобы видеть и отменять открытые ордера, разблокируйте доступ к Polymarket (одна подпись, средства не перемещаются).",
   'predict.orders.unlock': "Разблокировать доступ",
   'predict.live.on': "Live",
-  'predict.live.off': "Включить live",
   'predict.live.hint.on': "Позиции, баланс и ордера обновляются сами, когда вы торгуете, в том числе на polymarket.com",
   'predict.live.hint.off': "Разблокируйте доступ к Polymarket (одна подпись, средства не перемещаются), чтобы видеть свои сделки и ордера в реальном времени",
   'predict.orders.empty': "Нет открытых ордеров",

@@ -242,7 +242,6 @@ export default {
   'predict.orders.locked': "要查看和取消你的挂单，请解锁 Polymarket 访问（只需一次签名，不会转移资金）。",
   'predict.orders.unlock': "解锁访问",
   'predict.live.on': "实时",
-  'predict.live.off': "开启实时",
   'predict.live.hint.on': "交易时持仓、余额和订单会自动更新，包括在 polymarket.com 上的交易",
   'predict.live.hint.off': "解锁 Polymarket 访问（只需一次签名，不会转移资金），实时查看你的成交和订单",
   'predict.orders.empty': "没有挂单",

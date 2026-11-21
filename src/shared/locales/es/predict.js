@@ -247,7 +247,6 @@ export default {
   'predict.orders.locked': "Para ver y cancelar tus órdenes abiertas, desbloquea el acceso a Polymarket (una firma, no mueve fondos).",
   'predict.orders.unlock': "Desbloquear acceso",
   'predict.live.on': "En vivo",
-  'predict.live.off': "Activar en vivo",
   'predict.live.hint.on': "Posiciones, saldo y órdenes se actualizan solos cuando operas, también desde polymarket.com",
   'predict.live.hint.off': "Desbloquea el acceso a Polymarket (una firma, no mueve fondos) para ver tus operaciones y órdenes en tiempo real",
   'predict.orders.empty': "No hay órdenes abiertas",

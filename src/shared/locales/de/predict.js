@@ -247,7 +247,6 @@ export default {
   'predict.orders.locked': "Um deine offenen Orders zu sehen und zu stornieren, entsperre den Polymarket-Zugang (eine Signatur, bewegt kein Geld).",
   'predict.orders.unlock': "Zugang entsperren",
   'predict.live.on': "Live",
-  'predict.live.off': "Live aktivieren",
   'predict.live.hint.on': "Positionen, Guthaben und Orders aktualisieren sich von selbst, wenn du handelst – auch auf polymarket.com",
   'predict.live.hint.off': "Entsperre den Polymarket-Zugang (eine Signatur, bewegt kein Geld), um deine Trades und Orders in Echtzeit zu sehen",
   'predict.orders.empty': "Keine offenen Orders",
