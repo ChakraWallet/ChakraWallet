@@ -1345,7 +1345,7 @@ function TierLine({ p, onOpen }) {
       <div class="pm-tier-sub">
         <span>{p.next ? t('predict.rb.progress', { v: money(v), min: money(p.next.min) }) : t('predict.rb.volume', { v: money(v) })}</span>
         <span class="pm-tier-next">{!p.next ? t('predict.rb.top')
-          : left > 0 ? <><Icon name="forward" size={11} stroke={2.5} />{tierName(p.next.name)} {p.next.rate}%</>
+          : left > 0 ? <><Icon name="forward" size={11} stroke={2.5} />{tierName(p.next.name)}<span class="pm-tier-rate">{p.next.rate}%</span></>
             : t('predict.rb.soon', { tier: tierName(p.next.name) })}</span>
       </div>
     </button>

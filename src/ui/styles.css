@@ -1133,7 +1133,7 @@ body.kb-open .pm-totop { display: none; }
 .pm-tier-bar span { display: block; height: 100%; border-radius: inherit; background: var(--green); transition: width .5s var(--ease-out); }
 .pm-tier-sub { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pm-tier-sub > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.pm-tier-next { flex: none; display: inline-flex; align-items: center; gap: .1875rem; font-weight: 650; color: var(--text); }
+.pm-tier-next { flex: none; display: inline-flex; align-items: center; gap: .3125rem; font-weight: 650; color: var(--text); }
 .pm-rb-rows { display: flex; flex-direction: column; gap: .375rem; padding-top: .625rem; border-top: 1px solid var(--border); }
 .pm-rb-row { display: flex; justify-content: space-between; gap: .5rem; font-size: .8125rem; }
 .pm-rb-row span { color: var(--muted); }
@@ -1141,9 +1141,9 @@ body.kb-open .pm-totop { display: none; }
 .pm-rb-link { align-self: flex-start; display: inline-flex; align-items: center; gap: .25rem; color: var(--primary); font-size: .8125rem; font-weight: 650; }
 /* rebate tiers sheet: the ladder in force, the account's tier and the next one stand out */
 .pm-tiers-intro { margin: 0; line-height: 1.45; }
-.pm-tiers { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
-.pm-tiers th { padding: .375rem .5rem; font-size: .6875rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); text-align: right; white-space: nowrap; }
-.pm-tiers td { padding: .5625rem .5rem; text-align: right; white-space: nowrap; border-top: 1px solid var(--border); }
+.pm-tiers { width: 100%; border-collapse: separate; border-spacing: 0 .25rem; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.pm-tiers th { padding: .375rem .625rem; font-size: .6875rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); text-align: right; white-space: nowrap; }
+.pm-tiers td { padding: .8125rem .625rem; text-align: right; white-space: nowrap; border-top: 1px solid var(--border); }
 .pm-tiers th:first-child, .pm-tiers td:first-child { text-align: left; }
 .pm-tiers td:first-child { font-weight: 650; }
 .pm-tiers tr.here td { background: var(--green-soft); border-top-color: transparent; }
