@@ -1,4 +1,4 @@
-// Bitcoin driver (Android app): the wallet screens' interface for Bitcoin (src/ui/chains/driver.d.md). An account is a
+// Bitcoin driver: the wallet screens' interface for Bitcoin (src/ui/chains/driver.d.md). An account is a
 // whole HD wallet - many addresses of two types, SegWit (bc1q…) and Taproot (bc1p…) - so its `raw` is the account's
 // public side (src/shared/btc/account.js), and `address` the next receive address. Balances, coins and history over
 // all its addresses; runes as tokens and inscriptions as NFTs when UniSat can be read; sends that pick coins and leave

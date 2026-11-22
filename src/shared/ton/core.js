@@ -1,5 +1,5 @@
 // TON (The Open Network, coin: GRAM, formerly Toncoin) - keys, wallet contracts, addresses, message bodies.
-// No network and no UI here. Android app only (registered by src/mobile/tonPlugin.js).
+// No network and no UI here.
 //
 // Keys: from the wallet's recovery phrase (BIP-39) with SLIP-0010 Ed25519 at m/44'/607'/{i}' - the TON "multichain"
 // standard - so account i has its Ethereum and its TON address from the same phrase. Native 24-word TON phrases and

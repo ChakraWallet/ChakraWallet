@@ -1,4 +1,4 @@
-// Bridges between EVM networks and TON (Android app): Relay for GRAM, Symbiosis for USD₮ on TON. Both answer with
+// Bridges between EVM networks and TON: Relay for GRAM, Symbiosis for USD₮ on TON. Both answer with
 // ready-made transactions: an EVM transaction (plus the spender to approve) when the source is an EVM network,
 // TON messages to sign when the source is TON. Public APIs, no keys, no fee added by Chakra.
 import { erc20 } from '../rpc.js';

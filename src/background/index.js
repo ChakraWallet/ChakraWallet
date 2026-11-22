@@ -32,7 +32,7 @@ async function settings() {
 }
 async function customChains() { return local.get('customChains', []); }
 /**
- * The EVM network for sites and EVM operations. The app may show a non-EVM network (TON, Android app): sites keep
+ * The EVM network for sites and EVM operations. The wallet may show a non-EVM network (TON, Solana...): sites keep
  * the last EVM network chosen (evmChainId), they never see the chainId of another family (TON...).
  */
 async function currentChain() {
@@ -108,8 +108,8 @@ ext.runtime.onConnect.addListener((port) => {
 
 function safePost(port, msg) { try { port.postMessage(msg); } catch { /* port closed */ } }
 
-// Dapp protocols of other families, added by platform modules (TON Connect in the Android app:
-// src/background/tonconnect.js). Each one: { prefix (of its request methods), handle(origin, method, params, tab),
+// Dapp protocols of other families, added by other modules (Solana: src/background/solanaDapp.js; Android app: TON
+// Connect, Tron, WalletConnect). Each one: { prefix (of its request methods), handle(origin, method, params, tab),
 // approvals: { kind: { auth(p) -> needs the password, complete(p, data) } }, state(view) -> extra getState fields,
 // disconnect(origin) (the user disconnects the site) }.
 const dappFamilies = [];
@@ -604,7 +604,7 @@ function safeWalletCall(c, from) {
   return false;
 }
 
-/** Extra UI handlers from platform modules (e.g. TON in the Android app: src/mobile/tonPlugin.js). */
+/** Extra UI handlers from other modules (the other families: src/background/chainModules.js; TON Connect...). */
 export function registerUiHandlers(extra) { Object.assign(uiHandlers, extra); }
 
 const uiHandlers = {

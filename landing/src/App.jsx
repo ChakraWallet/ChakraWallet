@@ -137,7 +137,7 @@ function Hero() {
       <Guilloche className="hero-rosette" />
       <div className="wrap hero-in">
         <div className="hero-copy">
-          <span className="eyebrow"><span className="dot" />Free &amp; open source · iPhone · Android · Chrome · Firefox</span>
+          <span className="eyebrow"><span className="dot" />Free &amp; open source · No added fees of any kind</span>
           <h1>Your crypto,<br /><span className="ink">beautifully clear.</span></h1>
           <p className="lede">
             Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON, Solana, Tron and Bitcoin. Send, swap at the best price,

@@ -1,5 +1,4 @@
 // Tron - keys, addresses, transaction ids and signatures, message signing. No network and no UI here.
-// Android app only (registered by src/mobile/tronPlugin.js).
 //
 // Keys: secp256k1, the curve of Ethereum. From the wallet's recovery phrase (BIP-39 + BIP-32) at m/44'/195'/0'/0/{i},
 // the path of TronLink, Trust Wallet and Ledger, so account i has its Ethereum and its Tron address from the same

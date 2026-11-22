@@ -1,4 +1,4 @@
-// Tron in the background (Android app only, registered by src/mobile/tronPlugin.js): Tron addresses of the accounts,
+// Tron in the background (registered by src/background/chainModules.js): Tron addresses of the accounts,
 // signing transactions and messages, importing wallets from other Tron apps. Keys never leave the background: the UI
 // gets addresses only and sends here the bytes to sign, after the password. Every transaction is decoded before it is
 // signed: it must be the account's own (its owner), and a change of the account's permissions (the way scams take an

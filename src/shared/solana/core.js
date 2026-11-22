@@ -1,5 +1,4 @@
 // Solana - keys, addresses, program-derived addresses, byte helpers. No network and no UI here.
-// Android app only (registered by src/mobile/solanaPlugin.js).
 //
 // Keys: Ed25519, from the wallet's recovery phrase (BIP-39) with SLIP-0010 at m/44'/501'/{i}'/0' - the path of Phantom,
 // Solflare, Backpack and Ledger - so account i has its Ethereum and its Solana address from the same phrase. Wallets

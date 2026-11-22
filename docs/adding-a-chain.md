@@ -1,14 +1,15 @@
 # Adding a family of networks
 
 The screens never need to change: a new family is a **driver** for the UI, a **module** for keys and signing in the
-background, its **networks** and its **data**. TON and Solana are complete examples (Android app only): TON in
-`src/ui/ton/driver.js`, `src/background/ton.js`, `src/shared/ton/*`, registered by `src/mobile/tonPlugin.js`; Solana in
-`src/ui/solana/*`, `src/background/solana.js` (+ `solanaDapp.js`, Wallet Standard dapps), `src/shared/solana/*`,
-registered by `src/mobile/solanaPlugin.js`; Tron in `src/ui/tron/*`, `src/background/tron.js` (+ `tronDapp.js`: window.tron,
-tronLink and tronWeb), `src/shared/tron/*`, registered by `src/mobile/tronPlugin.js` - also an example of a family with
-screens of its own (`driver.ui.screens`: its Resources page) and of a large page script loaded only when a site needs it
-(TronWeb, `src/mobile/tronwebPage.js`, injected by `DappBrowserPlugin.injectScript`). Bitcoin in `src/ui/btc/*`,
-`src/background/btc.js`, `src/shared/btc/*`, registered by `src/mobile/btcPlugin.js` - an example of a family whose account is
+background, its **networks** and its **data**. Every family is registered twice, for the extension and the Android app
+alike: in the background by `src/background/chainModules.js`, in the interface by `src/ui/chainModules.js`.
+TON and Solana are complete examples: TON in `src/ui/ton/driver.js`, `src/background/ton.js`, `src/shared/ton/*` (TON
+Connect, Android app only: `src/mobile/tonPlugin.js`); Solana in `src/ui/solana/*`, `src/background/solana.js`
+(+ `solanaDapp.js` and `src/solanaInpage.js`: Wallet Standard dapps), `src/shared/solana/*`; Tron in `src/ui/tron/*`,
+`src/background/tron.js`, `src/shared/tron/*` (dapps, Android app only: `tronDapp.js`, `src/mobile/tronPlugin.js`) - also
+an example of a family with screens of its own (`driver.ui.screens`: its Resources page) and of a large page script
+loaded only when a site needs it (TronWeb, `src/mobile/tronwebPage.js`, injected by `DappBrowserPlugin.injectScript`).
+Bitcoin in `src/ui/btc/*`, `src/background/btc.js`, `src/shared/btc/*` - an example of a family whose account is
 many addresses (an HD wallet: its `raw` is the account's public side), with a fee of its own (`fee.View`), its own receive
 screen (`ui.Receive`) and coins that need protecting (Ordinals, Runes).
 
@@ -16,7 +17,7 @@ screen (`ui.Receive`) and coins that need protecting (Ordinals, Runes).
 
 1. **Networks** — `src/shared/<family>/api.js`: the network objects with `kind: '<family>'`, `native` (symbol,
    decimals, DefiLlama `priceId`), `explorer`, `swap: true` if swaps exist; register them with `registerChains()`
-   from the platform module. `isEvm()` is false for them, so dapps and EVM-only places skip them.
+   from the family's modules (step 4). `isEvm()` is false for them, so dapps and EVM-only places skip them.
 2. **Keys** (background) — `src/background/<family>.js`:
    - derive the family's key of an account of the recovery phrase (`vault.familyKeySource('<family>', address)` gives
      `{ phrase, index }`; standard paths: Solana `m/44'/501'/i'/0'` (ed25519, SLIP-0010), Tron `m/44'/195'/0'/0/i`
@@ -32,8 +33,11 @@ screen (`ui.Receive`) and coins that need protecting (Ordinals, Runes).
    A network where transactions wait in a queue ordered by their fee (EVM, Bitcoin) can also offer `driver.replace`:
    speed up / cancel from the history (one shared screen, `src/ui/screens/replaceTx.jsx`). Bitcoin's also speeds up a payment on its
    way in (CPFP).
-4. **Register** — in the platform module: `registerChains(...)`, `registerUiHandlers(...)`, `registerDriver(driver)`
-   (browser extension: `src/ui/index.jsx`; Android app: `src/mobile/index.jsx` + a plugin file like `tonPlugin.js`).
+4. **Register** — background: `registerChains(...)`, `registerUiHandlers(...)` (and `registerDappFamily(...)` for its
+   dapps) in `src/background/chainModules.js`; interface: `registerChains(...)`, `registerDriver(driver)` (and
+   `registerApprovalViews(...)`) in `src/ui/chainModules.js`. Both platforms load them (extension:
+   `src/background/extension.js` and `src/ui/index.jsx`; Android app: `src/mobile/index.jsx`). The background and the
+   interface are separate pages in the extension: register in both, and keep what the handlers return plain JSON.
 5. **Words** — the family's i18n keys in `src/shared/locales/{en,it}/<family>.js` (+ `index.js`); `npm test` lists
    missing ones. Generic texts already exist (`send.memo`, `tx.waiting`, `chain.noKey.*`, …).
 6. **Logo** — `src/ui/logos.jsx` (network and native token).

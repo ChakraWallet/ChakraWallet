@@ -103,13 +103,13 @@ export const BUILTIN_CHAINS = [
   },
 ];
 
-// Non-EVM networks added by the Android app (TON: src/mobile/tonPlugin.js). They have kind: 'ton'; code that works
-// only on EVM networks iterates BUILTIN_CHAINS, or checks kind.
+// Non-EVM networks (TON, Solana, Tron, Bitcoin: src/background/chainModules.js, src/ui/chainModules.js). They have a
+// kind of their own ('ton', 'solana'...); code that works only on EVM networks iterates BUILTIN_CHAINS, or checks kind.
 const EXTRA = [];
 export function registerChains(list) { for (const c of list) if (!EXTRA.some((x) => x.id === c.id)) EXTRA.push(c); }
 export const isEvm = (c) => !!c && (!c.kind || c.kind === 'evm'); // other families (TON...) have a kind of their own
 
-/** Every network, in list order: Ethereum, then TON (Android app), the other networks, test networks, custom ones. */
+/** Every network, in list order: Ethereum, then TON, Solana, Tron and Bitcoin, the other EVM networks, test networks, custom ones. */
 export function allChains(customChains = []) {
   return [BUILTIN_CHAINS[0], ...EXTRA.filter((c) => !c.testnet), ...BUILTIN_CHAINS.slice(1), ...EXTRA.filter((c) => c.testnet), ...customChains.map(normalizeCustom)];
 }

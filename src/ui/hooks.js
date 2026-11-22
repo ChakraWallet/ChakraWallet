@@ -176,7 +176,7 @@ export function summarize(per, showUnpriced) {
  * Android: keeps the background check (WatchWorker) configured: accounts of every wallet, main networks with
  * their RPCs and well-known tokens, language; asks the notification permission once.
  */
-// Families that add their part to the background check (TON in the Android app: src/ui/ton/hooks.js, tonWatch):
+// Families that add their part to the background check of the Android app (TON: src/ui/ton/hooks.js, tonWatch):
 // fn(state, prev) -> fields merged into the "watch" config; prev: the config written last time.
 const watchExtras = [];
 export const registerWatchExtra = (fn) => { watchExtras.push(fn); };
@@ -220,7 +220,7 @@ export function useBridgeTracker(toast) {
           try { r = await bridgeStatus(b); } catch { continue; }
           if (r.status === 'pending') continue;
           await local.update('bridges', [], (l) => l.map((x) => (x.id === b.id ? { ...x, status: r.status, destTxHash: r.destTxHash || x.destTxHash, updated: Date.now() } : x)));
-          const to = getChain(b.toChainId)?.name || ''; // also TON (Android app)
+          const to = getChain(b.toChainId)?.name || ''; // also TON
           toast(t(`bridge.toast.${r.status}`, { symbol: b.toToken.symbol, chain: to }));
           // app in background: a system notification (the native side shows it only if not in the foreground)
           if (document.hidden) globalThis.__CK_NOTIFY__?.notify({ id: `bridge${b.id}`, title: t(`bridge.toast.${r.status}`, { symbol: b.toToken.symbol, chain: to }), body: `${b.provider}`, positive: r.status === 'done' }).catch(() => {});

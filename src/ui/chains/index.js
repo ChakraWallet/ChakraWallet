@@ -2,8 +2,7 @@
 // receive, send, swap, bridge, accounts) are written once against this interface and never import a network's code;
 // a new family (e.g. Solana, Tron) is one more driver. See docs/adding-a-chain.md and src/ui/chains/driver.d.md.
 //
-// The EVM driver ships everywhere (src/ui/chains/evm.js); others register from their platform module
-// (TON: src/mobile/tonPlugin.js, Android app only), so the browser extension never bundles them.
+// The EVM driver is src/ui/chains/evm.js; TON, Solana, Tron and Bitcoin register from src/ui/chainModules.js.
 import { useEffect, useState } from 'preact/hooks';
 
 const drivers = new Map();

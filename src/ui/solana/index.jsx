@@ -1,5 +1,5 @@
-// Solana in the Android app: the Solana driver plus the pieces of the accounts screen that are Solana's own (importing
-// a wallet from another Solana app, Solana balances in the accounts' summary). Registered by src/mobile/solanaPlugin.js.
+// Solana in the interface: the Solana driver plus the pieces of the accounts screen that are Solana's own (importing
+// a wallet from another Solana app, Solana balances in the accounts' summary). Registered by src/ui/chainModules.js.
 import { ImportSolana } from './import.jsx';
 import { useSolSummaries } from './hooks.js';
 import { solanaDriver } from './driver.js';

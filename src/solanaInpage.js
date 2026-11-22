@@ -1,9 +1,10 @@
-// Solana in the pages of the in-app browser (Android): Chakra registers itself as a wallet of the Wallet Standard
-// (github.com/wallet-standard/wallet-standard), which every Solana dapp's wallet adapter discovers - no window.solana
-// and no other wallet's name. Calls go to the app through inject.js, the same channel as window.ethereum; the
-// background (src/background/solanaDapp.js) answers after the user's approval. Bytes travel as base64.
-import * as b58 from '../shared/solana/base58.js';
-import { markSvg } from '../shared/mandala.js';
+// Solana in the pages (extension: with inpage.js in every page; Android app: in the in-app browser): Chakra registers
+// itself as a wallet of the Wallet Standard (github.com/wallet-standard/wallet-standard), which every Solana dapp's
+// wallet adapter discovers - no window.solana and no other wallet's name. Calls take the same channel as
+// window.ethereum (content.js in the extension, mobile/inject.js in the app); the background
+// (src/background/solanaDapp.js) answers after the user's approval. Bytes travel as base64.
+import * as b58 from './shared/solana/base58.js';
+import { markSvg } from './shared/mandala.js';
 
 (() => {
   if (window.__chakraSolana) return;

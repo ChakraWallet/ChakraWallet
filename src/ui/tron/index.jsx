@@ -1,5 +1,5 @@
-// Tron in the Android app: the Tron driver plus the pieces of the accounts screen that are Tron's own (importing a
-// wallet from another Tron app, Tron balances in the accounts' summary). Registered by src/mobile/tronPlugin.js.
+// Tron in the interface: the Tron driver plus the pieces of the accounts screen that are Tron's own (importing a
+// wallet from another Tron app, Tron balances in the accounts' summary). Registered by src/ui/chainModules.js.
 import { ImportTron } from './import.jsx';
 import { useTronSummaries } from './hooks.js';
 import { tronDriver } from './driver.js';

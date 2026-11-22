@@ -1,7 +1,7 @@
-// Bitcoin in the Android app: the Bitcoin driver plus the pieces of the screens that are Bitcoin's own - receiving with
+// Bitcoin in the interface: the Bitcoin driver plus the pieces of the screens that are Bitcoin's own - receiving with
 // a choice of address type, the account's addresses / coins / export page, importing a wallet from another Bitcoin
 // app, sending an inscription, Bitcoin balances in the accounts' summary, the UniSat key. Registered by
-// src/mobile/btcPlugin.js.
+// src/ui/chainModules.js.
 import { btcDriver } from './driver.js';
 import { btcBridge } from './bridge.js';
 import { BtcFee } from './fee.jsx';

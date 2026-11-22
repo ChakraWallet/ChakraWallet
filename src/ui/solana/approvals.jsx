@@ -1,7 +1,7 @@
-// Approval screens of Solana dapps (in-app browser, Android app): connecting a site, transactions it asks to sign (or
+// Approval screens of Solana dapps: connecting a site, transactions it asks to sign (or
 // sign and send: decoded, simulated - what leaves and enters the wallet - with the dangerous instructions flagged),
 // messages to sign and Sign In With Solana. Registered in the approval list (screens/approve.jsx) by
-// src/mobile/solanaPlugin.js; the signatures happen in the background (src/background/solanaDapp.js) after the
+// src/ui/chainModules.js; the signatures happen in the background (src/background/solanaDapp.js) after the
 // password or the fingerprint.
 import { useEffect, useState } from 'preact/hooks';
 import { Btn, Avatar, ChainIcon, useApp, rich } from '../components.jsx';

@@ -38,7 +38,7 @@ const CORE = [
   },
 ];
 
-/** Every key the app can use on this platform (TON's ones only in the Android app, where TON is). */
+/** Every key the app can use: the core ones and those of each family's driver. */
 export const serviceKeys = () => [...CORE, ...allDrivers().flatMap((d) => (d.ui?.settings || []).map((f) => ({ ...f, family: d.kind })))];
 const isSet = (s, k) => !!String(s[k.key] || '').trim();
 const autoOn = (s, k) => k.auto && s[k.auto] === 'auto' && !isSet(s, k);
@@ -46,7 +46,7 @@ const autoOn = (s, k) => k.auto && s[k.auto] === 'auto' && !isSet(s, k);
 const PRICE = { free: ['green', 'keys.price.free'], freemium: ['primary', 'keys.price.freemium'], paid: ['amber', 'keys.price.paid'] };
 
 /** The networks Alchemy can serve (built-in EVM ones, not test networks). */
-const alchemyChains = () => builtinNetworks().filter((c) => (isEvm(c) || c.kind === 'solana') && !c.testnet && c.alchemy); // Solana: Android app
+const alchemyChains = () => builtinNetworks().filter((c) => (isEvm(c) || c.kind === 'solana') && !c.testnet && c.alchemy);
 
 /** Alchemy: each network of the key, switched on (green dot) or to switch on in its app (grey dot, link to the page). */
 function AlchemyNets({ nets, busy, onCheck }) {

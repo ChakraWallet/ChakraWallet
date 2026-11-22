@@ -31,7 +31,7 @@ const amtOf = (t) => `${fmtAmount(t.amount, t.decimals, 6)} ${t.symbol}`;
 const amt = amtOf;
 
 // bridges sent from the app, by source tx hash (to show them as "Bridge A → B" with their status)
-const BRIDGE_CHAIN = (id) => BUILTIN_CHAINS.find((c) => c.id === id) || getChain(id); // also TON (Android app)
+const BRIDGE_CHAIN = (id) => BUILTIN_CHAINS.find((c) => c.id === id) || getChain(id); // also TON
 const tokenIcon = (chainId, x) => x.icon || (POPULAR_TOKENS[chainId] || []).find((p) => p.address === x.token)?.icon || '';
 const hostOf = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
 const provider = (it) => { if (it.via) return it.via; const m = it.appTitle || it.method; return (m && /\(([^)]+)\)\s*$/.exec(m)?.[1]) || null; }; // "Swap … (KyberSwap)", the app's own title

@@ -199,7 +199,7 @@ export async function bridgeStatus(entry) {
     if (r.status === 'refunded' || r.status === 'expired') return { status: 'refunded' };
     return { status: 'pending' };
   }
-  if (entry.provider === 'Symbiosis') return symbiosisStatus(entry); // EVM <-> TON (Android app)
+  if (entry.provider === 'Symbiosis') return symbiosisStatus(entry); // EVM <-> TON
   if (entry.provider === 'deBridge') {
     try {
       const r = await fetchJson(`${ENDPOINTS.debridge}/v1.0/dln/order/${entry.ref.orderId}/status`);

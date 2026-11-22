@@ -1,6 +1,6 @@
-// Tron driver (Android app): the wallet screens' interface for Tron (src/ui/chains/driver.d.md) - balances and history
+// Tron driver: the wallet screens' interface for Tron (src/ui/chains/driver.d.md) - balances and history
 // in the shapes the EVM code produces, payment links, sends of TRX, TRC-20 and TRC-10 tokens with what they cost in
-// energy, bandwidth and burnt TRX, custom tokens, address-poisoning checks. Registered by src/mobile/tronPlugin.js.
+// energy, bandwidth and burnt TRX, custom tokens, address-poisoning checks. Registered by src/ui/chainModules.js.
 import { bg } from '../../shared/ext.js';
 import { t, i18nError } from '../../shared/i18n.js';
 import { NATIVE } from '../../shared/chains.js';

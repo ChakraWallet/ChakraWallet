@@ -1,6 +1,6 @@
-// Solana dapps of the in-app browser (Android app, registered by src/mobile/solanaPlugin.js): the wallet side of the
-// Wallet Standard (src/mobile/solanaInpage.js is the page's side). Requests arrive with the page origin, which Android
-// gives (never the page). One session per site, bound to one account of the active wallet; a silent reconnection
+// Solana dapps (extension pages and the Android app's in-app browser, registered by src/background/chainModules.js):
+// the wallet side of the Wallet Standard (src/solanaInpage.js is the page's side). Requests arrive with the page origin,
+// which the browser or Android gives (never the page). One session per site, bound to one account of the active wallet; a silent reconnection
 // only when nothing has to be signed. Every signature (transactions, messages, sign-in) is approved on a screen and
 // needs the password or the fingerprint.
 import * as vault from './vault.js';

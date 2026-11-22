@@ -63,7 +63,7 @@ function AddSheet({ onClose }) {
     { mode: 'import', chain: evm, label: 'accounts.add.net.evm', sub: 'accounts.add.import.evmSub' },
     ...importers().map((d) => ({ mode: `import:${d.kind}`, chain: familyChain(d.kind), sub: d.ui.importSub })),
   ];
-  const multi = imports.length > 1; // other families than Ethereum's (Android app)
+  const multi = imports.length > 1; // other families than Ethereum's
   const pick = (list, pickMode) => (list.length > 1 ? pickMode : list[0].mode);
   // "back" from a form: to the list of networks it was picked from, or to the start
   const backTo = () => setMode(vanities.length > 1 && vanities.some((v) => v.mode === mode) ? 'pick:vanity'

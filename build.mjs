@@ -98,11 +98,13 @@ const drawIcon = (size, mask = 'rounded') => encodePNG(size, renderIcon(size, si
 
 // ---------------------------------------------------------------- build
 const entries = {
-  background: 'src/background/index.js',
+  background: 'src/background/extension.js', // the background + the other families of networks
   content: 'src/content.js',
   inpage: 'src/inpage.js',
   popup: 'src/ui/index.jsx',
   'vanity-worker': 'src/ui/vanityWorker.js', // Web Worker for the vanity address search, next to popup.html
+  'sol-vanity-worker': 'src/ui/solana/vanityWorker.js', // the same for Solana
+  'tron-vanity-worker': 'src/ui/tron/vanityWorker.js', // the same for Tron
 };
 
 function copyStatic(outdir, target) {
@@ -179,8 +181,8 @@ async function buildAndroid() {
   await esbuild.build({
     entryPoints: {
       app: path.join(SRC, 'mobile', 'index.jsx'), inject: path.join(SRC, 'mobile', 'inject.js'), 'vanity-worker': path.join(SRC, 'ui', 'vanityWorker.js'),
-      'sol-vanity-worker': path.join(SRC, 'ui', 'solana', 'vanityWorker.js'), // Solana vanity search (Android app only)
-      'tron-vanity-worker': path.join(SRC, 'ui', 'tron', 'vanityWorker.js'), // Tron vanity search (Android app only)
+      'sol-vanity-worker': path.join(SRC, 'ui', 'solana', 'vanityWorker.js'), // Solana vanity search
+      'tron-vanity-worker': path.join(SRC, 'ui', 'tron', 'vanityWorker.js'), // Tron vanity search
       'solc-worker': path.join(SRC, 'ui', 'solcWorker.js'), // Solidity compiler (Contracts tab), downloads soljson on first use
       tronweb: path.join(SRC, 'mobile', 'tronwebPage.js'), // TronWeb for Tron dapps: injected only into the pages that use Tron
     },

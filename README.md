@@ -6,7 +6,8 @@
 
 <p align="center">
   A self-custodial wallet for Ethereum and every major EVM network, TON, Solana, Tron and Bitcoin.<br>
-  Browser extension for Chrome and Firefox, and an app for Android.
+  Browser extension for Chrome and Firefox, and App.<br>
+  <strong>Free and open source, with no added fees of any kind.</strong>
 </p>
 
 <p align="center">
@@ -29,13 +30,29 @@
 - **Your keys stay on your device**, encrypted with one password (PBKDF2-SHA256 600k + AES-256-GCM), with fingerprint unlock on Android. Several separate wallets, each with its own recovery phrase.
 - **Every balance at a glance**: all your accounts, networks and tokens in one place, found automatically, with their value and a spam filter.
 - **Best-price swaps and bridges**: KyberSwap, Velora, OpenOcean and LI.FI for swaps, LI.FI, Relay, Across and deBridge for bridges, ranked by what you actually receive after fees. Approvals for the exact amount only, MEV protection with Flashbots and Jito.
-- **Dapps everywhere**: EIP-6963 and `window.ethereum` in the extension, a multi-tab dapp browser in the Android app, WalletConnect and TON Connect for sites on other devices.
+- **Dapps everywhere**: Ethereum and Solana dapps on every site in the extension (EIP-6963, `window.ethereum`, Wallet Standard); in the Android app a multi-tab dapp browser that also speaks Tron and TON Connect, and WalletConnect for sites on other devices.
 - **Scam protection**: address-poisoning fakes and spam tokens hidden, transactions decoded and unlimited approvals flagged before you sign.
 - **And more**: NFTs, prediction markets, MetaMask Card on Base, smart contracts (deploy and call), vanity addresses, an encrypted one-line backup.
 - **7 languages**: English, Italian, Spanish, French, German, Russian and Chinese.
 - **No servers, no extra fees, no tracking**: Chakra talks only to public nodes, indexers and aggregators.
 
 The full list is in [docs/features.md](docs/features.md).
+
+## Extension and app
+
+Wallets, networks, swaps and bridges are the same everywhere; the Android app adds what needs a phone or more room.
+
+| | Extension<br>(Chrome, Firefox) | Android app |
+|---|:---:|:---:|
+| Ethereum and every EVM network, TON, Solana, Tron, Bitcoin: balances, sends, swaps, bridges, history | ✓ | ✓ |
+| Several wallets, accounts imported from other wallets, encrypted backup | ✓ | ✓ |
+| NFTs, MetaMask Card, vanity addresses, scam protection | ✓ | ✓ |
+| Ethereum and Solana dapps | ✓ on every site | ✓ in the built-in browser |
+| Tron dapps, TON Connect | — | ✓ |
+| WalletConnect (dapps on other devices) | — | ✓ |
+| Prediction markets (Polymarket) | — | ✓ |
+| Contracts: open and call any contract; write, compile and deploy (Solidity, Tact) | — | ✓ |
+| Fingerprint unlock; notifications for funds received and bridges | — | ✓ |
 
 ## Build
 
@@ -90,7 +107,8 @@ build.mjs           build for Chrome, Firefox and Android + icons + zips
 ## Support the project
 
 Chakra is free, open source and adds no fees. If you find it useful, you can send anything you like — any token,
-any amount, even one without value — to one of these addresses (they are the same as in the app's Support tab):
+any amount, even one without value — to one of these addresses (the same as in the Support page: the heart in the
+extension, the Support tab in the app):
 
 | Network | Address |
 |---|---|

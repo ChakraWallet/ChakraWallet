@@ -1,6 +1,7 @@
 // Injected in the page (MAIN world): EIP-1193 provider exposed as window.ethereum (MetaMask compatible)
 // and announced via EIP-6963 (multi-wallet discovery).
 import { markSvg } from './shared/mandala.js';
+import './solanaInpage.js'; // Solana: Chakra as a Wallet Standard wallet, through the same channel
 
 (() => {
   if (window.chakraWallet) return;

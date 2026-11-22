@@ -36,7 +36,7 @@ import { CrashAsk } from './crash.jsx';
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
 const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions', 'tonConnect']);
 
-const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail, mmcard: MmCard, replaceTx: ReplaceTx };
+const SCREENS = { home: Home, send: Send, receive: Receive, swap: Swap, history: History, accounts: Accounts, account: AccountDetails, settings: Settings, approvals: Approvals, token: TokenDetails, wallets: Wallets, bridge: Bridge, nft: NftDetail, mmcard: MmCard, replaceTx: ReplaceTx, donate: Donate };
 
 const scanStart = location.hash === '#full-scan'; // extension: QR scanning continues in a tab (camera)
 const mode = globalThis.__CK_MOBILE__ ? 'mobile' : scanStart ? 'full' : location.hash.replace('#', '') || 'popup';
@@ -268,7 +268,7 @@ export function App() {
   let body;
   const top = stack[stack.length - 1];
   setCrashScreen(mode === 'mobile' ? `${tab}:${tab === 'wallet' ? top.name : ''}` : top.name); // recorded with an error report
-  // one set of screens for every network: TON (Android app) feeds them through its driver (src/ui/ton/driver.js)
+  // one set of screens for every network: TON, Solana, Tron and Bitcoin feed them through their drivers (src/ui/chains)
   const C = wrongFamily ? Switching // the account's own network is being selected
     : SCREENS[top.name] || driverScreens()[top.name] || Home;
   if (!state) body = <div class="screen" style={{ alignItems: 'center', justifyContent: 'center' }}><Spinner lg /></div>;

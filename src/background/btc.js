@@ -1,4 +1,4 @@
-// Bitcoin in the background (Android app only, registered by src/mobile/btcPlugin.js): the accounts' public keys,
+// Bitcoin in the background (registered by src/background/chainModules.js): the accounts' public keys,
 // signing and broadcasting, speed up / cancel (RBF) and speeding up a payment on its way in (CPFP), importing wallets
 // from other Bitcoin apps. Keys never leave the background: the screens get the accounts' extended public keys (to
 // derive addresses) and send here a plan of the transaction. Before signing, every coin spent must be the account's,

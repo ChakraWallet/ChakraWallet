@@ -38,7 +38,7 @@ export async function checkAlchemy(key, chains, { timeout = 15000 } = {}) {
   let bad = false;
   await Promise.all(chains.filter((c) => c.alchemy).map(async (c) => {
     try {
-      // Solana (Android app): the network is recognised by its genesis block; Tron: its HTTP API answers the latest block
+      // Solana: the network is recognised by its genesis block; Tron: its HTTP API answers the latest block
       const sol = c.kind === 'solana', tron = c.kind === 'tron';
       const res = await fetch(tron ? `${alchemyNodeUrl(c.alchemy, key)}/wallet/getnowblock` : alchemyNodeUrl(c.alchemy, key), {
         method: 'POST', headers: { 'content-type': 'application/json' },

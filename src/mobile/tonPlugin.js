@@ -1,37 +1,16 @@
-// TON (coin: GRAM) in the Android app: the TON networks, the background handlers (keys, signing), the driver the
-// shared screens use for TON (balances, history, sends, swaps, bridges) and TON Connect (dapps of the in-app browser,
-// QR codes, links that open the app).
-// Loaded by the Android entry before the UI; not part of the browser extension.
-import '../shared/ton/buffer.js';
+// TON Connect in the Android app: the dapps of the in-app browser (window.chakra.tonconnect), QR codes and links that
+// open the app. The TON wallet itself (networks, background handlers, screens) is in src/background/chainModules.js
+// and src/ui/chainModules.js, for the extension too. Loaded by the Android entry before the UI.
 import { registerPlugin } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { registerChains } from '../shared/chains.js';
 import { registerUiHandlers, registerDappFamily, requestApproval, ensureUnlocked, emitToOrigin } from '../background/index.js';
 import { tonConnectFamily } from '../background/tonconnect.js';
 import { registerApprovalViews } from '../ui/screens/approve.jsx';
 import { tonApprovalViews } from '../ui/ton/approvals.jsx';
 import { registerConnector } from '../ui/connectors.js';
 import { parseConnectLink } from '../shared/ton/tonconnectBridge.js';
-import { TON_CHAINS, setTonCenterKey } from '../shared/ton/api.js';
-import { setTonApiKey } from '../shared/ton/tonapi.js';
-import { setSymbiosisKey } from '../shared/ton/bridge.js';
-import { tonHandlers } from '../background/ton.js';
-import { tonChainDriver } from '../ui/ton/index.jsx';
-import { tonWatch } from '../ui/ton/hooks.js';
-import { registerWatchExtra } from '../ui/hooks.js';
-import { registerDriver } from '../ui/chains/index.js';
-import { bg, ext, local } from '../shared/ext.js';
+import { bg } from '../shared/ext.js';
 import { t } from '../shared/i18n.js';
-
-registerChains(Object.values(TON_CHAINS));
-registerUiHandlers(tonHandlers);
-registerDriver(tonChainDriver);
-registerWatchExtra(tonWatch); // notifications with the app closed: TON's balances too (WatchWorker.java)
-
-// optional TON Center, TonAPI and Symbiosis keys (Settings > Data)
-const keys = (s) => { setTonCenterKey(s?.tonCenterKey); setTonApiKey(s?.tonApiKey); setSymbiosisKey(s?.symbiosisKey); };
-local.get('settings', {}).then(keys);
-ext.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.settings) keys(changes.settings.newValue); });
 
 // ---------------------------------------------------------------- TON Connect
 // requests, sessions and signatures (in-app browser and bridge), and their approval screens

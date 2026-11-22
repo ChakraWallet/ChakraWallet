@@ -1,6 +1,6 @@
-// TON driver (Android app): the wallet screens' interface for TON (src/ui/chains/driver.d.md) - balances and history
+// TON driver: the wallet screens' interface for TON (src/ui/chains/driver.d.md) - balances and history
 // in the same shapes the EVM code produces, TON addresses, sends with a comment, Omniston swaps, Relay / Symbiosis
-// bridges. Registered by src/mobile/tonPlugin.js.
+// bridges. Registered by src/ui/chainModules.js.
 import { Address } from '../../shared/ton/core.js';
 import { keyPairFromSeed } from '@ton/crypto';
 import { Buffer } from '../../shared/ton/buffer.js';

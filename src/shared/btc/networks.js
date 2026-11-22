@@ -1,4 +1,4 @@
-// Bitcoin networks (Android app): mainnet and Testnet4. Balances, coins, history, fees and broadcasting come from
+// Bitcoin networks: mainnet and Testnet4. Balances, coins, history, fees and broadcasting come from
 // mempool.space's public Esplora API (no key; blockstream.info answers the same API on mainnet when it fails).
 // Ordinals and Runes come from UniSat's indexer: on mainnet with the user's free key (Settings > Service keys), on
 // Testnet4 without one. The ids are negative like the other non-EVM networks: the node ports (8333, 48333).

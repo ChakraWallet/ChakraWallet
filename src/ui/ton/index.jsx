@@ -1,5 +1,5 @@
-// TON in the Android app: the TON driver plus the pieces of the accounts screen that are TON's own (importing a wallet
-// from another TON app, TON balances in the accounts' summary). Registered by src/mobile/tonPlugin.js.
+// TON in the interface: the TON driver plus the pieces of the accounts screen that are TON's own (importing a wallet
+// from another TON app, TON balances in the accounts' summary). Registered by src/ui/chainModules.js.
 import { ImportTon } from './import.jsx';
 import { useTonSummaries } from './hooks.js';
 import { tonDriver } from './driver.js';

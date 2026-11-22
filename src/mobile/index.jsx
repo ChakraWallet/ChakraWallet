@@ -2,10 +2,9 @@
 import './shim.js';
 import './crashHandlers.js'; // errors of the whole page (background + UI) and the native crashes, from here on
 import '../background/index.js';
+import '../background/chainModules.js'; // TON, Solana, Tron, Bitcoin: networks, background handlers, Solana dapps
 import './contractsTab.js'; // before the UI: the tab bar is built when app.jsx loads
-import './tonPlugin.js'; // TON (GRAM): networks, background handlers, screens - before the UI too
-import './solanaPlugin.js'; // Solana (SOL): networks, background handlers, screens - before the UI too
-import './tronPlugin.js'; // Tron (TRX): networks, background handlers, screens - before the UI too
-import './btcPlugin.js'; // Bitcoin (BTC): networks, background handlers, screens - before the UI too
+import './tonPlugin.js'; // TON Connect (in-app browser, QR codes, links that open the app) - before the UI too
+import './tronPlugin.js'; // Tron dapps of the in-app browser - before the UI too
 import './walletconnectPlugin.js'; // WalletConnect: dapps outside the app (EVM, Solana, Tron) - after their families
 import '../ui/index.jsx';

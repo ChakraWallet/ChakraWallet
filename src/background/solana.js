@@ -1,5 +1,5 @@
-// Solana in the background (Android app only, registered by src/mobile/solanaPlugin.js): Solana addresses of the
-// accounts, signing transactions and messages, importing wallets from other Solana apps. Keys never leave the
+// Solana in the background (registered by src/background/chainModules.js): Solana addresses of the accounts,
+// signing transactions and messages, importing wallets from other Solana apps. Keys never leave the
 // background: the UI gets addresses only, and sends transactions here to be signed after the password.
 import * as vault from './vault.js';
 import { hdSeed, keyOfSeed, seedFromSecret, secretText, signBytes, fromBase64, toBase64, SCHEMES, DEFAULT_SCHEME } from '../shared/solana/core.js';

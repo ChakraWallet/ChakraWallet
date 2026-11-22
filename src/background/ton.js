@@ -1,4 +1,4 @@
-// TON in the background (Android app only, registered by src/mobile/tonPlugin.js): TON addresses of the accounts,
+// TON in the background (registered by src/background/chainModules.js): TON addresses of the accounts,
 // signing and broadcasting transfers, importing wallets from other TON apps. Keys never leave the background:
 // the UI gets addresses and public keys only.
 import * as vault from './vault.js';

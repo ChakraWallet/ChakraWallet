@@ -1,9 +1,8 @@
 // Injected at document start in every page of the in-app browser (Android).
 // It plays the role of content.js: bridges the page provider (inpage.js) and the native app.
 // The native side identifies the page origin itself (it is never taken from page data).
-import '../inpage.js';
+import '../inpage.js'; // window.ethereum, and Solana as a Wallet Standard wallet (src/solanaInpage.js)
 import './tonconnectInpage.js'; // window.chakra.tonconnect (TON Connect), through the same channel
-import './solanaInpage.js'; // Solana: Chakra as a Wallet Standard wallet, through the same channel
 import './tronInpage.js'; // Tron: window.tron (TIP-1193 / TIP-6963), window.tronLink and tronWeb, through the same channel
 
 (() => {

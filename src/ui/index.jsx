@@ -1,5 +1,6 @@
 import './styles.css';
-import './chains/evm.js'; // the EVM driver (other families register from their platform module)
+import './chains/evm.js'; // the EVM driver
+import './chainModules.js'; // the other families of networks (TON, Solana, Tron, Bitcoin) - before the app
 import { render } from 'preact';
 import { App } from './app.jsx';
 import { CrashBoundary } from './crash.jsx';

@@ -1,11 +1,12 @@
-// Support tab (Android app): Chakra is free and open source; a small donation of anything, from any account, on any
-// network. The donation itself goes through the normal Send screen, with the recipient filled in.
+// Support page (a tab in the Android app, opened from the home's heart in the extension): Chakra is free and open
+// source; a small donation of anything, from any account, on any network. The donation itself goes through the normal
+// Send screen, with the recipient filled in.
 import { useState } from 'preact/hooks';
 import { bg } from '../../shared/ext.js';
 import { shortAddr } from '../../shared/format.js';
 import { DONATE } from '../../shared/donate.js';
 import { t } from '../../shared/i18n.js';
-import { Icon, Btn, Sheet, Avatar, ChainIcon, AppIcon, Guilloche, CopyBtn, useApp } from '../components.jsx';
+import { Icon, Btn, Sheet, Avatar, ChainIcon, AppIcon, Guilloche, CopyBtn, TopBar, useApp } from '../components.jsx';
 import { familyOf } from '../chains/index.js';
 import { NetworkSheet } from './home.jsx';
 
@@ -44,7 +45,7 @@ export function Donate() {
 
   return (
     <div class="screen">
-      <div class="topbar"><h1>{t('donate.title')}</h1></div>
+      {globalThis.__CK_MOBILE__ ? <div class="topbar"><h1>{t('donate.title')}</h1></div> : <TopBar title={t('donate.title')} />}
       <div class="content dn-content">
         <div class="hero dn-hero">
           <Guilloche seed="chakra-support" draw />

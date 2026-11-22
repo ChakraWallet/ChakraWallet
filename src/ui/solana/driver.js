@@ -1,7 +1,7 @@
-// Solana driver (Android app): the wallet screens' interface for Solana (src/ui/chains/driver.d.md) - balances and
+// Solana driver: the wallet screens' interface for Solana (src/ui/chains/driver.d.md) - balances and
 // history in the shapes the EVM code produces, Solana Pay links, sends of SOL and tokens with a memo, .sol names,
 // custom tokens, address-poisoning checks, NFTs (with a Helius or Alchemy key). Swaps and bridges: swap.js, bridge.js.
-// Registered by src/mobile/solanaPlugin.js.
+// Registered by src/ui/chainModules.js.
 import { bg } from '../../shared/ext.js';
 import { t, i18nError } from '../../shared/i18n.js';
 import { NATIVE } from '../../shared/chains.js';

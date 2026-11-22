@@ -181,7 +181,7 @@ function Networks() {
       <div class="small muted">{t('settings.networks.toggleHint')}</div>
       <div class="section-title">{t('settings.networks.builtin')}</div>
       <div class="card" style={{ padding: '0.375rem' }}>
-        {builtinNetworks().map((c) => ( // Ethereum, TON (Android app) right below, then the others
+        {builtinNetworks().map((c) => ( // Ethereum, TON, Solana, Tron, Bitcoin right below, then the others
           <div class={`item ${isChainEnabled(c.id, state.settings) ? '' : 'net-off'}`}>
             <ChainIcon chain={c} size={24} />
             <div class="grow"><div>{c.name}</div><div class="tiny muted">{c.kind ? c.native.symbol : `ID ${c.id}`}{ALWAYS_ON.has(c.id) ? ` · ${t('settings.networks.alwaysOn')}` : ''}</div></div>
@@ -218,7 +218,7 @@ function Networks() {
 }
 
 /**
- * Sites connected to Ethereum accounts and / or to a TON account (TON Connect), a Solana or a Tron one (Android app),
+ * Sites connected to Ethereum accounts and / or to a TON account (TON Connect), a Solana one or (Android app) a Tron one,
  * and the dapps connected through WalletConnect (Android app: "wc:<topic>").
  */
 const connectedSites = (state) => [...new Set([...Object.keys(state.permissions || {}), ...Object.keys(state.tonSites || {}), ...Object.keys(state.solSites || {}), ...Object.keys(state.tronSites || {}), ...Object.keys(state.wcSites || {})])];

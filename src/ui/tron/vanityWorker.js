@@ -1,4 +1,4 @@
-// Web Worker of the Tron vanity search (bundled as tron-vanity-worker.js, Android app). Runs until terminated.
+// Web Worker of the Tron vanity search (bundled as tron-vanity-worker.js). Runs until terminated.
 //   in  { type: 'bench', ms }                      -> out { type: 'bench', rate }     keys/s of this thread
 //   in  { type: 'start', pattern, where, anyCase } -> out { type: 'progress', tried, sample } every ~150 ms
 //                                                  -> out { type: 'found', privateKey (0x hex), address }

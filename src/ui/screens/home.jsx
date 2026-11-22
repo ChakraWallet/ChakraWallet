@@ -180,6 +180,9 @@ export function Home() {
         <button class="chip" title={t('home.network.chip', { name: chain.name })} onClick={() => setSheet('network')}>
           <ChainIcon chain={chain} size={22} /><Icon name="chevron" size={12} />
         </button>
+        {!globalThis.__CK_MOBILE__ && ( // the extension: the Support page (the Android app has its tab)
+          <button class="iconbtn" title={t('donate.title')} onClick={() => nav('donate')}><Icon name="heart" /></button>
+        )}
         <ExpandBtn />
         <button class="iconbtn" title={t('home.settings')} onClick={() => nav('settings')}><Icon name="settings" /></button>
         <button class="iconbtn" title={t('home.lock')} onClick={async () => { await bg('lock'); refresh(); }}><Icon name="lock" /></button>

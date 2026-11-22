@@ -58,7 +58,7 @@ registerFamily('tron', {
 // w.bitcoin = [{ address (its first receive address on mainnet: the account's id), secret, scheme, index }], type
 // 'bitcoin'. scheme 'wif': a private key (WIF, compressed: K…/L…, c… on test networks); 'bip39': a phrase of another
 // app, `index` its account; 'electrum': an Electrum seed. Accounts of the phrase and Ethereum keys need no entry.
-// Format checks only (the extension has no Bitcoin library): the app derives the addresses from the secret.
+// Format checks only (no Bitcoin library here): src/background/btc.js derives the addresses from the secret.
 registerFamily('bitcoin', {
   clean(x) {
     const scheme = String(x?.scheme || ''), address = String(x?.address || '').trim();
