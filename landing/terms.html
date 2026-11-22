@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terms of use — Chakra</title>
+    <meta name="description" content="The terms of use of Chakra, the self-custodial crypto wallet." />
+    <meta name="theme-color" content="#1b4ddb" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="canonical" href="https://chakrawallet.dev/terms" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--
+      https://chakrawallet.dev/terms: the same terms the app asks to accept. The text is not written here: at build
+      time vite.config.js reads src/shared/locales/en/legal.js (the app's English terms) and puts it in place of the
+      marker below, so the site and the app can't drift apart.
+    -->
+  </head>
+  <body>
+    <header class="lg-top">
+      <div class="lg-wrap">
+        <a class="lg-brand" href="./"><img src="/icon.png" alt="" width="28" height="28" />Chakra</a>
+        <nav class="lg-nav"><a href="terms.html" aria-current="page">Terms</a><a href="privacy.html">Privacy</a></nav>
+      </div>
+    </header>
+
+    <main class="lg-doc lg-wrap">
+      <span class="lg-kicker">Legal</span>
+      <h1>Terms of use</h1>
+      <!--TERMS-->
+      <section>
+        <p>How Chakra handles your data is described in the <a href="privacy.html">privacy policy</a>.</p>
+      </section>
+    </main>
+
+    <footer class="lg-foot">
+      <div class="lg-wrap">
+        <span>© Chakra Developers</span>
+        <a href="./">Home</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="https://github.com/ChakraWallet/ChakraWallet">GitHub</a>
+      </div>
+    </footer>
+    <script type="module" src="/src/legal.js"></script>
+  </body>
+</html>

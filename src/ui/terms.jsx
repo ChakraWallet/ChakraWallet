@@ -7,6 +7,8 @@ import { bg } from '../shared/ext.js';
 import { t, getLang } from '../shared/i18n.js';
 
 export const TERMS_VERSION = 1;
+/** The privacy policy, on the website (landing/privacy.html): linked from Settings, and from the store listings. */
+export const PRIVACY_URL = 'https://chakrawallet.dev/privacy';
 const SECTIONS = 10;
 
 /** The current version isn't accepted yet. */

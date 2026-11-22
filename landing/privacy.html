@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy policy — Chakra</title>
+    <meta name="description" content="Chakra collects no personal data: what stays on your device, and what the services the wallet talks to can see." />
+    <meta name="theme-color" content="#1b4ddb" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="canonical" href="https://chakrawallet.dev/privacy" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--
+      https://chakrawallet.dev/privacy: linked from the app (Settings) and from the store listings. Keep it true to
+      what the app does: a new service, permission or data flow (e.g. crash reports) means updating this page and the
+      date, and the stores' data declarations (Google Play "Data safety", Chrome Web Store privacy practices).
+    -->
+  </head>
+  <body>
+    <header class="lg-top">
+      <div class="lg-wrap">
+        <a class="lg-brand" href="./"><img src="/icon.png" alt="" width="28" height="28" />Chakra</a>
+        <nav class="lg-nav"><a href="terms.html">Terms</a><a href="privacy.html" aria-current="page">Privacy</a></nav>
+      </div>
+    </header>
+
+    <main class="lg-doc lg-wrap">
+      <span class="lg-kicker">Legal</span>
+      <h1>Privacy policy</h1>
+      <p class="lg-meta">Effective November 22, 2026</p>
+      <p class="lg-lead">
+        This policy explains what happens to your data when you use Chakra — the browser extension for Chrome and
+        Firefox and the Android app — and this website. Chakra is free, open-source software made by Chakra Developers
+        (“we”).
+      </p>
+
+      <div class="lg-short">
+        <h2>In short</h2>
+        <ul>
+          <li>We collect no personal data: no account, no sign-up, no analytics, no ads, no crash reports, no tracking.</li>
+          <li>We have no servers that receive your data. Your keys and your recovery phrase never leave your device unencrypted.</li>
+          <li>To work, Chakra talks directly to public blockchain services. Like with any wallet, they see your public addresses and your IP address.</li>
+        </ul>
+      </div>
+
+      <section>
+        <h2>1. What stays on your device</h2>
+        <ul>
+          <li><strong>Recovery phrases and private keys</strong>, encrypted with your password (AES-256-GCM, with a key derived by PBKDF2-SHA256). They leave the device only inside an encrypted backup that you choose to export.</li>
+          <li><strong>Your wallets and accounts</strong>: names, settings, the sites you connected, a local copy of your balances and history, optional API keys you enter, and the tabs and site data of the in-app browser.</li>
+        </ul>
+        <p>
+          Uninstalling the app, removing the extension or resetting the wallet deletes all of it. We can't see, recover
+          or delete this data for you, because we never have it.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. What the services Chakra talks to can see</h2>
+        <p>
+          To show balances, prices and history and to send transactions, Chakra contacts independent services directly
+          from your device. Each of them receives your IP address and what the request needs — usually your public
+          addresses, and for a quote the tokens and amounts. When you confirm a transaction, it receives the signed
+          transaction to publish it. None of them ever receives your keys or your recovery phrase. They are not run by
+          us and have their own privacy policies.
+        </p>
+        <ul>
+          <li><strong>Blockchain nodes and indexers</strong>: the public nodes of each network (for example PublicNode and the networks’ own endpoints), Blockscout, Routescan, TON Center, TonAPI, TronGrid and mempool.space. The Android app also asks them periodically in the background, to notify you of funds received or sent.</li>
+          <li><strong>Prices and exchange rates</strong>: DefiLlama, Frankfurter (European Central Bank rates), CoinGecko, STON.fi and Jupiter.</li>
+          <li><strong>Swaps and bridges</strong>, only when you ask for a quote: KyberSwap, Velora, OpenOcean, LI.FI, Jupiter, STON.fi, SUN.io, Relay, Across, deBridge and Symbiosis.</li>
+          <li><strong>Private transaction channels</strong>, to protect your swaps from front-running: Flashbots Protect on Ethereum and Jito on Solana.</li>
+          <li><strong>Prediction markets</strong>: Polymarket, when you use the Predictions section.</li>
+          <li><strong>Connections with sites on other devices</strong>: the WalletConnect relay and the TON Connect bridge. The messages are end-to-end encrypted; the relay sees only that a connection exists, and your IP address.</li>
+          <li><strong>Images and files</strong>: token icons (CoinGecko, Trust Wallet’s public assets on GitHub), NFT images (IPFS and Arweave gateways, or the address chosen by each collection), and — only when you compile a contract — the Solidity compiler and libraries (soliditylang.org, jsDelivr, GitHub).</li>
+          <li><strong>Services you add an API key for</strong> (optional): Etherscan, Alchemy, Helius, NodeReal, OpenSea, Getgems, TonAPI and UniSat. The key stays on your device and is sent only to its own service.</li>
+          <li><strong>Websites you open</strong> in the Android in-app browser see what any browser sends them and, if you connect, your public address. The in-app browser is Android’s WebView, which checks the pages you open with Google Safe Browsing to warn you about phishing and malware; Android manages this check under Google’s privacy policy.</li>
+        </ul>
+        <p>Public blockchains are public: anything you do on them, such as a transfer, can be seen by anyone.</p>
+      </section>
+
+      <section>
+        <h2>3. Permissions</h2>
+        <p>The Android app asks for these permissions only when a feature needs them, and you can refuse them:</p>
+        <ul>
+          <li><strong>Camera</strong>: to scan QR codes. Codes are read on the device; the image is never stored or sent. Sites in the in-app browser can use the camera only after you allow it.</li>
+          <li><strong>Microphone and location</strong>: only when a site in the in-app browser asks for them and you allow it; they go to that site.</li>
+          <li><strong>Notifications</strong>: for funds received or sent and bridges arrived. They are created on the device.</li>
+          <li><strong>Fingerprint</strong>: Android checks it; Chakra never sees your fingerprint, only whether it matched.</li>
+        </ul>
+        <p>
+          The browser extension needs access to the sites you visit so that they can find the wallet and ask it to
+          connect. It doesn’t read or record the content of the pages.
+        </p>
+      </section>
+
+      <section>
+        <h2>4. This website</h2>
+        <p>
+          chakrawallet.dev is a static site hosted on GitHub Pages. It sets no cookies, has no analytics and loads
+          nothing from other sites. GitHub may log visits (such as IP addresses) for security, under the GitHub Privacy
+          Statement. The page that opens TON Connect links reads the name and icon of the site that sent the link from
+          that site.
+        </p>
+        <p>
+          The stores you download Chakra from (Google Play, Chrome Web Store, Firefox Add-ons) handle downloads and
+          updates under their own privacy policies.
+        </p>
+      </section>
+
+      <section>
+        <h2>5. Children</h2>
+        <p>Chakra is not meant for children under 16, or under the minimum age set by the law of their country.</p>
+      </section>
+
+      <section>
+        <h2>6. Your rights</h2>
+        <p>
+          Since we hold no personal data about you, there is nothing for us to access, correct, export or delete. For data
+          held by the services listed above, contact them directly. You can still write to us with any question.
+        </p>
+      </section>
+
+      <section>
+        <h2>7. Changes</h2>
+        <p>
+          If this policy changes, the new version will be published on this page with a new date. If a change concerns
+          what data leaves your device, the app will tell you before it applies.
+        </p>
+      </section>
+
+      <section>
+        <h2>8. Contact</h2>
+        <p>Chakra Developers — <a href="mailto:info@chakrawallet.dev">info@chakrawallet.dev</a></p>
+      </section>
+    </main>
+
+    <footer class="lg-foot">
+      <div class="lg-wrap">
+        <span>© Chakra Developers</span>
+        <a href="./">Home</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="https://github.com/ChakraWallet/ChakraWallet">GitHub</a>
+      </div>
+    </footer>
+    <script type="module" src="/src/legal.js"></script>
+  </body>
+</html>

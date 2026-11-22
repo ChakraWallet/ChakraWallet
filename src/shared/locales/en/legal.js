@@ -29,4 +29,5 @@ export default {
   'terms.agree': 'I have read and accept the {terms}',
   'terms.link': 'terms of use',
   'terms.read': 'Terms of use',
+  'terms.privacy': 'Privacy policy', // Settings footer: link to https://chakrawallet.dev/privacy
 };

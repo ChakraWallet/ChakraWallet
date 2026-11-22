@@ -29,4 +29,5 @@ export default {
   'terms.agree': 'J’ai lu et j’accepte les {terms}',
   'terms.link': 'conditions d’utilisation',
   'terms.read': 'Conditions d’utilisation',
+  'terms.privacy': 'Politique de confidentialité',
 };

@@ -30,6 +30,13 @@ npm run shots             # or: node shots/capture.mjs swap predict   (only some
 Chromium is looked up in the usual paths (`/snap/bin/chromium`, `/usr/bin/chromium`…); set `CHROME_PATH` otherwise.
 `node shots/icons.mjs` regenerates the logo and favicons from the app's own icon renderer.
 
+## Terms and privacy
+
+`terms.html` (/terms) and `privacy.html` (/privacy) are the pages linked from the app and the store listings.
+The terms aren't written in `terms.html`: `vite.config.js` fills them in from the app's English terms
+(`../src/shared/locales/en/legal.js`), so the two always match. The privacy policy is plain HTML in `privacy.html`:
+update it (and its date) whenever the app starts sending something new.
+
 ## Online: https://chakrawallet.dev
 
 Published on GitHub Pages by `.github/workflows/landing.yml` at every push to `master` that changes `landing/`

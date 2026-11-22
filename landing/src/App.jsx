@@ -612,6 +612,8 @@ function Footer() {
       <div className="wrap footer-in">
         <a className="brand" href="#top"><img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width="28" height="28" />Chakra</a>
         <p>Free and open source. Self-custodial: you are responsible for your recovery phrase. Screenshots show demo data. MetaMask and MetaMask Card are trademarks of their respective owners: Chakra is not affiliated with, endorsed or sponsored by MetaMask, Consensys, Baanx or Mastercard, and shows the card only as a compatibility.</p>
+        <a className="foot-link" href="terms.html">Terms</a>
+        <a className="foot-link" href="privacy.html">Privacy</a>
         <a className="foot-gh" href={LINKS.github}><Icon name="github" size={18} stroke={false} />GitHub</a>
         <span>© {new Date().getFullYear()} Chakra</span>
       </div>

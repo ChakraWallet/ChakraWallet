@@ -9,7 +9,7 @@ import { resetTaste } from '../predictTaste.js';
 import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
-import { TermsSheet } from '../terms.jsx';
+import { TermsSheet, PRIVACY_URL } from '../terms.jsx';
 import { ApiKeys, keysCount } from './apikeys.jsx';
 import { ConnectQrButton, ConnectLinkField } from '../connectQr.jsx';
 
@@ -357,7 +357,7 @@ export function Settings({ section, focus }) {
         <div class="card" style={{ padding: '0.375rem' }}>
           <Row icon="trash" title={t('settings.reset')} sub={t('settings.reset.sub')} onClick={() => setSheet('reset')} />
         </div>
-        <div class="tiny muted center">Chakra v{__VERSION__}{build ? ` (${build})` : ''} · <button class="link tiny" onClick={() => setSheet('terms')}>{t('terms.read')}</button></div>
+        <div class="tiny muted center">Chakra v{__VERSION__}{build ? ` (${build})` : ''} · <button class="link tiny" onClick={() => setSheet('terms')}>{t('terms.read')}</button> · <a class="link tiny" href={PRIVACY_URL} target="_blank" rel="noopener" data-external>{t('terms.privacy')}</a></div>
       </div>
 
       {sheet === 'pw' && <ChangePassword onClose={() => setSheet(null)} />}

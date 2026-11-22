@@ -334,6 +334,8 @@ p { margin: 0; }
 }
 .foot-gh { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--text); }
 .foot-gh:hover { color: var(--primary); }
+.foot-link { font-weight: 600; color: var(--text); }
+.foot-link:hover { color: var(--primary); }
 
 /* download */
 /* get chakra: the white card floating on a band from blue to violet (Security's blue is another one) */

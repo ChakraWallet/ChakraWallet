@@ -7,7 +7,7 @@ name: Landing
 on:
   push:
     branches: [master]
-    paths: ['landing/**', '.github/workflows/landing.yml']
+    paths: ['landing/**', 'src/shared/locales/en/legal.js', '.github/workflows/landing.yml'] # legal.js: the terms on /terms
   workflow_dispatch:
 
 permissions:

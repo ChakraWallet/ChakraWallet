@@ -29,4 +29,5 @@ export default {
   'terms.agree': 'Ich habe die {terms} gelesen und akzeptiere sie',
   'terms.link': 'Nutzungsbedingungen',
   'terms.read': 'Nutzungsbedingungen',
+  'terms.privacy': 'Datenschutzerklärung',
 };
