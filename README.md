@@ -87,6 +87,21 @@ build.mjs           build for Chrome, Firefox and Android + icons + zips
 
 </details>
 
+## Support the project
+
+Chakra is free, open source and adds no fees. If you find it useful, you can send anything you like — any token,
+any amount, even one without value — to one of these addresses (they are the same as in the app's Support tab):
+
+| Network | Address |
+|---|---|
+| Ethereum and every EVM network (Base, Arbitrum, Optimism, Polygon, BNB Chain…) | `0x27C94EC37Dfc9a5E8799A84DEb3c4BFfDE5bA027` |
+| Bitcoin | `bc1qk3cunk9nu5dh69kkfwae67vgqsa3v2mlrjtzn8` |
+| Solana | `8D2TB25Q99dqjewGtMjUJMfMsWrUxTHqsj8fnA7CjVK7` |
+| TON | `UQCHxPljAvQzsVeZ-V142TGoxKACyUksrBoJVV75llxGqZ3q` |
+| Tron | `TKvTRueHpsf1RsjCCRm87qdxG45DVMfKVK` |
+
+Nothing is unlocked in return: it's a thank-you, nothing more. A ⭐ on GitHub helps too.
+
 ## License
 
 [Apache License 2.0](LICENSE)
