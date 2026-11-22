@@ -30,6 +30,8 @@ import { NftDetail } from './screens/nfts.jsx';
 import { MmCard } from './screens/mmcard.jsx';
 import { ReplaceTx } from './screens/replaceTx.jsx';
 import { ConnectQrHost } from './connectQr.jsx';
+import { setCrashScreen, crashToAsk } from '../shared/crash.js';
+import { CrashAsk } from './crash.jsx';
 
 /** Storage keys background getState() is built from (vault, session unlock, wallets, network, settings, sites). */
 const STATE_KEYS = new Set(['vault', 'wallet', 'wallets', 'accounts', 'activeWallet', 'selected', 'chainId', 'customChains', 'settings', 'permissions', 'tonConnect']);
@@ -82,6 +84,7 @@ export function App() {
   const [openUrl, setOpenUrl] = useState(null);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [onboarding, setOnboarding] = useState(false); // stays on screen until its last step, after the vault exists
+  const [crashAsk, setCrashAsk] = useState(null); // a crash that closed the app last time: asked once, after unlocking
   const [authorize, authEl] = useAuthorizer();
 
   const refresh = useCallback(async () => {
@@ -255,11 +258,16 @@ export function App() {
     if (id != null) bg('setChain', { chainId: id }).catch(() => {});
   }, [account?.address, chain.id]);
 
+  // a crash closed the app last time (Android, later iOS): once the wallet is open, ask whether to send the report
+  const walletOpen = !!state?.initialized && !!state?.unlocked && !onboarding && !needsTerms(state?.settings) && mode !== 'approve';
+  useEffect(() => { if (walletOpen) crashToAsk().then(setCrashAsk).catch(() => {}); }, [walletOpen]);
+
   const ctx = { state, refresh, chain, account, nav, back, reset, toast, mode: approvalOpen ? 'approve' : mode, portfolioCache, setPortfolioCache, authorize, privacy,
     openPredict: mode === 'mobile' ? openPredict : null }; // Predictions exists only in the app
 
   let body;
   const top = stack[stack.length - 1];
+  setCrashScreen(mode === 'mobile' ? `${tab}:${tab === 'wallet' ? top.name : ''}` : top.name); // recorded with an error report
   // one set of screens for every network: TON (Android app) feeds them through its driver (src/ui/ton/driver.js)
   const C = wrongFamily ? Switching // the account's own network is being selected
     : SCREENS[top.name] || driverScreens()[top.name] || Home;
@@ -308,6 +316,7 @@ export function App() {
     <AppCtx.Provider value={ctx}>
       {body}
       {authEl}
+      {crashAsk && <CrashAsk report={crashAsk} onClose={() => setCrashAsk(null)} />}
       {toastMsg && (
         <div class={`toast ${toastMsg.kind}`} key={toastMsg.id} role="status" onClick={() => setToastMsg(null)}>
           <Icon name={toastMsg.kind === 'warn' ? 'wifiOff' : 'check'} size={18} />

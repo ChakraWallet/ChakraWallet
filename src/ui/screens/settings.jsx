@@ -10,6 +10,8 @@ import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
 import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
 import { TermsSheet, PRIVACY_URL } from '../terms.jsx';
+import { CrashList } from '../crash.jsx';
+import { crashLog } from '../../shared/crash.js';
 import { ApiKeys, keysCount } from './apikeys.jsx';
 import { ConnectQrButton, ConnectLinkField } from '../connectQr.jsx';
 
@@ -260,6 +262,8 @@ export function Settings({ section, focus }) {
   // build number: the installed APK's versionCode on Android, the CI run number in the extension
   const [build, setBuild] = useState(__BUILD__);
   useEffect(() => { globalThis.__CK_appInfo?.().then((i) => i?.build && setBuild(String(i.build))).catch(() => {}); }, []);
+  const [crashCount, setCrashCount] = useState(0); // errors saved on this device (Help > Report a problem)
+  useEffect(() => { crashLog().then((l) => setCrashCount(l.length)).catch(() => {}); }, []);
   // the main list is rebuilt when coming back from a sub-page: it returns to where it was
   const mainRef = useRef(null), mainTop = useRef(0);
   const openView = (v) => { mainTop.current = mainRef.current?.scrollTop || 0; setView(v); };
@@ -353,6 +357,12 @@ export function Settings({ section, focus }) {
           </div>
         )}
 
+        <div class="section-title">{t('crash.help')}</div>
+        <div class="card" style={{ padding: '0.375rem' }}>
+          <Row icon="warn" title={t('crash.settings.title')} sub={crashCount ? t('crash.settings.sub', { n: crashCount }) : t('crash.settings.none')}
+            onClick={() => setSheet('crashes')} right={<span class="muted"><Icon name="forward" /></span>} />
+        </div>
+
         <div class="section-title red">{t('settings.danger')}</div>
         <div class="card" style={{ padding: '0.375rem' }}>
           <Row icon="trash" title={t('settings.reset')} sub={t('settings.reset.sub')} onClick={() => setSheet('reset')} />
@@ -373,6 +383,7 @@ export function Settings({ section, focus }) {
       )}
       {sheet === 'exportBackup' && <ExportBackup onClose={() => setSheet(null)} />}
       {sheet === 'terms' && <TermsSheet onClose={() => setSheet(null)} />}
+      {sheet === 'crashes' && <CrashList onClose={() => { setSheet(null); crashLog().then((l) => setCrashCount(l.length)).catch(() => {}); }} />}
       {sheet === 'importBackup' && <ImportBackup onClose={() => setSheet(null)} />}
       {sheet === 'language' && <LanguageSheet value={s.language} onPick={(v) => save({ language: v })} onClose={() => setSheet(null)} />}
       {sheet === 'resetTaste' && (

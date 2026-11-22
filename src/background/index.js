@@ -1,6 +1,7 @@
 // Chakra background: key vault, dapp provider (EIP-1193), approvals, signing.
 import { Transaction, getAddress, TypedDataEncoder } from 'ethers';
 import { ext, local, session, DEFAULT_SETTINGS } from '../shared/ext.js';
+import { installCrashHandlers } from '../shared/crash.js';
 import { getChain, chainFromEip3085, toHex, BUILTIN_CHAINS, isChainEnabled } from '../shared/chains.js';
 import { rpc } from '../shared/rpc.js';
 import { setAlchemy } from '../shared/alchemy.js';
@@ -9,6 +10,8 @@ import { replacementFloor, meetsFloor, replacementCall } from '../shared/tx.js';
 import * as vault from './vault.js';
 import { setLang, i18nError, tEn } from '../shared/i18n.js';
 import { C as PM, CHAIN_ID as PM_CHAIN, ORDER_DOMAIN_NAME, AUTH_DOMAIN_NAME, DW_DOMAIN_NAME, iface as PMI } from '../shared/polytrade.js';
+
+installCrashHandlers('background'); // extension service worker / background page (Android: already installed for the page)
 
 // ============================================================ helpers
 const providerError = (code, message) => Object.assign(new Error(message), { code });

@@ -12,7 +12,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 /**
  * What the system does better than the app: the share sheet (apps and recent contacts), links opened outside the
  * app, in the system browser (where the user is signed in, e.g. to GitHub), instead of the integrated dapp browser,
- * and going back to the app that opened Chakra with a TON Connect link (moveToBack).
+ * and going back to the app that opened Chakra with a TON Connect link (moveToBack), an e-mail ready to send (email).
  */
 @CapacitorPlugin(name = "Os")
 public class OsPlugin extends Plugin {
@@ -32,6 +32,26 @@ public class OsPlugin extends Plugin {
             call.resolve();
         } catch (ActivityNotFoundException e) {
             call.reject("no app to share with");
+        }
+    }
+
+    /**
+     * Opens the user's e-mail app with a message ready to send: { to, subject, body } (error reports, src/ui/crash.jsx).
+     * Extras rather than a long mailto: link, which some mail apps cut. Nothing is sent until the user sends it.
+     */
+    @PluginMethod
+    public void email(PluginCall call) {
+        String to = call.getString("to", "");
+        Intent mail = new Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"));
+        mail.putExtra(Intent.EXTRA_EMAIL, new String[] { to });
+        mail.putExtra(Intent.EXTRA_SUBJECT, call.getString("subject", ""));
+        mail.putExtra(Intent.EXTRA_TEXT, call.getString("body", ""));
+        mail.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            getActivity().startActivity(mail);
+            call.resolve();
+        } catch (ActivityNotFoundException e) {
+            call.reject("no e-mail app");
         }
     }
 

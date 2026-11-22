@@ -17,5 +17,6 @@ import tron from './tron.js';
 import bitcoin from './bitcoin.js';
 import legal from './legal.js';
 import mmcard from './mmcard.js';
+import crash from './crash.js';
 
-export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...tonconnect, ...walletconnect, ...solana, ...solcontracts, ...tron, ...bitcoin, ...legal, ...mmcard };
+export default { ...base, ...core, ...manage, ...dapp, ...wallet, ...transfer, ...predict, ...contracts, ...ton, ...toncontracts, ...tonconnect, ...walletconnect, ...solana, ...solcontracts, ...tron, ...bitcoin, ...legal, ...mmcard, ...crash };

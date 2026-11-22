@@ -18,10 +18,12 @@ globalThis.__CK_NATIVE__ = DappBrowser;
 globalThis.__CK_BIO__ = registerPlugin('Biometric');
 globalThis.__CK_SYSUI__ = registerPlugin('SystemUi');
 globalThis.__CK_NOTIFY__ = registerPlugin('Notify');
+globalThis.__CK_CRASH__ = registerPlugin('Crash'); // crashes saved by the native app before it last closed (shared/crash.js)
 // the system's share sheet and browser (OsPlugin.java): the WebView has no navigator.share
 const Os = registerPlugin('Os');
 globalThis.__CK_share = (o) => Os.share(o);
 globalThis.__CK_openExternal = (url) => Os.openExternal({ url });
+globalThis.__CK_email = (m) => Os.email(m); // { to, subject, body }: the e-mail app, ready to send
 
 // Keyboard: when the WebView shrinks above it, keep the focused field in view (inside its scroll container)
 const keepFocusedVisible = () => {

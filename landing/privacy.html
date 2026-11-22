@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!--
       https://chakrawallet.dev/privacy: linked from the app (Settings) and from the store listings. Keep it true to
-      what the app does: a new service, permission or data flow (e.g. crash reports) means updating this page and the
+      what the app does: a new service, permission or data flow (e.g. how error reports are sent) means updating this page and the
       date, and the stores' data declarations (Google Play "Data safety", Chrome Web Store privacy practices).
     -->
   </head>
@@ -37,7 +37,7 @@
       <div class="lg-short">
         <h2>In short</h2>
         <ul>
-          <li>We collect no personal data: no account, no sign-up, no analytics, no ads, no crash reports, no tracking.</li>
+          <li>We collect no personal data: no account, no sign-up, no analytics, no ads, no tracking, no automatic crash reports.</li>
           <li>We have no servers that receive your data. Your keys and your recovery phrase never leave your device unencrypted.</li>
           <li>To work, Chakra talks directly to public blockchain services. Like with any wallet, they see your public addresses and your IP address.</li>
         </ul>
@@ -48,6 +48,7 @@
         <ul>
           <li><strong>Recovery phrases and private keys</strong>, encrypted with your password (AES-256-GCM, with a key derived by PBKDF2-SHA256). They leave the device only inside an encrypted backup that you choose to export.</li>
           <li><strong>Your wallets and accounts</strong>: names, settings, the sites you connected, a local copy of your balances and history, optional API keys you enter, and the tabs and site data of the in-app browser.</li>
+          <li><strong>Error reports</strong>: when something goes wrong, Chakra keeps a short description of the last errors — the app version, the system version and device model, the screen and the place in the code where it happened. Addresses, keys, amounts and the parameters of web addresses are removed before it is saved.</li>
         </ul>
         <p>
           Uninstalling the app, removing the extension or resetting the wallet deletes all of it. We can't see, recover
@@ -79,7 +80,23 @@
       </section>
 
       <section>
-        <h2>3. Permissions</h2>
+        <h2>3. Error reports you send</h2>
+        <p>
+          An error report leaves your device only if you send it yourself, after reading its full text in the app
+          (Settings › Report a problem, or the error screen). You choose how:
+        </p>
+        <ul>
+          <li><strong>By e-mail</strong> to info@chakrawallet.dev, through your own e-mail app: we also receive your e-mail address and anything you write.</li>
+          <li><strong>As an issue on GitHub</strong>: it is public, and GitHub’s terms and privacy statement apply.</li>
+        </ul>
+        <p>
+          We use reports and messages only to fix problems and to answer you, and we keep e-mails only as long as
+          that takes.
+        </p>
+      </section>
+
+      <section>
+        <h2>4. Permissions</h2>
         <p>The Android app asks for these permissions only when a feature needs them, and you can refuse them:</p>
         <ul>
           <li><strong>Camera</strong>: to scan QR codes. Codes are read on the device; the image is never stored or sent. Sites in the in-app browser can use the camera only after you allow it.</li>
@@ -94,7 +111,7 @@
       </section>
 
       <section>
-        <h2>4. This website</h2>
+        <h2>5. This website</h2>
         <p>
           chakrawallet.dev is a static site hosted on GitHub Pages. It sets no cookies, has no analytics and loads
           nothing from other sites. GitHub may log visits (such as IP addresses) for security, under the GitHub Privacy
@@ -108,20 +125,21 @@
       </section>
 
       <section>
-        <h2>5. Children</h2>
+        <h2>6. Children</h2>
         <p>Chakra is not meant for children under 16, or under the minimum age set by the law of their country.</p>
       </section>
 
       <section>
-        <h2>6. Your rights</h2>
+        <h2>7. Your rights</h2>
         <p>
-          Since we hold no personal data about you, there is nothing for us to access, correct, export or delete. For data
-          held by the services listed above, contact them directly. You can still write to us with any question.
+          We hold no personal data about you unless you write to us: then we have your e-mail address and your messages,
+          and you can ask us at any time to see them or delete them. For data held by the services listed above, contact
+          them directly.
         </p>
       </section>
 
       <section>
-        <h2>7. Changes</h2>
+        <h2>8. Changes</h2>
         <p>
           If this policy changes, the new version will be published on this page with a new date. If a change concerns
           what data leaves your device, the app will tell you before it applies.
@@ -129,7 +147,7 @@
       </section>
 
       <section>
-        <h2>8. Contact</h2>
+        <h2>9. Contact</h2>
         <p>Chakra Developers — <a href="mailto:info@chakrawallet.dev">info@chakrawallet.dev</a></p>
       </section>
     </main>
