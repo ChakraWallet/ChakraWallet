@@ -186,7 +186,7 @@ export function Swap({ fromAddress, toAddress }) {
           <div class="row between small muted"><span>{t('swap.from')}</span><span>{t('swap.balance', { amount: fmtNum(from.amount ?? 0) })} <button class="link" onClick={() => setAmount(rawToInput(drv.swapMax(chain, from, balance), from.decimals))}>{t('send.max')}</button></span></div>
           <div class="row">
             <input class="input big" style={{ border: 0, padding: '0.25rem 0', background: 'transparent', boxShadow: 'none' }} inputMode="decimal" placeholder="0" value={amount} onInput={(e) => setAmount(e.target.value)} />
-            <button class="token-select" onClick={() => setPicker('from')}><TokenIcon sm symbol={from.symbol} icon={from.icon} color={from.native ? chain.color : undefined} />{from.symbol}<Icon name="chevron" size={14} /></button>
+            <button class="token-select" onClick={() => setPicker('from')}><TokenIcon sm symbol={from.symbol} icon={from.icon} color={from.native ? chain.color : undefined} /><span class="sym">{from.symbol}</span><Icon name="chevron" size={14} /></button>
           </div>
           <div class="small muted">{inUsd != null ? fmtUsd(inUsd) : ' '}</div>
         </div>
@@ -195,7 +195,7 @@ export function Swap({ fromAddress, toAddress }) {
           <div class="row between small muted"><span>{t('swap.toEst')}</span><span>{t('swap.balance', { amount: fmtNum(to.amount ?? 0) })}</span></div>
           <div class="row">
             <div class="grow" style={{ fontSize: '1.375rem', fontWeight: 650 }}>{quoting ? <Spinner /> : q ? fmtNum(toFloat(q.amountOut, to.decimals)) : '0'}</div>
-            <button class="token-select" onClick={() => setPicker('to')}><TokenIcon sm symbol={to.symbol} icon={to.icon} color={to.native ? chain.color : undefined} />{to.symbol}<Icon name="chevron" size={14} /></button>
+            <button class="token-select" onClick={() => setPicker('to')}><TokenIcon sm symbol={to.symbol} icon={to.icon} color={to.native ? chain.color : undefined} /><span class="sym">{to.symbol}</span><Icon name="chevron" size={14} /></button>
           </div>
           <div class="small muted">{q?.outUsd != null ? fmtUsd(q.outUsd) : ' '}{impact != null && Math.abs(impact) >= 0.01 && <span class={impact < -3 ? 'red' : ''}> ({impact > 0 ? '+' : ''}{impact.toFixed(2)}%)</span>}</div>
         </div>

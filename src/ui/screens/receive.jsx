@@ -53,7 +53,7 @@ export function ReceiveView({ address, missing = false, extra = null }) {
           <div class="card ask-card">
             <div class="input-wrap">
               <input inputMode="decimal" placeholder="0" value={amount} onInput={(e) => setAmount(e.target.value)} />
-              <button class="token-select" onClick={() => choices.length > 1 && setPicker(true)}><TokenIcon sm symbol={tk.symbol} icon={tk.icon} color={tk.native ? chain.color : undefined} />{tk.symbol}<Icon name="chevron" size={14} /></button>
+              <button class="token-select" onClick={() => choices.length > 1 && setPicker(true)}><TokenIcon sm symbol={tk.symbol} icon={tk.icon} color={tk.native ? chain.color : undefined} /><span class="sym">{tk.symbol}</span><Icon name="chevron" size={14} /></button>
             </div>
             <div class="small muted">{raw && raw > 0n ? t('receive.askFor', { amount, symbol: tk.symbol, chain: chain.name }) + (usd != null ? ` · ≈ ${fmtUsd(usd)}` : '') : t('receive.askHint')}</div>
           </div>

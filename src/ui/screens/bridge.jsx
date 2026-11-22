@@ -232,7 +232,7 @@ export function Bridge({ toChainId, toAddress }) {
           <div class="row">
             <button class="chain-pick" onClick={() => setSheet('fromChain')}><ChainIcon chain={fromChain} size={22} /><span>{fromChain.name}</span><Icon name="chevron" size={14} /></button>
             <span class="spacer" />
-            <button class="token-select" onClick={() => setSheet('fromToken')}><TokenIcon sm symbol={fromToken.symbol} icon={fromToken.icon} color={fromToken.native ? fromChain.color : undefined} />{fromToken.symbol}<Icon name="chevron" size={14} /></button>
+            <button class="token-select" onClick={() => setSheet('fromToken')}><TokenIcon sm symbol={fromToken.symbol} icon={fromToken.icon} color={fromToken.native ? fromChain.color : undefined} /><span class="sym">{fromToken.symbol}</span><Icon name="chevron" size={14} /></button>
           </div>
           <div class="input-wrap">
             <input inputMode="decimal" placeholder="0" value={amount} onInput={(e) => setAmount(e.target.value)} />
@@ -249,7 +249,7 @@ export function Bridge({ toChainId, toAddress }) {
           <div class="row">
             <button class="chain-pick" onClick={() => setSheet('toChain')}><ChainIcon chain={toChain} size={22} /><span>{toChain.name}</span><Icon name="chevron" size={14} /></button>
             <span class="spacer" />
-            <button class="token-select" onClick={() => setSheet('toToken')}><TokenIcon sm symbol={toToken.symbol} icon={toToken.icon} color={toToken.native ? toChain.color : undefined} />{toToken.symbol}<Icon name="chevron" size={14} /></button>
+            <button class="token-select" onClick={() => setSheet('toToken')}><TokenIcon sm symbol={toToken.symbol} icon={toToken.icon} color={toToken.native ? toChain.color : undefined} /><span class="sym">{toToken.symbol}</span><Icon name="chevron" size={14} /></button>
           </div>
           <div class="bridge-out">{quote ? `${fmtAmount(quote.amountOut, toToken.decimals)} ${toToken.symbol}` : quoting ? <span class="skeleton" style={{ display: 'inline-block', width: '8rem', height: '1.5rem' }} /> : <span class="muted">0</span>}</div>
           {route?.freeRecipient ? (

@@ -262,7 +262,7 @@ export function Send({ tokenAddress, to: initialTo = '', scan: scanOnOpen }) {
           <div class="input-wrap">
             <input inputMode="decimal" placeholder="0" value={amount} onInput={(e) => { setAmount(e.target.value); setIsMax(false); }} />
             <button class="btn ghost sm" onClick={() => { setAmount(rawToInput(balance, token.decimals)); setIsMax(true); }}>{t('send.max')}</button>
-            <button class="token-select" onClick={() => setPicker(true)}><TokenIcon sm symbol={token.symbol} icon={token.icon} color={token.color} />{token.symbol}<Icon name="chevron" size={14} /></button>
+            <button class="token-select" onClick={() => setPicker(true)}><TokenIcon sm symbol={token.symbol} icon={token.icon} color={token.color} /><span class="sym">{token.symbol}</span><Icon name="chevron" size={14} /></button>
           </div>
           <span class="small muted">{usd != null ? `≈ ${fmtUsd(usd)}` : ' '}{isMax && token.native ? ` · ${t('send.feeDeducted')}` : ''}</span>
           {tooMuch && <span class="small red">{t('send.overBalance')}</span>}
