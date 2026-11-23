@@ -372,7 +372,15 @@ export function Settings({ section, focus }) {
         <div class="card" style={{ padding: '0.375rem' }}>
           <Row icon="trash" title={t('settings.reset')} sub={t('settings.reset.sub')} onClick={() => setSheet('reset')} />
         </div>
-        <div class="tiny muted center">Chakra v{__VERSION__}{build ? ` (${build})` : ''} · <button class="link tiny" onClick={() => setSheet('terms')}>{t('terms.read')}</button> · <a class="link tiny" href={PRIVACY_URL} target="_blank" rel="noopener" data-external>{t('terms.privacy')}</a></div>
+        {/* the version, then the two documents on a line of their own (each one kept whole when the line wraps) */}
+        <div class="settings-foot">
+          <div class="tiny muted">Chakra v{__VERSION__}{build ? ` (${build})` : ''}</div>
+          <div class="settings-docs">
+            <button class="link" onClick={() => setSheet('terms')}>{t('terms.read')}</button>
+            <span class="muted" aria-hidden="true">·</span>
+            <a class="link" href={PRIVACY_URL} target="_blank" rel="noopener" data-external>{t('terms.privacy')}</a>
+          </div>
+        </div>
       </div>
 
       {sheet === 'pw' && <ChangePassword onClose={() => setSheet(null)} />}
