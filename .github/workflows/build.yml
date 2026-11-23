@@ -45,7 +45,8 @@ jobs:
           echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
       # ANDROID_HOME is preinstalled on ubuntu runners; JAVA_HOME comes from setup-java
-      - name: Build Android release APK
+      # the APK (GitHub Release, direct install) and the AAB (Google Play), signed with the same key
+      - name: Build Android release APK and AAB
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -55,6 +56,10 @@ jobs:
           export ANDROID_VERSION_NAME="$(node -p "require('./package.json').version")"
           npm run android -- --release
           "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner verify --print-certs dist/chakra-android-release.apk
+          # an AAB is signed like a jar: jarsigner prints "jar verified" only when it is signed
+          out="$(jarsigner -verify dist/chakra-android-release.aab)"; echo "$out"
+          echo "$out" | grep -q "^jar verified" || { echo "::error::The AAB is not signed"; exit 1; }
+          keytool -printcert -jarfile dist/chakra-android-release.aab
 
       - name: Remove keystore
         if: always()
@@ -67,6 +72,7 @@ jobs:
             dist/chakra-chrome.zip
             dist/chakra-firefox.zip
             dist/chakra-android-release.apk
+            dist/chakra-android-release.aab
           if-no-files-found: error
 
       - name: Attach to GitHub Release

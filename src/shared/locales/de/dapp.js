@@ -90,7 +90,7 @@ export default {
   'browser.connected': 'Verbunden',
   'browser.notConnected': 'Nicht verbunden',
   'browser.open': '{url} öffnen',
-  'browser.search': '„{query}“ suchen',
+  'browser.search': '„{query}“ mit {engine} suchen',
   'browser.tabs.one': '{n} Tab',
   'browser.tabs.other': '{n} Tabs',
   'browser.newTab': 'Neuer Tab',

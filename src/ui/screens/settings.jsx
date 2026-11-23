@@ -8,7 +8,8 @@ import { bioStatus } from '../auth.jsx';
 import { resetTaste } from '../predictTaste.js';
 import { t, tn } from '../../shared/i18n.js';
 import { Flag, LanguageSheet, languageState } from '../language.jsx';
-import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel } from '../pickers.jsx';
+import { CurrencySheet, CurrencyBadge, currencyName, AutoLockSheet, autoLockLabel, SearchEngineSheet } from '../pickers.jsx';
+import { searchEngine } from '../searchEngines.js';
 import { TermsSheet, PRIVACY_URL } from '../terms.jsx';
 import { CrashList } from '../crash.jsx';
 import { crashLog } from '../../shared/crash.js';
@@ -322,6 +323,10 @@ export function Settings({ section, focus }) {
           <Row icon="eye" title={t('settings.showUnpriced')} sub={t('settings.showUnpriced.sub')} right={<Switch on={s.showUnpriced} onChange={(v) => save({ showUnpriced: v })} />} onClick={() => save({ showUnpriced: !s.showUnpriced })} />
           <Row icon="globe" title={t('settings.networks.title')} sub={tn('settings.networks.count', [...builtinNetworks(), ...state.customChains].filter((c) => isChainEnabled(c.id, s)).length)} onClick={() => openView('networks')} right={<span class="muted"><Icon name="forward" /></span>} />
           <Row icon="wallet" title={t('settings.wallets')} sub={tn('settings.wallets.sub', state.wallets.length, { name: state.wallets.find((w) => w.id === state.activeWallet)?.name })} onClick={() => nav('wallets')} right={<span class="muted"><Icon name="forward" /></span>} />
+          {globalThis.__CK_MOBILE__ && ( // the in-app browser exists only in the Android app
+            <Row icon="search" title={t('settings.search')} sub={t('settings.search.sub')} onClick={() => setSheet('search')}
+              right={<span class="value-pill">{searchEngine(s.searchEngine).name}</span>} />
+          )}
           <Row icon="contract" title={t('settings.sites.title')} sub={tn('settings.sites.count', connectedSites(state).length)} onClick={() => openView('sites')} right={<span class="muted"><Icon name="forward" /></span>} />
         </div>
 
@@ -396,6 +401,7 @@ export function Settings({ section, focus }) {
         </Sheet>
       )}
       {sheet === 'currency' && <CurrencySheet value={s.currency} onPick={(v) => save({ currency: v })} onClose={() => setSheet(null)} />}
+      {sheet === 'search' && <SearchEngineSheet value={s.searchEngine} onPick={(v) => save({ searchEngine: v })} onClose={() => setSheet(null)} />}
       {sheet === 'autoLock' && <AutoLockSheet value={s.autoLockMin} onPick={(v) => save({ autoLockMin: v })} onClose={() => setSheet(null)} />}
       {sheet === 'ethsign' && (
         <Sheet title={t('settings.ethSign.sheetTitle')} onClose={() => setSheet(null)}>

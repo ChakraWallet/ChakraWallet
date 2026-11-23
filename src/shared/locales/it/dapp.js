@@ -90,7 +90,7 @@ export default {
   'browser.connected': 'Connesso',
   'browser.notConnected': 'Non connesso',
   'browser.open': 'Apri {url}',
-  'browser.search': 'Cerca «{query}»',
+  'browser.search': 'Cerca «{query}» con {engine}',
   'browser.tabs.one': '{n} scheda',
   'browser.tabs.other': '{n} schede',
   'browser.newTab': 'Nuova scheda',

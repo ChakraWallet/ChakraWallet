@@ -2,6 +2,7 @@
 import { Icon, Sheet } from './components.jsx';
 import { t, tn, locale } from '../shared/i18n.js';
 import { CURRENCIES } from '../shared/fx.js';
+import { SEARCH_ENGINES, searchEngine } from './searchEngines.js';
 
 // ------------------------------------------------------------ currency
 export const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', GBP: '£', CHF: 'Fr.' };
@@ -62,6 +63,24 @@ export function AutoLockSheet({ value, onPick, onClose }) {
         ))}
       </div>
       {cur === 0 && <div class="warn small">{t('settings.autoLock.neverWarn')}</div>}
+    </Sheet>
+  );
+}
+
+// ------------------------------------------------------------ search engine (Android browser)
+export function SearchEngineSheet({ value, onPick, onClose }) {
+  const cur = searchEngine(value).id;
+  return (
+    <Sheet title={t('settings.search')} onClose={onClose}>
+      <span class="small muted">{t('settings.search.explain')}</span>
+      <div class="list lang-list" role="radiogroup">
+        {SEARCH_ENGINES.map((e) => (
+          <button class={`item lang-item ${cur === e.id ? 'sel' : ''}`} role="radio" aria-checked={cur === e.id} onClick={() => { onPick(e.id); onClose(); }}>
+            <div class="grow"><div class="bold">{e.name}</div><div class="small muted">{new URL(e.url).host.replace(/^www\./, '')}</div></div>
+            {cur === e.id && <span class="green"><Icon name="check" /></span>}
+          </button>
+        ))}
+      </div>
     </Sheet>
   );
 }

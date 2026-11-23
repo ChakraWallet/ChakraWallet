@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS = {
   notifications: true, // Android: funds received / sent and bridges, while the app is closed
   mevProtect: true, // Ethereum: transactions sent through a private channel (shared/mev.js), not the public mempool
   privacyMode: false, // balances hidden every time the app opens (tap the eye to show them)
+  searchEngine: 'duckduckgo', // Android browser: what the address bar searches with (ui/searchEngines.js)
 };
 
 /** UI -> background call. */

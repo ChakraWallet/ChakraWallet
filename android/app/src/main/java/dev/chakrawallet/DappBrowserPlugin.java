@@ -110,6 +110,8 @@ public class DappBrowserPlugin extends Plugin {
                                      // until the user retries, goes back or opens another address
         boolean loading = false;
         int progress = 0;
+        String requested = "";       // address asked for and not arriving yet: the page shown is still the old one
+                                     // (or none). Cleared when it starts arriving, fails, is stopped or is a download
         long hiddenAt = 0;           // when it went to the background (0 = active)
         Tab(int id) { this.id = id; }
     }
@@ -147,6 +149,7 @@ public class DappBrowserPlugin extends Plugin {
                 t.web = null;
                 t.loading = false;
                 t.progress = 0;
+                t.requested = "";
                 lastNav.remove(t.id);
                 JSObject ev = new JSObject();
                 ev.put("tabId", t.id);
@@ -293,6 +296,8 @@ public class DappBrowserPlugin extends Plugin {
                 tab.pageId = ++pageCounter;
                 tab.url = url;
                 tab.loading = true;
+                tab.requested = "";
+                if (tab.progress >= 100) tab.progress = 10; // a load not announced by beginLoad (form, back/forward)
                 tab.favicon = "";
                 if (!docStartInjection && !script.isEmpty()) view.evaluateJavascript(script, null);
                 emitNav(tab);
@@ -303,6 +308,7 @@ public class DappBrowserPlugin extends Plugin {
                 tab.url = url;
                 tab.title = view.getTitle() != null ? view.getTitle() : "";
                 tab.loading = false;
+                tab.requested = "";
                 emitNav(tab);
             }
 
@@ -329,7 +335,14 @@ public class DappBrowserPlugin extends Plugin {
                             view.getSettings().setUserAgentString(ua);
                             view.loadUrl(target);
                         });
+                        beginLoad(tab, target);
+                        emitNav(tab);
                         return true;
+                    }
+                    // a link to another page: the bar starts now, not when the server answers (onPageStarted)
+                    if (request.isForMainFrame() && !request.isRedirect() && !sameDocument(view.getUrl(), uri)) {
+                        beginLoad(tab, uri.toString());
+                        emitNav(tab);
                     }
                     return false;
                 }
@@ -574,6 +587,7 @@ public class DappBrowserPlugin extends Plugin {
         o.put("favicon", t.favicon);
         o.put("loading", t.loading);
         o.put("progress", t.progress);
+        o.put("requested", t.requested);
         o.put("visible", visible);
         o.put("canGoBack", t.web != null && t.web.canGoBack());
         o.put("canGoForward", t.web != null && t.web.canGoForward());
@@ -588,6 +602,24 @@ public class DappBrowserPlugin extends Plugin {
         if (t != null && sig.equals(lastNav.get(t.id))) return;
         if (t != null) lastNav.put(t.id, sig);
         notifyListeners("navigation", st);
+    }
+
+    /**
+     * A page was asked for (address, new tab, reload, link in the page): loading from now, so the app shows the bar
+     * at once instead of after DNS, connection and the server's first answer (onPageStarted). The caller emits.
+     */
+    private void beginLoad(Tab t, String url) {
+        t.requested = url == null ? "" : url;
+        t.loading = true;
+        t.progress = 10;
+    }
+
+    /** `to` only moves to an anchor of the page at `from` (no new page is loaded). */
+    private static boolean sameDocument(String from, Uri to) {
+        if (from == null || to.getFragment() == null) return false;
+        String a = from.contains("#") ? from.substring(0, from.indexOf('#')) : from;
+        String b = to.toString();
+        return a.equals(b.substring(0, b.indexOf('#')));
     }
 
     private boolean online() {
@@ -620,6 +652,7 @@ public class DappBrowserPlugin extends Plugin {
 
     private void emitError(Tab t, String url, String kind, int code, String detail) {
         t.loading = false;
+        t.requested = "";
         t.errored = true;
         if (t.web != null) t.web.setVisibility(View.GONE); // Android's own error page is never shown
         JSObject ev = new JSObject();
@@ -723,7 +756,7 @@ public class DappBrowserPlugin extends Plugin {
             if (!background) {
                 captureThumb(active());
                 activate(t);
-                if (!url.isEmpty()) { ensureWebView(t); activate(t); load(t.web, url); }
+                if (!url.isEmpty()) { ensureWebView(t); beginLoad(t, url); activate(t); load(t.web, url); }
             }
             call.resolve(state(t));
         });
@@ -737,7 +770,7 @@ public class DappBrowserPlugin extends Plugin {
             readBounds(call);
             if (t.id != activeId) captureThumb(active());
             boolean lazy = t.web == null && !t.url.isEmpty();
-            if (lazy) ensureWebView(t);
+            if (lazy) { ensureWebView(t); beginLoad(t, t.url); }
             activate(t);
             if (lazy) load(t.web, t.url);
             call.resolve(state(t));
@@ -802,8 +835,10 @@ public class DappBrowserPlugin extends Plugin {
             readBounds(call);
             ensureWebView(t);
             t.errored = false;
+            beginLoad(t, url);
             if (t.id == activeId) activate(t);
             load(t.web, url);
+            emitNav(t);
             call.resolve(state(t));
         });
     }
@@ -821,7 +856,7 @@ public class DappBrowserPlugin extends Plugin {
                     t.web.destroy();
                     t.web = null;
                 }
-                t.url = ""; t.title = ""; t.favicon = ""; t.loading = false; t.progress = 0; t.pageId = ++pageCounter; t.errored = false;
+                t.url = ""; t.title = ""; t.favicon = ""; t.loading = false; t.progress = 0; t.requested = ""; t.pageId = ++pageCounter; t.errored = false;
                 emitNav(t);
             }
             call.resolve();
@@ -902,12 +937,21 @@ public class DappBrowserPlugin extends Plugin {
 
     @PluginMethod
     public void reload(PluginCall call) {
-        getActivity().runOnUiThread(() -> { Tab t = tabFor(call); if (t != null && t.web != null) { t.errored = false; t.web.reload(); } call.resolve(); });
+        getActivity().runOnUiThread(() -> { Tab t = tabFor(call); if (t != null && t.web != null) { t.errored = false; beginLoad(t, t.url); t.web.reload(); emitNav(t); } call.resolve(); });
     }
 
     @PluginMethod
     public void stop(PluginCall call) {
-        getActivity().runOnUiThread(() -> { Tab t = tabFor(call); if (t != null && t.web != null) t.web.stopLoading(); call.resolve(); });
+        getActivity().runOnUiThread(() -> {
+            Tab t = tabFor(call);
+            if (t != null && t.web != null) {
+                t.web.stopLoading();
+                // a request stopped before any answer gets no onPageFinished: the bar would stay on
+                t.requested = ""; t.loading = false; t.progress = 100;
+                emitNav(t);
+            }
+            call.resolve();
+        });
     }
 
     @PluginMethod
@@ -1200,6 +1244,10 @@ public class DappBrowserPlugin extends Plugin {
     // ------------------------------------------------------------------ downloads
     private void download(Tab tab, String url, String ua, String disposition, String mime) {
         String name = URLUtil.guessFileName(url, disposition, mime);
+        if (!tab.requested.isEmpty()) { // the link was a file: no page is coming, the bar goes
+            tab.requested = ""; tab.loading = false; tab.progress = 100;
+            emitNav(tab);
+        }
         try {
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));

@@ -64,10 +64,11 @@ npm run build                                                    # extensions: d
 JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/sdk npm run android   # dist/chakra-android-debug.apk
 ```
 
-`npm run android -- --release` builds the release APK, signed when `ANDROID_KEYSTORE_FILE`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` are set. On GitHub, [build.yml](.github/workflows/build.yml) builds
-everything at every push to `master` and attaches the files to the release on `v*` tags (secrets: the same names, with
-the keystore in base64 as `ANDROID_KEYSTORE_BASE64`).
+`npm run android -- --release` builds the release APK and the AAB for Google Play (`dist/chakra-android-release.aab`),
+signed when `ANDROID_KEYSTORE_FILE`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` are set.
+On GitHub, [build.yml](.github/workflows/build.yml) builds everything at every push to `master` (the AAB is in the
+run's artifact) and attaches the zips and the APK to the release on `v*` tags (secrets: the same names, with the
+keystore in base64 as `ANDROID_KEYSTORE_BASE64`).
 
 ## Install from source
 

@@ -8,6 +8,7 @@ import { Icon, Avatar, ChainIcon, Sheet, Btn, CopyBtn, Switch, useApp, rich } fr
 import { NetworkSheet } from './home.jsx';
 import { t, tn, locale } from '../../shared/i18n.js';
 import { useSiteIcon } from '../siteIcons.js';
+import { searchEngine, searchUrl } from '../searchEngines.js';
 
 const native = () => globalThis.__CK_NATIVE__;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -27,12 +28,13 @@ const FEATURED = [ // cat: i18n keys
   { name: 'DefiLlama', url: 'https://defillama.com', color: '#2172E5', cat: 'browser.cat.analytics' },
 ];
 
-export function toUrl(input) {
+/** What the address bar opens: the address as typed (https:// added), else a search on the chosen engine. */
+export function toUrl(input, engine) {
   const s = input.trim();
   if (!s) return null;
   if (/^https?:\/\//i.test(s)) return s;
   if (/^[\w-]+(\.[\w-]+)+(:\d+)?(\/.*)?$/.test(s)) return 'https://' + s;
-  return 'https://duckduckgo.com/?q=' + encodeURIComponent(s);
+  return searchUrl(engine, s);
 }
 const hostOf = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
 const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
@@ -188,8 +190,11 @@ const siteModes = {
   },
 };
 
-const BLANK = { url: '', title: '', favicon: '', thumb: '', loading: false, progress: 0, canGoBack: false, canGoForward: false, error: null, flagged: null, home: false };
-// home: the start page is shown over the tab's page, which is kept (with its history) so Forward returns to it
+const BLANK = { url: '', title: '', favicon: '', thumb: '', loading: false, progress: 0, requested: '', nativeReq: '', pageId: 0, canGoBack: false, canGoForward: false, error: null, flagged: null, home: false, fromHome: false };
+// home: the start page is shown over the tab's page, which is kept (with its history) so Forward returns to it.
+// requested: address asked for and not arriving yet (the old page, or the start page, stays on screen meanwhile);
+// set by the app at once, then by the native side (nativeReq: its last value, the only one that says it ended).
+// fromHome: that address was asked from the start page shown over a page: the start page stays until it arrives
 
 // What went wrong loading the page, in plain words (kinds come from DappBrowserPlugin.kindOf / SSL / Safe Browsing)
 const ERR_ICON = { offline: 'globe', unsafe: 'warn', cert: 'lock', crashed: 'refresh' };
@@ -247,6 +252,8 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
   tabsRef.current = tabs;
   const tab = tabs.find((x) => x.id === activeId) || null;
   const opened = !!tab?.url && !tab?.home;
+  // start page on screen and an address asked from it on its way (not a load of the page kept under it)
+  const asked = !opened && !!tab?.requested && !!tab?.loading && (!tab.home || tab.fromHome);
   const patch = (id, p) => setTabs((l) => l.map((x) => (x.id === id ? { ...x, ...p } : x)));
 
   const bounds = () => {
@@ -264,7 +271,17 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
     if (!n) return;
     const subs = [
       n.addListener('navigation', (e) => {
-        setTabs((l) => l.map((x) => (x.id === e.tabId ? { ...x, url: e.url, title: e.title, loading: e.loading, progress: e.progress, canGoBack: e.canGoBack, canGoForward: e.canGoForward, favicon: e.favicon || (e.url === x.url ? x.favicon : ''), flagged: x.flagged && originOf(x.flagged) === originOf(e.url) ? x.flagged : null } : x)));
+        setTabs((l) => l.map((x) => {
+          if (x.id !== e.tabId) return x;
+          const arrived = e.pageId !== x.pageId; // a new page started in this tab
+          const ended = !!x.nativeReq && !e.requested; // the asked address arrived, failed, was stopped or was a file
+          return {
+            ...x, url: e.url, title: e.title, loading: e.loading, progress: e.progress, requested: e.requested || '', nativeReq: e.requested || '', pageId: e.pageId,
+            canGoBack: e.canGoBack, canGoForward: e.canGoForward, favicon: e.favicon || (e.url === x.url ? x.favicon : ''),
+            flagged: x.flagged && originOf(x.flagged) === originOf(e.url) ? x.flagged : null,
+            home: x.home && !(x.fromHome && ended && arrived), fromHome: x.fromHome && !ended,
+          };
+        }));
         // history: once per finished page (load ended or new address), never for title / progress / SPA ticks
         const last = histSeen.current.get(e.tabId);
         const landed = !e.loading && e.url && /^https?:/.test(e.url) && (!last || last.loading || last.url !== e.url);
@@ -298,7 +315,8 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
       n.addListener('permissionCancelled', (e) => setSheet((s) => (s?.perm?.id === e.id ? null : s))),
       n.addListener('downloadRequest', (e) => setSheet({ dl: e })),
       n.addListener('download', (e) => toast(t(`browser.download.${e.status}`, { name: e.name }), e.status === 'failed' ? 'warn' : 'info')),
-      n.addListener('loadError', (e) => patch(e.tabId, { error: { kind: e.kind, code: e.code, detail: e.detail, url: e.url }, loading: false })),
+      // asked from the start page shown over a page: the error replaces the start page (Back returns to that page)
+      n.addListener('loadError', (e) => setTabs((l) => l.map((x) => (x.id === e.tabId ? { ...x, error: { kind: e.kind, code: e.code, detail: e.detail, url: e.url }, loading: false, requested: '', nativeReq: '', home: x.home && !x.fromHome, fromHome: false } : x)))),
       n.addListener('tabOpened', (e) => { setTabs((l) => [...l, { ...BLANK, id: e.tabId, loading: true }]); setActiveId(e.tabId); setView('page'); }),
       n.addListener('tabClosedByPage', (e) => closeTab(e.tabId)),
     ];
@@ -387,12 +405,13 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
 
   // ---- actions
   const go = async (raw) => {
-    const url = toUrl(raw);
+    const url = toUrl(raw, state.settings?.searchEngine);
     if (!url || !native()) return;
     setEditing(false); setInput(''); setView('page'); urlRef.current?.blur();
     if (!tab) return openInNewTab(url);
-    patch(tab.id, { url, loading: true, progress: 5, error: null, home: false });
-    await native().navigate({ tabId: tab.id, url, ...bounds() }).catch(() => {});
+    // the bar starts right away; what is on screen (page or start page) stays until the new page arrives
+    patch(tab.id, { requested: url, loading: true, progress: 10, error: null, fromHome: tab.home && !!tab.url });
+    await native().navigate({ tabId: tab.id, url, ...bounds() }).catch(() => patch(tab.id, { requested: '', loading: false, fromHome: false }));
   };
   const openInNewTab = async (url, count = tabsRef.current.length) => {
     const n = native();
@@ -401,7 +420,7 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
     await n.captureActive().catch(() => {});
     const r = await n.newTab({ url: url || '', ...bounds() }).catch(() => null);
     if (!r) return;
-    setTabs((l) => [...l, { ...BLANK, id: r.tabId, url: url || '', loading: !!url }]);
+    setTabs((l) => [...l, { ...BLANK, id: r.tabId, url: r.url || '', loading: !!r.loading, progress: r.progress || 0, requested: r.requested || '', nativeReq: r.requested || '', pageId: r.pageId || 0 }]);
     setActiveId(r.tabId); setView('page');
   };
   useEffect(() => {
@@ -538,7 +557,7 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
   const retry = async (tb = tab) => {
     if (!tb?.error) return;
     const url = tb.error.url || tb.url;
-    patch(tb.id, { error: null, loading: true, progress: 5 });
+    patch(tb.id, { error: null, loading: true, progress: 10, requested: url });
     await native()?.navigate({ tabId: tb.id, url, ...bounds() }).catch(() => {});
   };
   const errBack = async () => {
@@ -600,16 +619,16 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
             </button>
           )}
           <div class="url-field">
-            <input ref={urlRef} value={editing ? input : ''} placeholder={editing || !opened ? t('browser.searchPlaceholder') : ''} inputMode="url" autoCapitalize="off" autoComplete="off" spellcheck={false} enterKeyHint="go"
+            <input ref={urlRef} value={editing ? input : ''} placeholder={editing || !(opened || asked) ? t('browser.searchPlaceholder') : ''} inputMode="url" autoCapitalize="off" autoComplete="off" spellcheck={false} enterKeyHint="go"
               onFocus={startEdit} onInput={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') go(input); }} />
-            {!editing && opened && <span class="url-text" aria-hidden="true"><b>{hostOf(tab.url)}</b><span class="muted">{pathOf(tab.url)}</span></span>}
+            {!editing && (opened || asked) && <span class="url-text" aria-hidden="true"><b>{hostOf(opened ? tab.url : tab.requested)}</b><span class="muted">{pathOf(opened ? tab.url : tab.requested)}</span></span>}
           </div>
           {editing && input && <button class="iconbtn sm" onPointerDown={(e) => e.preventDefault()} onClick={() => { setInput(''); urlRef.current?.focus(); }} title={t('browser.clear')}><Icon name="close" size={14} /></button>}
           {(editing ? !!input.trim() : opened) && <button class="iconbtn sm url-copy" onPointerDown={(e) => e.preventDefault()} onClick={copyUrl} title={t('browser.copyUrl')}><Icon name="copy" size={15} /></button>}
         </div>
-        <button class="iconbtn bar-side" disabled={!opened} style={{ visibility: opened ? 'visible' : 'hidden' }} tabIndex={editing ? -1 : 0}
-          onClick={() => (tab.loading ? native().stop({ tabId: tab.id }) : native().reload({ tabId: tab.id }))} title={opened && tab.loading ? t('browser.stop') : t('browser.reload')}>
-          <Icon name={opened && tab.loading ? 'close' : 'refresh'} size={17} />
+        <button class="iconbtn bar-side" disabled={!(opened || asked)} style={{ visibility: opened || asked ? 'visible' : 'hidden' }} tabIndex={editing ? -1 : 0}
+          onClick={() => (tab.loading ? native().stop({ tabId: tab.id }) : native().reload({ tabId: tab.id }))} title={(opened || asked) && tab.loading ? t('browser.stop') : t('browser.reload')}>
+          <Icon name={(opened || asked) && tab.loading ? 'close' : 'refresh'} size={17} />
         </button>
         <button class="iconbtn bar-side" tabIndex={editing ? -1 : 0} onClick={() => (view === 'tabs' ? switchTo(activeId) : openTabs())} title={t('browser.openTabs')}>
           <span class={`tabcount ${view === 'tabs' ? 'on' : ''}`}>{tabs.length || 1}</span>
@@ -646,7 +665,7 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
           )}
         </div>
       )}
-      {!editing && view === 'page' && opened && (tab.loading || (tab.progress > 0 && tab.progress < 100)) && <div class="progress"><div style={{ width: `${Math.max(8, tab.progress || 0)}%` }} /></div>}
+      {!editing && view === 'page' && tab && !tab.error && (opened ? tab.loading || (tab.progress > 0 && tab.progress < 100) : asked) && <div class="progress"><div style={{ width: `${Math.max(8, tab.progress || 0)}%` }} /></div>}
 
       <div class="browser-view" ref={viewRef}>
         {editing && (
@@ -662,7 +681,7 @@ export function Browser({ visible, entering, openUrl, onSiteOpen, onExit }) {
                 ))}
               </div>
             )}
-            {input.trim() && <button class="item card" onClick={() => go(input)}><Icon name="external" /><span class="grow ellipsis">{/^https?:|\./.test(input.trim()) ? t('browser.open', { url: input.trim() }) : t('browser.search', { query: input.trim() })}</span></button>}
+            {input.trim() && <button class="item card" onClick={() => go(input)}><Icon name="external" /><span class="grow ellipsis">{/^https?:|\./.test(input.trim()) ? t('browser.open', { url: input.trim() }) : t('browser.search', { query: input.trim(), engine: searchEngine(state.settings?.searchEngine).name })}</span></button>}
           </div>
         )}
 

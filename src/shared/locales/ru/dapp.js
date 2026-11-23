@@ -92,7 +92,7 @@ export default {
   'browser.connected': 'Подключён',
   'browser.notConnected': 'Не подключён',
   'browser.open': 'Открыть {url}',
-  'browser.search': 'Найти «{query}»',
+  'browser.search': 'Найти «{query}» в {engine}',
   'browser.tabs.one': '{n} вкладка',
   'browser.tabs.few': '{n} вкладки',
   'browser.tabs.many': '{n} вкладок',

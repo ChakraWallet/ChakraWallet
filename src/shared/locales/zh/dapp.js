@@ -89,7 +89,7 @@ export default {
   'browser.connected': '已连接',
   'browser.notConnected': '未连接',
   'browser.open': '打开 {url}',
-  'browser.search': '搜索“{query}”',
+  'browser.search': '用 {engine} 搜索“{query}”',
   'browser.tabs.other': '{n} 个标签页',
   'browser.newTab': '新标签页',
   'browser.connectedToWallet': '已连接到钱包',
