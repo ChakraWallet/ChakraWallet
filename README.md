@@ -31,7 +31,7 @@
 - **Every balance at a glance**: all your accounts, networks and tokens in one place, found automatically, with their value and a spam filter.
 - **Best-price swaps and bridges**: KyberSwap, Velora, OpenOcean and LI.FI for swaps, LI.FI, Relay, Across and deBridge for bridges, ranked by what you actually receive after fees. Approvals for the exact amount only, MEV protection with Flashbots and Jito.
 - **Dapps everywhere**: Ethereum and Solana dapps on every site in the extension (EIP-6963, `window.ethereum`, Wallet Standard); in the Android app a multi-tab dapp browser that also speaks Tron and TON Connect, and WalletConnect for sites on other devices.
-- **Scam protection**: address-poisoning fakes and spam tokens hidden, transactions decoded and unlimited approvals flagged before you sign.
+- **Scam protection**: every dapp transaction simulated before you sign (what leaves your account, the permissions it leaves behind, whether it would fail), permits and marketplace orders read, permissions to ordinary accounts stopped until confirmed, address-poisoning fakes and spam tokens hidden.
 - **And more**: NFTs, prediction markets, MetaMask Card on Base, smart contracts (deploy and call), vanity addresses, an encrypted one-line backup.
 - **7 languages**: English, Italian, Spanish, French, German, Russian and Chinese.
 - **No servers, no extra fees, no tracking**: Chakra talks only to public nodes, indexers and aggregators.

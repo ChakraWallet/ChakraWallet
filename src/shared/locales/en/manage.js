@@ -357,4 +357,8 @@ export default {
   'keys.getgems.1': 'Open getgems.io/public-api and sign in with your TON wallet (TON Connect).',
   'keys.getgems.2': 'Buy access: 10 GRAM a month, for one or more months at a time.',
   'keys.getgems.3': 'Copy the key and paste it below.',
+
+  'accounts.delegation.title': 'EIP-7702 delegation',
+  'accounts.delegation.known': 'On that network this account runs the code of the contract above: it is how a wallet turns an account into a smart account.',
+  'accounts.delegation.unknown': 'On that network this account runs the code of the contract above, for every transaction. If you didn’t set it up yourself, remove it from the wallet where it was made: a malicious delegation can move all the funds of the account on that network.',
 };

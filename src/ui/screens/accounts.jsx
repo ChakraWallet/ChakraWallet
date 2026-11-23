@@ -8,6 +8,7 @@ import { allDrivers, driverOf, accountFamily, isEvmAccount } from '../chains/ind
 import { t, tn } from '../../shared/i18n.js';
 import { VanityAccount } from './vanity.jsx';
 import { usePolyFundsMany, POLY_COLOR } from '../polyBalance.js';
+import { Delegations } from '../simulation.jsx';
 
 // account types: EVM ones, then accounts of one other family (their type is the family, e.g. 'ton': accounts.type.ton)
 const typeLabel = (a) => ({ hd: 'accounts.type.hd', imported: 'accounts.type.imported', generated: 'accounts.type.generated' }[a.type] || driverOf(a.type)?.ui?.typeLabel || 'accounts.type.imported');
@@ -369,6 +370,7 @@ export function AccountDetails({ address }) {
           <CopyBtn text={shown} label={t('common.copy')} />
           {!single && explorerAddr(chain, address) && <a class="btn secondary sm" href={explorerAddr(chain, address)} target="_blank"><Icon name="external" size={14} /> {t('common.explorer')}</a>}
         </div>
+        {!single && <Delegations address={address} />}
         <Btn kind="secondary" class="block" onClick={() => setSheet('pk')}><Icon name="key" /> {t('accounts.showPk')}</Btn>
         <button class="btn ghost red" onClick={() => setSheet('remove')}><Icon name="trash" size={16} /> {t('accounts.removeAccount')}</button>
       </div>

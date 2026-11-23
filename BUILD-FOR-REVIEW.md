@@ -41,10 +41,11 @@ environment: without it, `popup.js` differs in that string only.
 Declared in the manifest as `financialAndPaymentInfo`: to work, the extension sends the user's addresses and signed
 transactions, and asks for balances, history and quotes, to these services. Nothing goes to the developers.
 
-- **Blockchain nodes** (balances, fees, sending transactions): public RPC endpoints of each network (publicnode.com,
-  llamarpc.com, cloudflare-eth.com, the networks' own), Alchemy, Helius, NodeReal, TON Center, TonAPI, TronGrid,
-  mempool.space and blockstream.info (Bitcoin), Jito (Solana). On Ethereum, transactions go to Flashbots Protect by
-  default (protection from front-running; Settings > Security), and to the usual nodes if it can't be reached.
+- **Blockchain nodes** (balances, fees, simulating a transaction before it is signed, sending it): public RPC
+  endpoints of each network (publicnode.com, drpc.org, cloudflare-eth.com, Tenderly's gateway for Sepolia, the
+  networks' own), Alchemy, Helius, NodeReal, TON Center, TonAPI, TronGrid, mempool.space and blockstream.info
+  (Bitcoin), Jito (Solana). On Ethereum, transactions go to Flashbots Protect by default (protection from
+  front-running; Settings > Security), and to the usual nodes if it can't be reached.
 - **Indexers** (history, tokens, NFTs): Etherscan API, Routescan, Blockscout, NodeReal, UniSat, TonAPI, OpenSea, Getgems.
 - **Prices and exchange rates**: DefiLlama, CoinGecko, Frankfurter (European Central Bank rates).
 - **Swaps and bridges** (only when the user asks for a quote): KyberSwap, Velora (ParaSwap), OpenOcean, LI.FI, Relay,

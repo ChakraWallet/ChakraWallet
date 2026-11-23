@@ -6,7 +6,8 @@ export const BUILTIN_CHAINS = [
     id: 1, name: 'Ethereum', short: 'ETH', color: '#627EEA',
     alchemy: 'eth-mainnet', // the network's name at Alchemy (shared/alchemy.js)
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
-    rpc: ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
+    // (cloudflare-eth.com last: it doesn't run eth_simulateV1, the simulation before signing)
+    rpc: ['https://ethereum-rpc.publicnode.com', 'https://eth.drpc.org', 'https://cloudflare-eth.com'],
     explorer: 'https://etherscan.io',
     indexer: { type: 'blockscout', url: 'https://eth.blockscout.com' },
     // eth.blockscout.com is often slow (5-10 s) or failing: Routescan (Etherscan-compatible, free, no key) is used
@@ -39,14 +40,14 @@ export const BUILTIN_CHAINS = [
     native: { symbol: 'ETH', name: 'Ether', decimals: 18, priceId: 'coingecko:ethereum' },
     rpc: ['https://mainnet.optimism.io', 'https://optimism-rpc.publicnode.com'],
     explorer: 'https://optimistic.etherscan.io',
-    indexer: { type: 'blockscout', url: 'https://optimism.blockscout.com' },
+    indexer: { type: 'blockscout', url: 'https://explorer.optimism.io' }, // Optimism's Blockscout (optimism.blockscout.com redirects here)
     llama: 'optimism', swap: true,
   },
   {
     id: 137, name: 'Polygon', short: 'POL', color: '#8247E5', minPriorityFee: 30_000_000_000n,
     alchemy: 'polygon-mainnet',
     native: { symbol: 'POL', name: 'Polygon', decimals: 18, priceId: 'coingecko:polygon-ecosystem-token' },
-    rpc: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon-rpc.com'],
+    rpc: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon.drpc.org'], // polygon-rpc.com: closed in February 2026
     explorer: 'https://polygonscan.com',
     indexer: { type: 'blockscout', url: 'https://polygon.blockscout.com' },
     llama: 'polygon', swap: true,
@@ -96,7 +97,7 @@ export const BUILTIN_CHAINS = [
     id: 11155111, name: 'Sepolia (test)', short: 'SEP', color: '#9CA3AF', testnet: true,
     alchemy: 'eth-sepolia',
     native: { symbol: 'ETH', name: 'Sepolia Ether', decimals: 18, priceId: null },
-    rpc: ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc.sepolia.org'],
+    rpc: ['https://ethereum-sepolia-rpc.publicnode.com', 'https://sepolia.gateway.tenderly.co'],
     explorer: 'https://sepolia.etherscan.io',
     indexer: { type: 'blockscout', url: 'https://eth-sepolia.blockscout.com' },
     llama: null, swap: false,

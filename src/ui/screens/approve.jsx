@@ -11,6 +11,8 @@ import { useNativePrice } from '../hooks.js';
 import { useSiteIcon } from '../siteIcons.js';
 import { useRecipientCheck, PoisonWarning } from '../poisonCheck.jsx';
 import { t, tn } from '../../shared/i18n.js';
+import { readPermit, readSeaport } from '../../shared/typedData.js';
+import { TxSimulation, PermitDetails, SeaportDetails } from '../simulation.jsx';
 
 // must match AUTH_KINDS in the background: these need fingerprint or password
 const AUTH_TITLES = { sign: 'approve.auth.sign', ethSign: 'approve.auth.sign', typed: 'approve.auth.sign', tx: 'approve.auth.tx' }; // i18n keys
@@ -175,6 +177,16 @@ function EthSign({ req, done }) {
   );
 }
 
+/** The user confirms a permission that goes to an ordinary account (src/ui/simulation.jsx: risk 'ack'). */
+function AckBox({ ack, setAck, req }) {
+  return (
+    <label class="card flat row" style={{ cursor: 'pointer', borderColor: ack ? 'var(--red)' : undefined }}>
+      <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+      <span class="small">{rich('sim.ack', { site: siteHost(req) })}</span>
+    </label>
+  );
+}
+
 // ------------------------------------------------------------------ typed data
 function Tree({ value, depth = 0 }) {
   if (value === null || typeof value !== 'object') return <span class="mono">{String(value)}</span>;
@@ -196,21 +208,25 @@ function SignTyped({ req, done }) {
   // the network the signature names (a dapp outside the app may be on another one than the app's)
   const chain = (typed.domain?.chainId != null && getChain(Number(typed.domain.chainId), state.customChains)) || appChain;
   const pt = typed.primaryType || '';
-  const isPermit = /permit/i.test(pt);
+  const permit = readPermit(typed);
+  const order = permit ? null : readSeaport(typed);
+  const isPermit = !!permit || /permit/i.test(pt);
+  const [risk, setRisk] = useState(null);
+  const [ack, setAck] = useState(false);
   const m = typed.message || {};
   const spender = m.spender || m.details?.spender || m.permitted?.spender;
   const rawAmt = m.value ?? m.amount ?? m.details?.amount ?? m.permitted?.amount;
   const unlimited = rawAmt !== undefined && BigInt(String(rawAmt)) >= MaxUint256 / 2n;
   const [tok, setTok] = useState(null);
-  const tokenAddr = isPermit ? (m.details?.token || m.permitted?.token || typed.domain?.verifyingContract) : null;
+  const tokenAddr = isPermit && !permit ? (m.details?.token || m.permitted?.token || typed.domain?.verifyingContract) : null;
   useEffect(() => { if (tokenAddr) getTokenInfo(chain, tokenAddr).then(setTok).catch(() => {}); }, [tokenAddr]);
   return (
     <>
       <div class="content">
         <Site req={req} />
-        <h3 style={{ margin: '0.25rem 0 0' }}>{isPermit ? t('approve.typed.permitTitle') : t('approve.typed.title')}</h3>
+        <h3 style={{ margin: '0.25rem 0 0' }}>{order ? t('approve.seaport.title') : isPermit ? t('approve.typed.permitTitle') : t('approve.typed.title')}</h3>
         <AccountLine address={address} />
-        {isPermit ? (
+        {permit ? <PermitDetails chain={chain} permit={permit} onRisk={setRisk} /> : order ? <SeaportDetails chain={chain} order={order} onRisk={setRisk} /> : isPermit ? (
           <div class="error small">
             {rich(tok ? 'approve.typed.permitSpendToken' : 'approve.typed.permitSpend', { spender: spender ? shortAddr(spender) : t('approve.typed.anAddress'), symbol: tok?.symbol })}
             {rawAmt !== undefined && <> {rich('approve.typed.amount', { amount: unlimited ? t('approve.unlimited') : tok ? `${formatUnits(BigInt(String(rawAmt)), tok.decimals)} ${tok.symbol}` : String(rawAmt) })}</>}. {t('approve.typed.permitRisk')}
@@ -226,10 +242,11 @@ function SignTyped({ req, done }) {
         </div>
         <div class="section-title">{t('approve.content')}</div>
         <div class="card small" style={{ maxHeight: '13.75rem', overflow: 'auto' }}><Tree value={m} /></div>
+        {risk === 'ack' && <AckBox ack={ack} setAck={setAck} req={req} />}
       </div>
       <div class="footer">
         <Btn kind="secondary" onClick={() => done(false)}>{t('approve.reject')}</Btn>
-        <Btn kind={isPermit ? 'danger' : 'primary'} onClick={() => done(true)}>{t('approve.sign.button')}</Btn>
+        <Btn kind={isPermit || order || risk ? 'danger' : 'primary'} disabled={risk === 'ack' && !ack} onClick={() => done(true)}>{t('approve.sign.button')}</Btn>
       </div>
     </>
   );
@@ -254,6 +271,10 @@ function TxRequest({ req, done }) {
   const [payee, setPayee] = useState(data === '0x' && value > 0n ? tx.to : '');
   const payeeCheck = useRecipientCheck(payee);
   const [ack, setAck] = useState(false);
+  // the simulation (src/ui/simulation.jsx): 'ack' when a permission goes to an ordinary account, 'danger', or null
+  const [simRisk, setSimRisk] = useState(null);
+  const [simAck, setSimAck] = useState(false);
+  const simTx = { from: tx.from, to: tx.to, value: tx.value, data };
 
   useEffect(() => {
     prepareTx(chain, tx.from, { to: tx.to, value: tx.value, data, gas: tx.gas || tx.gasLimit }).then(setPrepared).catch((e) => setErr(e.message));
@@ -302,6 +323,8 @@ function TxRequest({ req, done }) {
         <AccountLine address={tx.from} />
         {detail}
         <PoisonWarning check={payeeCheck} to={payee || ''} ack={ack} setAck={setAck} />
+        <TxSimulation chain={chain} tx={simTx} onRisk={setSimRisk} />
+        {simRisk === 'ack' && <AckBox ack={simAck} setAck={setSimAck} req={req} />}
         <div class="card kv">
           <span class="k">{t('approve.network')}</span><span class="v">{chain.name}</span>
           <span class="k">{t('approve.to')}</span><span class="v mono">{tx.to ? shortAddr(tx.to, 8) : t('approve.newContract')}</span>
@@ -320,7 +343,7 @@ function TxRequest({ req, done }) {
       </div>
       <div class="footer">
         <Btn kind="secondary" onClick={() => done(false)}>{t('approve.reject')}</Btn>
-        <Btn kind={payeeCheck.risky ? 'danger' : 'primary'} loading={busy} disabled={!prepared || (payeeCheck.risky && !ack)} onClick={approve}>{t('common.confirm')}</Btn>
+        <Btn kind={payeeCheck.risky || simRisk ? 'danger' : 'primary'} loading={busy} disabled={!prepared || (payeeCheck.risky && !ack) || (simRisk === 'ack' && !simAck)} onClick={approve}>{t('common.confirm')}</Btn>
       </div>
     </>
   );

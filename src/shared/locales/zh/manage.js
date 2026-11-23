@@ -342,4 +342,8 @@ export default {
   'keys.getgems.1': '打开 getgems.io/public-api，并用你的 TON 钱包登录（TON Connect）。',
   'keys.getgems.2': '购买访问权限：每月 10 GRAM，可一次购买一个月或多个月。',
   'keys.getgems.3': '复制密钥并粘贴到下方。',
+
+  'accounts.delegation.title': 'EIP-7702 委托',
+  'accounts.delegation.known': '在该网络上，此账户运行上方合约的代码：钱包就是这样把普通账户变成智能账户的。',
+  'accounts.delegation.unknown': '在该网络上，此账户的每笔交易都会运行上方合约的代码。如果这不是你自己设置的，请在创建它的钱包中移除：恶意委托可以转走该账户在此网络上的全部资金。',
 };
