@@ -9,21 +9,17 @@ import de from 'flag-icons/flags/1x1/de.svg';
 import ru from 'flag-icons/flags/1x1/ru.svg';
 import cn from 'flag-icons/flags/1x1/cn.svg';
 
-// Store / download links: replace with the real ones before publishing.
+// Chakra isn't on the stores: every version is on GitHub Releases (built by .github/workflows/build.yml on v* tags)
 const LINKS = {
-  ios: '#download',
-  android: '#download',
-  chrome: '#download',
-  firefox: '#download',
   github: 'https://github.com/ChakraWallet/ChakraWallet', // the GitHub repository
+  releases: 'https://github.com/ChakraWallet/ChakraWallet/releases/latest',
 };
 
 const shot = (name) => `${import.meta.env.BASE_URL}shots/${name}.jpg`;
 
 /* ------------------------------------------------------------------ icons */
 const I = {
-  apple: <path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.37-3.68zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.1 1.76-.96 2.8 1.01.08 2.05-.52 2.68-1.28z" fill="currentColor" />,
-  play: <path d="M4.6 2.9c-.3.3-.5.8-.5 1.4v15.4c0 .6.2 1.1.5 1.4l8.6-9.1L4.6 2.9zm9.6 10.2 2.6 2.7-10.4 6c-.5.3-1 .3-1.3.1l9.1-8.8zm3.7-3.9 2.9 1.7c.9.5.9 1.4 0 1.9l-2.9 1.7-2.8-2.7 2.8-2.6zM6.4 2.2l10.4 6-2.6 2.7-9.1-8.8c.3-.2.8-.2 1.3.1z" fill="currentColor" />,
+  phone: <><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M11 18.5h2" /></>,
   puzzle: <path d="M10 3.5a2 2 0 0 1 4 0V5h3.5A1.5 1.5 0 0 1 19 6.5V10h-1.5a2 2 0 0 0 0 4H19v3.5a1.5 1.5 0 0 1-1.5 1.5H14v-1.5a2 2 0 0 0-4 0V19H6.5A1.5 1.5 0 0 1 5 17.5V14h1.5a2 2 0 0 0 0-4H5V6.5A1.5 1.5 0 0 1 6.5 5H10V3.5z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
   key: <><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8m-3 3 2.5 2.5M14 9l2 2" /></>,
   finger: <path d="M12 11v3a8 8 0 0 1-1.2 4.2M8.5 8.6A4 4 0 0 1 16 11v1.5m-.3 4.2c-.3 1-.7 2-1.2 2.8M5.6 7.7A8 8 0 0 1 20 11v1M4.2 12a7.8 7.8 0 0 0 .3-3M8 11v1a10 10 0 0 1-1.6 5.4" />,
@@ -70,26 +66,6 @@ function Phone({ src, dark, alt, className = '', eager }) {
         </div>
         <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />
       </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ store buttons */
-function StoreButtons({ compact }) {
-  const items = [
-    { k: 'ios', icon: 'apple', top: 'Download on the', name: 'App Store', fill: true },
-    { k: 'android', icon: 'play', top: 'Get it for', name: 'Android', fill: true },
-    { k: 'chrome', icon: 'puzzle', top: 'Add to', name: 'Chrome', fill: false },
-    { k: 'firefox', icon: 'puzzle', top: 'Add to', name: 'Firefox', fill: false },
-  ];
-  return (
-    <div className={`stores ${compact ? 'compact' : ''}`}>
-      {items.map((x) => (
-        <a key={x.k} className="store" href={LINKS[x.k]}>
-          <Icon name={x.icon} size={24} stroke={!x.fill} />
-          <span><small>{x.top}</small><b>{x.name}</b></span>
-        </a>
-      ))}
     </div>
   );
 }
@@ -143,7 +119,9 @@ function Hero() {
             Chakra is a self-custodial wallet for Ethereum, every major EVM network, TON, Solana, Tron and Bitcoin. Send, swap at the best price,
             bridge and explore web3 — your keys never leave your device.
           </p>
-          <StoreButtons />
+          <div className="hero-cta">
+            <a className="btn btn-primary" href={LINKS.releases}><Icon name="github" size={20} stroke={false} />Download from GitHub</a>
+          </div>
           <ul className="hero-points">
             <li><Icon name="check" size={18} />Free &amp; open source</li>
             <li><Icon name="check" size={18} />No servers of our own</li>
@@ -573,11 +551,11 @@ function OpenSource() {
   );
 }
 
+// what each release contains and how to install it (no store: the files come from GitHub Releases)
 const PLATFORMS = [
-  { k: 'ios', icon: 'apple', fill: true, name: 'iPhone', text: 'The full Chakra app for iOS, with Face ID.', cta: 'App Store' },
-  { k: 'android', icon: 'play', fill: true, name: 'Android', text: 'Dapp browser, predictions, contracts and fingerprint unlock.', cta: 'Download for Android' },
-  { k: 'chrome', icon: 'puzzle', name: 'Chrome & Chromium', text: 'Extension for Chrome, Edge, Brave and Opera.', cta: 'Add to Chrome' },
-  { k: 'firefox', icon: 'puzzle', name: 'Firefox', text: 'Extension for Firefox 128 and later.', cta: 'Add to Firefox' },
+  { k: 'android', icon: 'phone', name: 'Android', file: 'chakra-android-release.apk', text: 'Open it on your phone and allow the install. Dapp browser, predictions, contracts and fingerprint unlock.' },
+  { k: 'chrome', icon: 'puzzle', name: 'Chrome & Chromium', file: 'chakra-chrome.zip', text: 'Unzip it, open chrome://extensions, turn on Developer mode and choose Load unpacked. Also Edge, Brave and Opera.' },
+  { k: 'firefox', icon: 'puzzle', name: 'Firefox', file: 'chakra-firefox.zip', text: 'Firefox takes it as a temporary add-on (about:debugging), or for good in Developer Edition and Nightly with signature checks off.' },
 ];
 function Download() {
   return (
@@ -588,15 +566,25 @@ function Download() {
           <div className="dl-head">
             <img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width="88" height="88" />
             <h2>Get Chakra</h2>
-            <p>Free on every platform, and open source. Restore the same wallet anywhere with your recovery phrase or an encrypted backup.</p>
+            <p>
+              We're truly sorry Chakra isn't on the app stores. Chakra doesn't ask anyone for money, and asking would go
+              against everything it stands for: so there's no legal team to keep up with all the requirements the stores
+              keep adding. The irony isn't lost on us: fake wallets somehow keep slipping through, while an open-source
+              one gets lost in the paperwork.
+            </p>
+            <p>
+              Every version is published on GitHub instead, built automatically from the public code. Restore the same
+              wallet anywhere with your recovery phrase or an encrypted backup.
+            </p>
+            <a className="btn btn-primary dl-btn" href={LINKS.releases}><Icon name="github" size={20} stroke={false} />Download from GitHub Releases</a>
           </div>
           <div className="dl-grid">
             {PLATFORMS.map((p) => (
-              <a key={p.k} className="dl-item" href={LINKS[p.k]}>
-                <Icon name={p.icon} size={28} stroke={!p.fill} />
+              <a key={p.k} className="dl-item" href={LINKS.releases}>
+                <Icon name={p.icon} size={28} />
                 <b>{p.name}</b>
+                <code>{p.file}</code>
                 <span>{p.text}</span>
-                <em>{p.cta} <Icon name="arrow" size={16} /></em>
               </a>
             ))}
           </div>

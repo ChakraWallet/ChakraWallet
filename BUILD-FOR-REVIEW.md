@@ -47,10 +47,12 @@ transactions, and asks for balances, history and quotes, to these services. Noth
   default (protection from front-running; Settings > Security), and to the usual nodes if it can't be reached.
 - **Indexers** (history, tokens, NFTs): Etherscan API, Routescan, Blockscout, NodeReal, UniSat, TonAPI, OpenSea, Getgems.
 - **Prices and exchange rates**: DefiLlama, CoinGecko, Frankfurter (European Central Bank rates).
-- **Swaps and bridges** (only when the user asks for a quote): KyberSwap, ParaSwap, OpenOcean, LI.FI, Relay, deBridge,
-  Symbiosis, Jupiter, STON.fi, SUN.io. SUN.io's route service is at `rot.endjgfsv.link`: it is the one sun.io itself
-  uses.
-- **Connections the user starts**: WalletConnect (relay and Verify API), TON Connect bridges, Polymarket (Predictions).
+- **Swaps and bridges** (only when the user asks for a quote): KyberSwap, Velora (ParaSwap), OpenOcean, LI.FI, Relay,
+  Across, deBridge, Symbiosis, Jupiter, STON.fi, SUN.io. SUN.io's route service is at `rot.endjgfsv.link`: it is the
+  one sun.io itself uses.
+- **Images**: token icons (CoinGecko, Trust Wallet's assets on GitHub), NFT images (IPFS and Arweave gateways).
+- **Android app only**: WalletConnect, TON Connect bridges and Polymarket. Their code is shared and bundled, but the
+  extension doesn't offer these features.
 
 API keys the user adds (Etherscan, Alchemy, NodeReal, OpenSea, Helius, UniSat) are sent only to the service that
 issued them.
