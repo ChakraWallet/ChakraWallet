@@ -3,10 +3,9 @@
 //   dist/firefox  (Manifest V3, background scripts)
 //   dist/chakra-chrome.zip, dist/chakra-firefox.zip
 import * as esbuild from 'esbuild';
-import { zipSync } from 'fflate';
+import { zipSync, zlibSync } from 'fflate';
 import fs from 'node:fs';
 import path from 'node:path';
-import zlib from 'node:zlib';
 import { renderIcon } from './scripts/icon.mjs';
 import { notificationVector } from './src/shared/mandala.js';
 
@@ -20,8 +19,8 @@ const BUILD = process.env.ANDROID_VERSION_CODE || process.env.GITHUB_RUN_NUMBER 
 
 // ---------------------------------------------------------------- manifests
 const STORE_TEXTS = {
-  en: 'A simple, clear Ethereum wallet. MetaMask compatible: works on every web3 site.',
-  it: 'Wallet Ethereum semplice e chiaro. Compatibile con MetaMask: funziona su tutti i siti web3.',
+  en: 'A self-custodial wallet for Ethereum and every major EVM network, TON, Solana, Tron and Bitcoin.',
+  it: 'Wallet self-custodial per Ethereum e tutte le principali reti EVM, TON, Solana, Tron e Bitcoin.',
 };
 function manifest(target) {
   const m = {
@@ -55,8 +54,11 @@ function manifest(target) {
     m.browser_specific_settings = {
       gecko: {
         id: 'chakra@chakrawallet.dev',
-        strict_min_version: '128.0',
-        data_collection_permissions: { required: ['none'] },
+        // 140: Firefox's own data consent at install (older versions would need a consent screen of ours)
+        strict_min_version: '140.0',
+        // what leaves the extension to work at all: addresses, balances, history and signed transactions go to
+        // nodes, indexers and swap / bridge services (listed in BUILD-FOR-REVIEW.md). Accepted at install.
+        data_collection_permissions: { required: ['financialAndPaymentInfo'] },
       },
     };
   }
@@ -90,7 +92,8 @@ function encodePNG(size, rgba, height = size) {
   ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    pngChunk('IHDR', ihdr), pngChunk('IDAT', zlib.deflateSync(raw)), pngChunk('IEND', Buffer.alloc(0)),
+    // fflate (plain JS), not node:zlib: the same bytes with any Node version and CPU, so a review build matches ours
+    pngChunk('IHDR', ihdr), pngChunk('IDAT', Buffer.from(zlibSync(raw))), pngChunk('IEND', Buffer.alloc(0)),
   ]);
 }
 // icons: see scripts/icon.mjs (guilloche rosette + medallion with a wallet)

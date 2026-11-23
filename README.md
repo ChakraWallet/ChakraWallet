@@ -56,7 +56,7 @@ Wallets, networks, swaps and bridges are the same everywhere; the Android app ad
 
 ## Build
 
-Requirements: Node.js 22+; for Android also JDK 21 and the Android SDK.
+Requirements: Node.js 24+; for Android also JDK 21 and the Android SDK.
 
 ```
 npm install
@@ -70,10 +70,12 @@ On GitHub, [build.yml](.github/workflows/build.yml) builds everything at every p
 run's artifact) and attaches the zips and the APK to the release on `v*` tags (secrets: the same names, with the
 keystore in base64 as `ANDROID_KEYSTORE_BASE64`).
 
+Reviewers of the Firefox package (addons.mozilla.org): see [BUILD-FOR-REVIEW.md](BUILD-FOR-REVIEW.md).
+
 ## Install from source
 
 - **Chrome, Edge, Brave**: `chrome://extensions` → *Developer mode* → *Load unpacked* → `dist/chrome`.
-- **Firefox 128+**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `dist/firefox/manifest.json`.
+- **Firefox 140+**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `dist/firefox/manifest.json`.
   For a permanent install, sign it for free on [addons.mozilla.org](https://addons.mozilla.org/developers/) as *Unlisted*.
 - **Android**: `adb install dist/chakra-android-debug.apk`.
 
