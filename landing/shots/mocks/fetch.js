@@ -1,10 +1,11 @@
 // Demo network: every fetch() of the app is answered here with invented data (JSON-RPC, prices, Polymarket);
 // anything else fails like an offline request. Loaded before the app.
-import { Interface, Mnemonic } from 'ethers';
+import { Interface, Mnemonic, id } from 'ethers';
 import { sha256 } from '@noble/hashes/sha256';
 import { seedOfPhrase, hdAccountPublic, branchAddress } from '../../../src/shared/btc/keys.js';
-import { PRICES, HOLDINGS, CARD, accountIndex } from './data.js';
+import { PRICES, HOLDINGS, CARD, DEMO_SWAP, accountIndex } from './data.js';
 import { MULTICALL3 } from '../../../src/shared/rpc.js';
+import { NATIVE } from '../../../src/shared/chains.js';
 
 // Linea: balances and the MetaMask Card's limits (shared/mmcard.js reads them in one multicall)
 const mc = new Interface(['function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[] returnData)']);
@@ -25,6 +26,38 @@ async function lineaCall(data) {
   return mc.encodeFunctionResult('aggregate3', [out]);
 }
 
+// ERC-20 calls to a token of the demo holdings (on its own or in a multicall): symbol, name, decimals and the account's
+// balance. Any other call gets a zero word, as before (the simulation of the extension's approval window reads these).
+const meta = new Interface(['function symbol() view returns (string)', 'function name() view returns (string)', 'function decimals() view returns (uint8)', 'function balanceOf(address) view returns (uint256)']);
+const knownToken = (addr) => HOLDINGS.flatMap((acc) => Object.values(acc).flatMap((c) => c.tokens)).find((x) => x.address === String(addr).toLowerCase()) || null;
+async function tokenAnswer(to, data) {
+  const tk = knownToken(to);
+  let f = null;
+  try { f = tk && data ? meta.parseTransaction({ data }) : null; } catch { /* not one of these */ }
+  if (!f) return null;
+  if (f.name !== 'balanceOf') return meta.encodeFunctionResult(f.name, [f.name === 'decimals' ? tk.decimals : tk[f.name]]);
+  const mine = Object.values(HOLDINGS[await accountIndex(f.args[0])] || {}).flatMap((c) => c.tokens).find((x) => x.address === tk.address);
+  return meta.encodeFunctionResult('balanceOf', [mine ? BigInt(Math.round(mine.amount * 1e6)) * 10n ** BigInt(mine.decimals - 6) : 0n]);
+}
+async function multicallAnswer(data) {
+  const [calls] = mc.decodeFunctionData('aggregate3', data);
+  return mc.encodeFunctionResult('aggregate3', [await Promise.all(calls.map(async (c) => [true, (await tokenAnswer(c.target, c.callData)) ?? word(0)]))]);
+}
+
+// eth_simulateV1 (src/shared/simulate.js): the demo swap sends USDC to its contract and gets ETH back (the native coin
+// as a Transfer from 0xeee…, like traceTransfers); any other call changes nothing.
+const TRANSFER = id('Transfer(address,address,uint256)');
+const topicOf = (a) => '0x' + String(a).slice(2).toLowerCase().padStart(64, '0');
+function simulateAnswer(p) {
+  const call = p?.blockStateCalls?.[0]?.calls?.[0] || {};
+  const from = String(call.from).toLowerCase();
+  const logs = String(call.to).toLowerCase() === DEMO_SWAP.router ? [
+    { address: DEMO_SWAP.usdc, topics: [TRANSFER, topicOf(from), topicOf(DEMO_SWAP.router)], data: word(DEMO_SWAP.usdcOut) },
+    { address: NATIVE, topics: [TRANSFER, topicOf(DEMO_SWAP.router), topicOf(from)], data: word(DEMO_SWAP.ethIn) },
+  ] : [];
+  return [{ number: hex(21_874_513), calls: [{ status: '0x1', returnData: '0x', gasUsed: hex(148_210), logs }] }];
+}
+
 const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
 const hex = (n) => '0x' + BigInt(n).toString(16);
 const GWEI = 1_000_000_000n;
@@ -32,6 +65,8 @@ const GWEI = 1_000_000_000n;
 // ---------------------------------------------------------------- JSON-RPC
 async function rpcAnswer({ method, params = [] }, host = '') {
   if (method === 'eth_call' && host.includes('linea') && String(params[0]?.to).toLowerCase() === MULTICALL3.toLowerCase()) return lineaCall(params[0].data);
+  if (method === 'eth_call' && String(params[0]?.to).toLowerCase() === MULTICALL3.toLowerCase()) return multicallAnswer(params[0].data);
+  if (method === 'eth_simulateV1') return simulateAnswer(params[0]);
   switch (method) {
     case 'eth_chainId': return '0x1';
     case 'eth_blockNumber': return hex(21_874_512);
@@ -41,12 +76,12 @@ async function rpcAnswer({ method, params = [] }, host = '') {
     case 'eth_gasPrice': return hex(7n * GWEI);
     case 'eth_estimateGas': return hex(21000);
     case 'eth_getTransactionCount': return hex(42);
-    case 'eth_getCode': return '0x';
+    case 'eth_getCode': return String(params[0]).toLowerCase() === DEMO_SWAP.router ? '0x6080604052' : '0x';
     case 'eth_getBalance': {
       const h = HOLDINGS[await accountIndex(params[0])]?.[1];
       return hex(BigInt(Math.round((h?.native || 0) * 1e8)) * 10n ** 10n);
     }
-    case 'eth_call': return '0x' + '0'.repeat(64);
+    case 'eth_call': return (await tokenAnswer(params[0]?.to, params[0]?.data)) ?? '0x' + '0'.repeat(64);
     default: throw Object.assign(new Error('unsupported'), { code: -32601 });
   }
 }

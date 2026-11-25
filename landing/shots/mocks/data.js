@@ -73,3 +73,16 @@ export const PEERS = {
   kyber: '0x6131b5fae19ea4f9d964eac0408e4408b66337b5',
   relay: '0xa5f565650890fba1824ee0f21ebbbf660a179934',
 };
+
+/**
+ * The swap a site asks for in the extension's approval window (shots: extApprove; Browser extension section of the
+ * landing page): 1,500 USDC to an invented swap contract, 0.4391 ETH back. Also read by capture.mjs (Node).
+ */
+export const DEMO_SWAP = {
+  origin: 'https://swap.example', title: 'Swap',
+  // its favicon: two arrows on a gradient (invented, like the site)
+  icon: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a4c"/><stop offset="1" stop-color="#e5487b"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><path d="M18 25h26m-7-7 7 7-7 7M46 39H20m7 7-7-7 7-7" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>'),
+  router: '0x9b1f7c3e5a2d48b6e0c4f1a7d3b85e29c6a04f1d',
+  usdc: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', weth: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+  usdcOut: 1500n * 10n ** 6n, ethIn: 439_100_000_000_000_000n,
+};

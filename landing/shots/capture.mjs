@@ -4,7 +4,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { Interface } from 'ethers';
 import { serve, browser, phone, sleep } from './lib.mjs';
+import { DEMO_SWAP } from './mocks/data.js';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const OUT = path.resolve(HERE, '../public/shots');
@@ -44,6 +46,10 @@ async function setup(page, { lang, dark, chainId = 1 }) {
   await page.waitForSelector('.hero .total', { timeout: 20000 });
   await sleep(1800); // balances, count-up animation, guilloche drawing
 }
+
+// the demo swap's calldata (mocks/data.js DEMO_SWAP; mocks/fetch.js simulates it)
+const router = new Interface(['function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)']);
+const swapData = (me) => router.encodeFunctionData('swapExactTokensForETH', [DEMO_SWAP.usdcOut, (DEMO_SWAP.ethIn * 995n) / 1000n, [DEMO_SWAP.usdc, DEMO_SWAP.weth], me, BigInt(Math.floor(Date.now() / 1000) + 1200)]);
 
 const tab = (page, k) => page.click(`nav.tabpill button:nth-of-type(${{ wallet: 1, browser: 2, predict: 3, contracts: 4, donate: 5 }[k]})`);
 const action = (page, n) => page.click(`.actions .action:nth-of-type(${n})`);
@@ -90,7 +96,27 @@ const SCENES = {
     await page.waitForSelector('.item input[type=checkbox]', { timeout: 30000 });
     await sleep(1200);
   },
+  // the extension's approval window (Browser extension section): a site connects, then asks for a swap; the screen shows
+  // what the simulation says changes. The Android build at the extension's size: 1rem = 16px (html.mobile has 20px).
+  async extApprove(page) {
+    await page.addStyleTag({ content: 'html.mobile { font-size: 16px !important; }' });
+    const site = { tabId: 41, pageId: 1, url: `${DEMO_SWAP.origin}/`, origin: DEMO_SWAP.origin, title: DEMO_SWAP.title, favicon: DEMO_SWAP.icon };
+    const post = (id, method, params) => page.evaluate((a) => globalThis.__demoDapp.post(a.site, { type: 'request', id: a.id, method: a.method, params: a.params }), { site, id, method, params });
+    const answer = async (id) => (await page.waitForFunction((x) => globalThis.__demoDapp.sent.find((m) => m.msg.type === 'response' && m.msg.id === x)?.msg, id, { timeout: 20000 })).jsonValue();
+    await page.evaluate((p) => globalThis.__demoDapp.open(p), site);
+    await post('c1', 'eth_requestAccounts', []);
+    await page.waitForSelector('h3:has-text("Wants to connect")', { timeout: 20000 });
+    await page.click('.footer .btn:last-child');
+    const pw = await page.waitForSelector('.sheet input[type=password]', { timeout: 2500 }).catch(() => null);
+    if (pw) { await pw.fill(PASSWORD); await page.click('.sheet .btn:not(.secondary)'); }
+    const [me] = (await answer('c1')).result;
+    await post('t1', 'eth_sendTransaction', [{ from: me, to: DEMO_SWAP.router, value: '0x0', data: swapData(me) }]);
+    await page.waitForSelector('.section-title:has-text("What changes in your account")', { timeout: 20000 });
+    await page.waitForSelector('.fee-box .speeds', { timeout: 20000 });
+    await sleep(1500);
+  },
 };
+const EXTENSION = new Set(['extApprove']); // scenes in the extension's window (360x600), not on a phone
 const CHAIN = { mmcard: 59144, mmcardOps: 59144, mmcardPayments: 59144, mmcardManage: 59144, tron: -195, bitcoin: -8333 }; // scenes on another network than Ethereum
 
 const only = process.argv.slice(2);
@@ -103,7 +129,7 @@ for (const lang of ['en']) { // the landing page is in English only
 }
 for (const r of runs.filter((x) => !only.length || only.includes(x.name))) {
   const file = `${r.name}${r.dark ? '-dark' : ''}.jpg`;
-  const page = await phone(b, url, r);
+  const page = await phone(b, url, { ...r, extension: EXTENSION.has(r.name) });
   try {
     await page.goto(url);
     await setup(page, r);

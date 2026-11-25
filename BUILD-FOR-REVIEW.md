@@ -24,8 +24,8 @@ The unpacked extension is in `dist/firefox/`, its zip in `dist/chakra-firefox.zi
 zip's file dates differ).
 
 `<n>` is the number of the GitHub Actions run that built the uploaded package; it is written in the notes to reviewers
-of each version. The extension shows it in Settings as its build number. It is the only value taken from the
-environment: without it, `popup.js` differs in that string only.
+of each version. The extension shows it in Settings as its build number, and crash reports include it. It is the only
+value taken from the environment: without it, `popup.js` and `background.js` differ in that string only.
 
 ## Where things are
 

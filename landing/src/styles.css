@@ -77,6 +77,12 @@ p { margin: 0; }
 .hero-points svg { color: var(--green); }
 
 .hero-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+/* store badge (Firefox Add-ons), next to the GitHub button */
+.store { display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px 9px 12px; border-radius: 14px; background: var(--card); color: var(--text); border: 1px solid var(--border); transition: transform .15s, opacity .15s; }
+.store:hover { transform: translateY(-2px); }
+.store span { display: flex; flex-direction: column; line-height: 1.1; }
+.store small { font-size: .68rem; opacity: .75; }
+.store b { font: 700 1.08rem/1.15 var(--display); letter-spacing: -.01em; }
 
 .hero-phones { position: relative; height: 720px; }
 .hero-phones .phone { position: absolute; --pw: 300px; }
@@ -206,6 +212,52 @@ p { margin: 0; }
   .fx-copy ul { display: none; }
   .fx-visual .glow { width: 280px; height: 280px; }
 }
+/* browser extension: the copy, and a browser window with Chakra's approval popup over a site (Extension in App.jsx) */
+.ext { padding: 110px 0 120px; }
+.ext-in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); align-items: center; gap: 64px; }
+.ext-copy > p { color: var(--muted); font-size: 1.1rem; margin-top: 18px; max-width: 540px; }
+.ext-points { list-style: none; padding: 0; margin: 32px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 24px 28px; }
+.ext-points li { display: flex; flex-direction: column; gap: 6px; }
+.ext-points svg { color: var(--primary); margin-bottom: 4px; }
+.ext-points b { font: 700 1.05rem/1.25 var(--display); }
+.ext-points span { color: var(--muted); font-size: .95rem; line-height: 1.5; }
+.ext-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; margin-top: 34px; }
+.ext-more { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 500; font-size: .95rem; transition: color .15s; }
+.ext-more:hover { color: var(--primary); }
+.ext-visual { position: relative; display: grid; place-items: center; padding: 20px 0 40px; }
+/* the browser window; sizes inside follow its width (cqw) */
+.bw { position: relative; z-index: 1; width: 100%; max-width: 620px; container-type: inline-size; border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 40px 90px -30px rgba(20, 10, 70, .45), var(--shadow); }
+.bw-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.bw-dots { display: flex; gap: 6px; }
+.bw-dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--border); }
+.bw-url { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: .82rem; }
+.bw-ext { width: 22px; height: 22px; border-radius: 6px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+.bw-page { position: relative; aspect-ratio: 4 / 3; border-radius: 0 0 16px 16px; background: linear-gradient(160deg, color-mix(in srgb, #ff8a4c 9%, var(--bg)), var(--bg) 70%); }
+.bw-site { position: absolute; left: 6%; top: 8%; width: 44%; display: flex; flex-direction: column; gap: 5cqw; }
+.bw-nav { display: flex; align-items: center; gap: 2cqw; }
+.bw-nav i { width: 9cqw; height: 1.6cqw; border-radius: 1cqw; background: var(--border); }
+.bw-nav .bw-logo { width: 5cqw; height: 5cqw; border-radius: 1.4cqw; background: linear-gradient(135deg, #ff8a4c, #e5487b); }
+.bw-card { display: flex; flex-direction: column; gap: 1.6cqw; padding: 3cqw; border-radius: 3cqw; background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.bw-field { display: flex; flex-direction: column; gap: .4cqw; padding: 2cqw 2.4cqw; border-radius: 2cqw; background: var(--bg); }
+.bw-field small { font-size: 1.9cqw; color: var(--muted); line-height: 1.2; }
+.bw-field b { font: 700 3.3cqw/1.15 var(--display); letter-spacing: -.01em; }
+.bw-btn { margin-top: .6cqw; padding: 2.2cqw; border-radius: 999px; text-align: center; font-weight: 700; font-size: 2.5cqw; line-height: 1.2; color: #fff; background: linear-gradient(135deg, #ff8a4c, #e5487b); }
+/* the popup opens under the extension's icon, like the real one, and may hang below the window */
+.bw-pop { position: absolute; top: 1.2cqw; right: 2.5%; width: 44%; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--card); box-shadow: 0 30px 60px -18px rgba(10, 20, 60, .5), 0 4px 14px rgba(10, 20, 60, .12); }
+.bw-pop img { display: block; width: 100%; height: auto; aspect-ratio: 360 / 600; }
+@media (max-width: 900px) {
+  .ext-in { grid-template-columns: minmax(0, 1fr); gap: 40px; text-align: center; }
+  .ext-copy > p { margin-inline: auto; }
+  .ext-points { text-align: left; max-width: 620px; margin-inline: auto; }
+  .ext-cta { justify-content: center; }
+}
+@media (max-width: 580px) {
+  .ext { padding: 80px 0 90px; }
+  .ext-points { grid-template-columns: 1fr; }
+  .bw-pop { width: 52%; }
+  .bw-site { width: 40%; }
+}
+
 /* gallery */
 .gallery { padding: 90px 0 100px; background: var(--bg-2); border-block: 1px solid var(--border); }
 .gallery-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 40px; }
@@ -345,7 +397,9 @@ p { margin: 0; }
 .dl-head { position: relative; max-width: 580px; margin: 0 auto 44px; }
 .dl-head img { margin: 0 auto 24px; border-radius: 22px; box-shadow: 0 18px 40px -14px rgba(27, 77, 219, .55); }
 .dl-head p { color: var(--muted); margin-top: 16px; font-size: 1.1rem; }
-.dl-btn { position: relative; margin-top: 26px; }
+.dl-btns { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 26px; }
+.dl-btns .btn-ghost { background: var(--bg); }
+.dl-btns .btn-ghost svg { color: var(--primary); }
 .dl-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; text-align: left; }
 .dl-item { display: flex; flex-direction: column; gap: 8px; padding: 24px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); transition: transform .15s, border-color .15s; }
 .dl-item:hover { transform: translateY(-3px); border-color: var(--primary); }

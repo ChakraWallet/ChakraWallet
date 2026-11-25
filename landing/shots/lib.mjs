@@ -24,10 +24,14 @@ export async function browser() {
   return chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--hide-scrollbars'] });
 }
 
-/** A phone-sized page. Only the demo server and token icons (public CoinGecko images) may be reached. */
-export async function phone(b, base, { dark = false, lang = 'en' } = {}) {
+/**
+ * A phone-sized page, or the extension's window (extension: 360x600, a desktop browser). Only the demo server and
+ * token icons (public CoinGecko images) may be reached.
+ */
+export async function phone(b, base, { dark = false, lang = 'en', extension = false } = {}) {
   const ctx = await b.newContext({
-    viewport: { width: 393, height: 793 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+    ...(extension ? { viewport: { width: 360, height: 600 }, isMobile: false, hasTouch: false } : { viewport: { width: 393, height: 793 }, isMobile: true, hasTouch: true }),
+    deviceScaleFactor: 3,
     colorScheme: dark ? 'dark' : 'light', locale: lang === 'it' ? 'it-IT' : 'en-US', timezoneId: 'Europe/Rome',
   });
   await ctx.route('**/*', (route) => {
