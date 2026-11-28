@@ -443,7 +443,8 @@ async function handleDappRequest(origin, method, params = [], tab) {
   switch (method) {
     case 'eth_chainId': return toHex(chain.id);
     case 'net_version': return String(chain.id);
-    case 'web3_clientVersion': return `Chakra/${__VERSION__}`;
+    // the name only: the version is technical data, which Firefox's data consent keeps behind an optional permission
+    case 'web3_clientVersion': return 'Chakra';
     case 'eth_accounts': return permittedAccounts(origin);
     case 'eth_coinbase': return (await permittedAccounts(origin))[0] || null;
     case 'metamask_getProviderState':

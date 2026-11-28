@@ -57,3 +57,13 @@ transactions, and asks for balances, history and quotes, to these services. Noth
 
 API keys the user adds (Etherscan, Alchemy, NodeReal, OpenSea, Helius, UniSat) are sent only to the service that
 issued them.
+
+## Error reports (optional `technicalAndInteraction`)
+
+Errors are kept in the extension (`storage.local`, `src/shared/crash.js`). A report holds the extension version, the
+browser and OS, and where the code failed; never addresses, keys or amounts. It leaves the extension only when the user
+taps "Send by e-mail", "Report on GitHub" or "Copy the report" under its full text, and in Firefox that tap first asks
+for the optional `technicalAndInteraction` permission: refused, nothing is sent or copied (`src/ui/crash.jsx`).
+
+The version goes nowhere else: pages that ask `web3_clientVersion` get `Chakra`. The `version: '1.0.0'` of the Solana
+wallet in `src/solanaInpage.js` is the version of the Wallet Standard interface, which the standard fixes.

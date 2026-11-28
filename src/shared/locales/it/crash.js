@@ -10,6 +10,7 @@ export default {
   'crash.report.copy': 'Copia la segnalazione',
   'crash.report.copied': 'Copiata',
   'crash.report.how': 'Via email vediamo il tuo indirizzo email. Su GitHub la segnalazione è pubblica e serve un account.',
+  'crash.report.consent': 'Per inviare o copiare la segnalazione, consenti a Chakra di condividere i dati tecnici quando Firefox lo chiede. Senza questo permesso da Chakra non esce niente.',
   'crash.ask.title': "Chakra si è chiusa all'improvviso",
   'crash.ask.text': "L'ultima volta Chakra si è fermata per un errore. Inviare la segnalazione ci aiuta a correggerlo: la leggerai prima che parta.",
   'crash.ask.later': 'Non ora',

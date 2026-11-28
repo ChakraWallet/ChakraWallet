@@ -2,7 +2,8 @@
 //   - CrashBoundary: a screen that fails to draw shows an error page instead of a blank one ("Try again", "Send a
 //     report"). If it fails again right after "Try again", the next try reloads the whole page;
 //   - ReportView: the full text of a report, then e-mail / GitHub / copy. Nothing leaves the device unless the user
-//     taps one of them, and the text they see is exactly what is sent;
+//     taps one of them, and the text they see is exactly what is sent. In Firefox the tap also needs the optional
+//     "technical and interaction data" permission (asked in the tap itself);
 //   - CrashAsk: after a crash that closed the app (native, collected at the next start), asked once;
 //   - CrashList: Settings > Report a problem: the saved errors, and a way to write to us without one.
 // Console test (any build): __CK_crashTest('render' | 'js' | 'java' | 'renderer') - the last two only in the Android
@@ -10,10 +11,25 @@
 import { Component } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { makeReport, recordReport, reportText, emailParts, mailtoUrl, githubIssueUrl, markAsked, crashLog, clearCrashLog } from '../shared/crash.js';
+import { ext } from '../shared/ext.js';
 import { t, locale } from '../shared/i18n.js';
 import { Icon, Sheet, Btn } from './components.jsx';
 
+/* global __TARGET__ */
 const RELOAD_WITHIN_MS = 5000; // a second failure this soon after "Try again": reload instead
+
+// Firefox: a report is technical data (app version, system, browser, where the code failed), which Firefox's data
+// consent calls technicalAndInteraction. It is declared optional in the manifest (build.mjs) and Firefox lets the user
+// refuse it, so it is checked before anything is sent or copied: permissions.request() grants it silently when the user
+// already allowed it, asks otherwise (only inside a tap, hence no await before it), and resolves false when refused.
+const ASK_CONSENT = typeof __TARGET__ !== 'undefined' && __TARGET__ === 'firefox';
+const CONSENT = { data_collection: ['technicalAndInteraction'] };
+function technicalConsent() {
+  try { return ext.permissions.request(CONSENT); } catch (e) { return Promise.reject(e); }
+}
+function openTab(url) {
+  ext.tabs.create({ url }).catch(() => window.open(url, '_blank', 'noopener'));
+}
 
 // ---------------------------------------------------------------- sending
 function sendEmail(r) {
@@ -27,8 +43,16 @@ function sendEmail(r) {
 /** A report (or, with report = null, a message without one: only the app and device line) and the ways to send it. */
 export function ReportView({ report, onSent }) {
   const [copied, setCopied] = useState(false);
+  const [refused, setRefused] = useState(false); // Firefox: the technical data permission was refused
   const text = reportText(report);
+  const issue = githubIssueUrl(report);
   const sent = () => onSent?.();
+  // a tap that sends or copies the report: in Firefox only once the permission is granted
+  const withConsent = (go) => (e) => {
+    if (!ASK_CONSENT) return go();
+    e.preventDefault();
+    technicalConsent().then((ok) => { setRefused(!ok); if (ok) go(); }).catch(() => setRefused(true));
+  };
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); setCopied(true); sent(); } catch { /* no clipboard */ }
   };
@@ -36,11 +60,13 @@ export function ReportView({ report, onSent }) {
     <div class="col crash-report">
       <p class="small muted">{report ? t('crash.report.note') : t('crash.contact.note')}</p>
       <pre class="data">{text}</pre>
-      <button class="btn primary block" onClick={() => { sendEmail(report); sent(); }}><Icon name="mail" size={18} /> {t('crash.report.email')}</button>
-      <a class="btn secondary block" href={githubIssueUrl(report)} target="_blank" rel="noopener" data-external onClick={sent}>
+      {refused && <p class="warn small">{t('crash.report.consent')}</p>}
+      <button class="btn primary block" onClick={withConsent(() => { sendEmail(report); sent(); })}><Icon name="mail" size={18} /> {t('crash.report.email')}</button>
+      {/* Firefox opens the issue itself once allowed; elsewhere the link opens it */}
+      <a class="btn secondary block" href={issue} target="_blank" rel="noopener" data-external onClick={withConsent(() => { if (ASK_CONSENT) openTab(issue); sent(); })}>
         <Icon name="code" size={18} /> {t('crash.report.github')}
       </a>
-      {report && <button class="btn ghost" onClick={copy}><Icon name={copied ? 'check' : 'copy'} size={16} /> {copied ? t('crash.report.copied') : t('crash.report.copy')}</button>}
+      {report && <button class="btn ghost" onClick={withConsent(copy)}><Icon name={copied ? 'check' : 'copy'} size={16} /> {copied ? t('crash.report.copied') : t('crash.report.copy')}</button>}
       <p class="tiny muted center">{t('crash.report.how')}</p>
     </div>
   );

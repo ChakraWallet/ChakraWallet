@@ -104,6 +104,7 @@ import { markSvg } from './shared/mandala.js';
   const ICON = `data:image/svg+xml;base64,${btoa(markSvg())}`;
   const TX_VERSIONS = Object.freeze(['legacy', 0]);
   class ChakraWallet {
+    // the version of the Wallet Standard interface (the standard fixes it, like the features' versions below), not Chakra's
     get version() { return '1.0.0'; }
     get name() { return 'Chakra'; }
     get icon() { return ICON; }

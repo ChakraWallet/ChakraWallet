@@ -10,6 +10,7 @@ export default {
   'crash.report.copy': '复制报告',
   'crash.report.copied': '已复制',
   'crash.report.how': '通过电子邮件，我们会看到你的邮箱地址。在 GitHub 上，报告是公开的，并且需要账户。',
+  'crash.report.consent': '要发送或复制报告，请在 Firefox 询问时允许 Chakra 共享技术数据。没有此权限，任何内容都不会离开 Chakra。',
   'crash.ask.title': 'Chakra 意外关闭',
   'crash.ask.text': '上次 Chakra 因错误而停止。发送报告有助于我们修复它：发送前你可以先阅读。',
   'crash.ask.later': '暂不',

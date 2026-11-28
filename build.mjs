@@ -58,7 +58,9 @@ function manifest(target) {
         strict_min_version: '140.0',
         // what leaves the extension to work at all: addresses, balances, history and signed transactions go to
         // nodes, indexers and swap / bridge services (listed in BUILD-FOR-REVIEW.md). Accepted at install.
-        data_collection_permissions: { required: ['financialAndPaymentInfo'] },
+        // Optional: the technical data in an error report (version, OS, browser, where the code failed), asked for when
+        // the user sends one (src/ui/crash.jsx); without it no report leaves the extension.
+        data_collection_permissions: { required: ['financialAndPaymentInfo'], optional: ['technicalAndInteraction'] },
       },
     };
   }
